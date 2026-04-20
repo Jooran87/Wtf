@@ -112,10 +112,14 @@ export async function fetchObservations(loc: Location): Promise<WeatherObservati
   const end = new Date();
   const start = new Date(end.getTime() - 24 * 3600 * 1000);
 
+  const locationParam = loc.fmisid
+    ? `fmisid=${loc.fmisid}`
+    : `place=${encodeURIComponent(loc.apiPlace)}`;
+
   const url =
     `${BASE_URL}?service=WFS&version=2.0.0&request=getFeature` +
     `&storedquery_id=fmi::observations::weather::timevaluepair` +
-    `&latlon=${loc.lat},${loc.lon}` +
+    `&${locationParam}` +
     `&starttime=${start.toISOString().slice(0, 19)}Z` +
     `&endtime=${end.toISOString().slice(0, 19)}Z` +
     `&parameters=${OBS_PARAMS}` +

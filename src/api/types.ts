@@ -27,4 +27,6 @@ export interface Location {
   displayName: string;
   lat: number;
   lon: number;
+  apiPlace: string;
+  fmisid?: string;
 }

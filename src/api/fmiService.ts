@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-import { WeatherObservation, WeatherForecast } from './types';
+import { WeatherObservation, WeatherForecast, Location } from './types';
 
 const BASE_URL = 'https://opendata.fmi.fi/wfs';
 const TIMEOUT_MS = 15000;
@@ -108,14 +108,14 @@ function getValueAt(series: DataPoint[] | undefined, time: Date): number | null 
   return match ? match.value : null;
 }
 
-export async function fetchObservations(place: string): Promise<WeatherObservation[]> {
+export async function fetchObservations(loc: Location): Promise<WeatherObservation[]> {
   const end = new Date();
   const start = new Date(end.getTime() - 24 * 3600 * 1000);
 
   const url =
     `${BASE_URL}?service=WFS&version=2.0.0&request=getFeature` +
     `&storedquery_id=fmi::observations::weather::timevaluepair` +
-    `&place=${encodeURIComponent(place)}` +
+    `&latlon=${loc.lat},${loc.lon}` +
     `&starttime=${start.toISOString().slice(0, 19)}Z` +
     `&endtime=${end.toISOString().slice(0, 19)}Z` +
     `&parameters=${OBS_PARAMS}` +
@@ -126,7 +126,7 @@ export async function fetchObservations(place: string): Promise<WeatherObservati
 
   const tempSeries = series.get('t2m') ?? [];
   return tempSeries.map(tp => ({
-    place,
+    place: loc.name,
     time: tp.time,
     temperature: tp.value,
     windSpeed: getValueAt(series.get('ws_10min'), tp.time),
@@ -139,14 +139,14 @@ export async function fetchObservations(place: string): Promise<WeatherObservati
   }));
 }
 
-export async function fetchForecast(place: string): Promise<WeatherForecast[]> {
+export async function fetchForecast(loc: Location): Promise<WeatherForecast[]> {
   const start = new Date();
   const end = new Date(start.getTime() + 48 * 3600 * 1000);
 
   const url =
     `${BASE_URL}?service=WFS&version=2.0.0&request=getFeature` +
     `&storedquery_id=fmi::forecast::harmonie::surface::point::timevaluepair` +
-    `&place=${encodeURIComponent(place)}` +
+    `&latlon=${loc.lat},${loc.lon}` +
     `&starttime=${start.toISOString().slice(0, 19)}Z` +
     `&endtime=${end.toISOString().slice(0, 19)}Z` +
     `&parameters=${FCST_PARAMS}`;
@@ -156,7 +156,7 @@ export async function fetchForecast(place: string): Promise<WeatherForecast[]> {
 
   const tempSeries = series.get('Temperature') ?? [];
   return tempSeries.map(tp => ({
-    place,
+    place: loc.name,
     time: tp.time,
     temperature: tp.value,
     windSpeed: getValueAt(series.get('WindSpeedMS'), tp.time),

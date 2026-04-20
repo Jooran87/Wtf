@@ -38,8 +38,8 @@ export default function App() {
     setError(null);
     try {
       const [obs, fcst] = await Promise.all([
-        fetchObservations(loc.name),
-        fetchForecast(loc.name),
+        fetchObservations(loc),
+        fetchForecast(loc),
       ]);
       setObservations(obs);
       setForecasts(fcst);

@@ -3,15 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Työohje-wiki</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>Työohje-wiki – Sandbox</title>
+  <!-- Jaettu ulkoasu palvelinversion kanssa: muokkaa vain public/styles.css -->
+  <link rel="stylesheet" href="../public/styles.css" />
+  <style>
+    /* Vain sandboxille: pieni merkki joka erottaa demon oikeasta versiosta */
+    .sandbox-badge {
+      background: #f0a020; color: #1c2430; font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .04em;
+    }
+  </style>
 </head>
 <body>
   <header class="topbar">
     <button id="menuToggle" class="icon-btn" title="Valikko" aria-label="Valikko">☰</button>
     <h1 class="logo" data-nav="home">📘 Työohje-wiki</h1>
+    <span class="sandbox-badge" title="Demo: data tallentuu vain tähän selaimeen">Sandbox</span>
     <form id="searchForm" class="search">
-      <input id="searchInput" type="search" placeholder="Hae ohjeista ja huomioista…" autocomplete="off" />
+      <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
     </form>
     <div class="user">
       <label>Nimesi:</label>
@@ -34,14 +43,13 @@
       </div>
     </aside>
 
-    <main id="content" class="content">
-      <!-- Näkymät renderöidään tähän -->
-    </main>
+    <main id="content" class="content"></main>
   </div>
 
   <div id="toast" class="toast"></div>
 
-  <script src="store-api.js"></script>
-  <script src="app.js"></script>
+  <!-- Sandbox-datakerros (selaimen tallennus) korvaa store-api.js:n -->
+  <script src="store-local.js"></script>
+  <script src="../public/app.js"></script>
 </body>
 </html>

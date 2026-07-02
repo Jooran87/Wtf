@@ -18,7 +18,36 @@ Kaikki data pysyy talon sisällä – ei pilveä.
 - **Tekstinlouhinta** – `pdf-parse` (PDF), `mammoth` + `word-extractor` (Word), `exceljs` (Excel):
   ladatusta tiedostosta louhitaan teksti latausvaiheessa hakua varten
 
-## Käyttöönotto
+## Kaksi versiota: palvelin vs. sandbox
+
+| | **Palvelinversio** (`public/` + `server.js`) | **Sandbox** (`sandbox/`) |
+|---|---|---|
+| Tarkoitus | Oikea, yhteinen käyttö | Demo & ulkoasun hionta |
+| Vaatii | Node.js + `npm install` | Pelkkä selain, ei asennusta |
+| Data | Yhteinen SQLite-tietokanta palvelimella | Vain omassa selaimessa (localStorage + IndexedDB) |
+| Käyttäjät | Kaikki näkevät saman sisällön | Jokaisella oma erillinen kopio |
+| Tiedostojen sisältöhaku | PDF, Word, Excel (louhinta palvelimella) | Vain seed-esimerkki + tekstitiedostot |
+
+**Ulkoasu on jaettu:** molemmat käyttävät samaa `public/styles.css`- ja
+`public/app.js`-tiedostoa. Vain datakerros vaihtuu (`public/store-api.js` vs.
+`sandbox/store-local.js`). Kun hiot ulkoasua, muokkaat vain yhtä paikkaa ja
+molemmat versiot päivittyvät.
+
+### Sandboxin avaaminen
+
+Avaa `sandbox/index.html` selaimessa. Helpoin tapa nähdä se paikallisesti:
+
+```bash
+cd tyowiki
+npx serve .        # tai: python3 -m http.server 8080
+# avaa selaimessa .../sandbox/index.html
+```
+
+Sandbox on esitäytetty esimerkkisisällöllä. Data tallentuu vain kyseiseen
+selaimeen; tyhjennä sivuston tallennustila (localStorage + IndexedDB)
+nollataksesi sen esimerkkidataan.
+
+## Käyttöönotto (palvelinversio)
 
 ```bash
 cd tyowiki

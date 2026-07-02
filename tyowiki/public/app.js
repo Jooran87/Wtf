@@ -4,15 +4,8 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const content = $('#content');
 
-async function api(url, opts = {}) {
-  const res = await fetch(url, opts);
-  if (!res.ok) {
-    let msg = 'Virhe';
-    try { msg = (await res.json()).error || msg; } catch (_) {}
-    throw new Error(msg);
-  }
-  return res.status === 204 ? null : res.json();
-}
+// Datakerros (`Store`) tulee erillisestä tiedostosta: palvelinversiossa
+// store-api.js (REST), sandbox-versiossa store-local.js (selaimen tallennus).
 
 function toast(msg, isError = false) {
   const el = $('#toast');
@@ -105,7 +98,7 @@ let categories = [];
 let currentCategoryId = null;
 
 async function loadCategories() {
-  categories = await api('/api/categories');
+  categories = await Store.categories.list();
   renderSidebar();
 }
 
@@ -144,8 +137,8 @@ async function router() {
 // ---------- Näkymät ----------
 async function viewHome() {
   currentCategoryId = null; renderSidebar();
-  const pages = await api('/api/pages');
-  const recentNotes = await api('/api/shift-notes?limit=5');
+  const pages = await Store.pages.list();
+  const recentNotes = await Store.notes.list({ limit: 5 });
   content.innerHTML = `
     <h2>Tervetuloa työohje-wikiin</h2>
     <p class="muted">Valitse kohde vasemmalta tai selaa työohjeita ja vuorolokia.</p>
@@ -172,7 +165,7 @@ function categoryName(id) {
 
 async function viewCategory(id) {
   const cat = categories.find((c) => c.id === id);
-  const pages = await api('/api/pages?category_id=' + id);
+  const pages = await Store.pages.list(id);
   content.innerHTML = `
     <div class="spread">
       <h2 style="margin:0">${esc(cat ? cat.name : 'Kohde')}</h2>
@@ -194,18 +187,18 @@ async function viewCategory(id) {
   $('#newPageBtn').onclick = () => { location.hash = `#/uusi?kohde=${id}`; };
   $('#renameCatBtn').onclick = async () => {
     const name = prompt('Kohteen uusi nimi:', cat.name);
-    if (name && name.trim()) { await api('/api/categories/' + id, jsonBody('PUT', { name })); await loadCategories(); viewCategory(id); toast('Nimetty'); }
+    if (name && name.trim()) { await Store.categories.rename(id, name); await loadCategories(); viewCategory(id); toast('Nimetty'); }
   };
   $('#delCatBtn').onclick = async () => {
     if (confirm('Poistetaanko kohde ja KAIKKI sen ohjeet ja liitteet?')) {
-      await api('/api/categories/' + id, { method: 'DELETE' });
+      await Store.categories.remove(id);
       await loadCategories(); location.hash = '#/'; toast('Kohde poistettu');
     }
   };
 }
 
 async function viewPage(id) {
-  const p = await api('/api/pages/' + id);
+  const p = await Store.pages.get(id);
   content.innerHTML = `
     <div class="spread">
       <div>
@@ -235,22 +228,19 @@ async function viewPage(id) {
   $('#editBtn').onclick = () => { location.hash = '#/muokkaa/' + id; };
   $('#delBtn').onclick = async () => {
     if (confirm('Poistetaanko ohje ja sen liitteet?')) {
-      await api('/api/pages/' + id, { method: 'DELETE' });
+      await Store.pages.remove(id);
       location.hash = '#/kohde/' + p.category_id; toast('Ohje poistettu');
     }
   };
   document.querySelectorAll('[data-delatt]').forEach((b) => b.onclick = async () => {
-    if (confirm('Poistetaanko liite?')) { await api('/api/attachments/' + b.dataset.delatt, { method: 'DELETE' }); viewPage(id); }
+    if (confirm('Poistetaanko liite?')) { await Store.attachments.remove(b.dataset.delatt); viewPage(id); }
   });
   $('#uploadForm').onsubmit = async (e) => {
     e.preventDefault();
     const files = $('#fileInput').files;
     if (!files.length) return toast('Valitse tiedosto ensin', true);
-    const fd = new FormData();
-    for (const f of files) fd.append('files', f);
-    fd.append('author', author.get());
     try {
-      await api(`/api/pages/${id}/attachments`, { method: 'POST', body: fd });
+      await Store.attachments.upload(id, files, author.get());
       toast('Ladattu'); viewPage(id);
     } catch (err) { toast(err.message, true); }
   };
@@ -258,7 +248,7 @@ async function viewPage(id) {
 
 async function viewPageEdit(id, presetCat) {
   let p = { title: '', content: '', category_id: presetCat ? +presetCat : (categories[0] && categories[0].id) };
-  if (id) p = await api('/api/pages/' + id);
+  if (id) p = await Store.pages.get(id);
   content.innerHTML = `
     <h2>${id ? 'Muokkaa ohjetta' : 'Uusi ohje'}</h2>
     <div class="card">
@@ -292,8 +282,8 @@ async function viewPageEdit(id, presetCat) {
     if (!body.title.trim()) return toast('Anna otsikko', true);
     try {
       const saved = id
-        ? await api('/api/pages/' + id, jsonBody('PUT', body))
-        : await api('/api/pages', jsonBody('POST', body));
+        ? await Store.pages.update(id, body)
+        : await Store.pages.create(body);
       toast('Tallennettu'); location.hash = '#/sivu/' + saved.id;
     } catch (err) { toast(err.message, true); }
   };
@@ -301,7 +291,7 @@ async function viewPageEdit(id, presetCat) {
 }
 
 async function viewShiftLog() {
-  const notes = await api('/api/shift-notes?limit=200');
+  const notes = await Store.notes.list({ limit: 200 });
   content.innerHTML = `
     <h2>📝 Vuoroloki</h2>
     <p class="muted">Kirjaa juoksevaan listaan huomiot vuoron ajalta. Uusin näkyy ylimpänä.</p>
@@ -326,7 +316,7 @@ async function viewShiftLog() {
   $('#addNoteBtn').onclick = async () => {
     const body = { content: $('#noteText').value, category_id: $('#noteCat').value || null, author: author.get() };
     if (!body.content.trim()) return toast('Kirjoita huomio', true);
-    try { await api('/api/shift-notes', jsonBody('POST', body)); toast('Lisätty'); viewShiftLog(); }
+    try { await Store.notes.create(body); toast('Lisätty'); viewShiftLog(); }
     catch (err) { toast(err.message, true); }
   };
   bindNoteDelete(viewShiftLog);
@@ -334,7 +324,7 @@ async function viewShiftLog() {
 
 async function viewSearch(q) {
   $('#searchInput').value = q;
-  const r = await api('/api/search?q=' + encodeURIComponent(q));
+  const r = await Store.search(q);
   content.innerHTML = `
     <h2>Hakutulokset: "${esc(q)}"</h2>
     <div class="card">
@@ -351,7 +341,7 @@ async function viewSearch(q) {
         ${r.files.map((f) => `<li>
           <span class="att-icon">${fileIcon(f.mimetype)}</span>
           <span class="att-name">
-            <a href="/api/attachments/${f.id}" target="_blank" rel="noopener">${esc(f.original_name)}</a>
+            <a href="${f.url}" target="_blank" rel="noopener">${esc(f.original_name)}</a>
             <div class="att-meta">Sivulla: <a href="#/sivu/${f.page_id}">${esc(f.page_title)}</a>
               ${f.category_name ? ' · ' + esc(f.category_name) : ''}</div>
             ${f.snippet ? `<div class="snippet">${highlight(f.snippet, q)}</div>` : ''}
@@ -382,7 +372,7 @@ function attHtml(a) {
   return `<li>
     <span class="att-icon">${fileIcon(a.mimetype)}</span>
     <span class="att-name">
-      <a href="/api/attachments/${a.id}" target="_blank" rel="noopener">${esc(a.original_name)}</a>
+      <a href="${a.url}" target="_blank" rel="noopener">${esc(a.original_name)}</a>
       <div class="att-meta">${fmtSize(a.size)} · ${esc(fmtDate(a.uploaded_at))}${a.uploaded_by ? ' · ' + esc(a.uploaded_by) : ''}</div>
     </span>
     <button class="btn small danger" data-delatt="${a.id}">Poista</button>
@@ -391,12 +381,8 @@ function attHtml(a) {
 
 function bindNoteDelete(refresh) {
   document.querySelectorAll('[data-delnote]').forEach((b) => b.onclick = async () => {
-    if (confirm('Poistetaanko huomio?')) { await api('/api/shift-notes/' + b.dataset.delnote, { method: 'DELETE' }); refresh(); }
+    if (confirm('Poistetaanko huomio?')) { await Store.notes.remove(b.dataset.delnote); refresh(); }
   });
-}
-
-function jsonBody(method, obj) {
-  return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) };
 }
 
 // ---------- Globaalit tapahtumat ----------
@@ -414,7 +400,7 @@ document.addEventListener('click', (e) => {
 $('#addCategoryBtn').onclick = async () => {
   const name = prompt('Uuden kohteen nimi:');
   if (name && name.trim()) {
-    const c = await api('/api/categories', jsonBody('POST', { name }));
+    const c = await Store.categories.create(name);
     await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Kohde lisätty');
   }
 };

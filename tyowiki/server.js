@@ -1,0 +1,238 @@
+// Työohje-wiki -palvelin.
+// Tarjoilee selainkäyttöliittymän (public/) ja REST-rajapinnan.
+// Käynnistys: node server.js  (portti oletuksena 3000, säädettävissä PORT-muuttujalla)
+const path = require('path');
+const fs = require('fs');
+const express = require('express');
+const multer = require('multer');
+const db = require('./db');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+app.use(express.json({ limit: '2mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// --- Tiedostolataukset (multer) ---
+// Sallitut tyypit: PDF, kuvat, Word, Excel. Maksimikoko 50 MB.
+const ALLOWED = new Set([
+  'application/pdf',
+  'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, unique + ext);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED.has(file.mimetype)) return cb(null, true);
+    cb(new Error('Tiedostotyyppiä ei sallita: ' + file.mimetype));
+  },
+});
+
+const now = () => new Date().toISOString();
+
+// ---------- Kategoriat (kohteet) ----------
+app.get('/api/categories', (req, res) => {
+  const rows = db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all();
+  res.json(rows);
+});
+
+app.post('/api/categories', (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Nimi puuttuu' });
+  const sort = db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS s FROM categories').get().s;
+  const info = db.prepare('INSERT INTO categories (name, sort_order) VALUES (?, ?)').run(name, sort);
+  res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(info.lastInsertRowid));
+});
+
+app.put('/api/categories/:id', (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Nimi puuttuu' });
+  db.prepare('UPDATE categories SET name = ? WHERE id = ?').run(name, req.params.id);
+  res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id));
+});
+
+app.delete('/api/categories/:id', (req, res) => {
+  // Poistaa myös kategorian sivut ja niiden liitteet (levyltä).
+  const pages = db.prepare('SELECT id FROM pages WHERE category_id = ?').all(req.params.id);
+  for (const p of pages) deletePageFiles(p.id);
+  db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ---------- Sivut (työohjeet) ----------
+app.get('/api/pages', (req, res) => {
+  const { category_id } = req.query;
+  let rows;
+  if (category_id) {
+    rows = db.prepare('SELECT id, category_id, title, updated_at, updated_by FROM pages WHERE category_id = ? ORDER BY title').all(category_id);
+  } else {
+    rows = db.prepare('SELECT id, category_id, title, updated_at, updated_by FROM pages ORDER BY title').all();
+  }
+  res.json(rows);
+});
+
+app.get('/api/pages/:id', (req, res) => {
+  const page = db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
+  if (!page) return res.status(404).json({ error: 'Sivua ei löydy' });
+  page.attachments = db.prepare('SELECT id, original_name, mimetype, size, uploaded_at, uploaded_by FROM attachments WHERE page_id = ? ORDER BY uploaded_at').all(page.id);
+  res.json(page);
+});
+
+app.post('/api/pages', (req, res) => {
+  const title = (req.body.title || '').trim();
+  const category_id = req.body.category_id || null;
+  const content = req.body.content || '';
+  const author = (req.body.author || '').trim();
+  if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
+  const info = db.prepare(
+    'INSERT INTO pages (category_id, title, content, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)'
+  ).run(category_id, title, content, now(), author);
+  res.json(db.prepare('SELECT * FROM pages WHERE id = ?').get(info.lastInsertRowid));
+});
+
+app.put('/api/pages/:id', (req, res) => {
+  const title = (req.body.title || '').trim();
+  const content = req.body.content || '';
+  const author = (req.body.author || '').trim();
+  const category_id = req.body.category_id || null;
+  if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
+  db.prepare(
+    'UPDATE pages SET title = ?, content = ?, category_id = ?, updated_at = ?, updated_by = ? WHERE id = ?'
+  ).run(title, content, category_id, now(), author, req.params.id);
+  res.json(db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id));
+});
+
+app.delete('/api/pages/:id', (req, res) => {
+  deletePageFiles(req.params.id);
+  db.prepare('DELETE FROM pages WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ---------- Liitteet ----------
+app.post('/api/pages/:id/attachments', upload.array('files', 10), (req, res) => {
+  const page = db.prepare('SELECT id FROM pages WHERE id = ?').get(req.params.id);
+  if (!page) return res.status(404).json({ error: 'Sivua ei löydy' });
+  const author = (req.body.author || '').trim();
+  const stmt = db.prepare(
+    'INSERT INTO attachments (page_id, stored_name, original_name, mimetype, size, uploaded_at, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  );
+  const saved = [];
+  for (const f of req.files || []) {
+    const info = stmt.run(page.id, f.filename, f.originalname, f.mimetype, f.size, now(), author);
+    saved.push(info.lastInsertRowid);
+  }
+  res.json({ ok: true, count: saved.length });
+});
+
+app.get('/api/attachments/:id', (req, res) => {
+  const att = db.prepare('SELECT * FROM attachments WHERE id = ?').get(req.params.id);
+  if (!att) return res.status(404).send('Liitettä ei löydy');
+  const filePath = path.join(UPLOAD_DIR, att.stored_name);
+  if (!fs.existsSync(filePath)) return res.status(404).send('Tiedostoa ei löydy levyltä');
+  // inline = näytä selaimessa (esim. PDF/kuva), muut latautuvat.
+  const inline = att.mimetype === 'application/pdf' || att.mimetype.startsWith('image/');
+  res.setHeader('Content-Type', att.mimetype);
+  res.setHeader('Content-Disposition',
+    `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(att.original_name)}"`);
+  fs.createReadStream(filePath).pipe(res);
+});
+
+app.delete('/api/attachments/:id', (req, res) => {
+  const att = db.prepare('SELECT * FROM attachments WHERE id = ?').get(req.params.id);
+  if (att) {
+    const filePath = path.join(UPLOAD_DIR, att.stored_name);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    db.prepare('DELETE FROM attachments WHERE id = ?').run(req.params.id);
+  }
+  res.json({ ok: true });
+});
+
+// ---------- Vuoroloki ----------
+app.get('/api/shift-notes', (req, res) => {
+  const { category_id, limit } = req.query;
+  const lim = Math.min(parseInt(limit, 10) || 100, 500);
+  let rows;
+  if (category_id) {
+    rows = db.prepare(
+      `SELECT n.*, c.name AS category_name FROM shift_notes n
+       LEFT JOIN categories c ON c.id = n.category_id
+       WHERE n.category_id = ? ORDER BY n.created_at DESC LIMIT ?`
+    ).all(category_id, lim);
+  } else {
+    rows = db.prepare(
+      `SELECT n.*, c.name AS category_name FROM shift_notes n
+       LEFT JOIN categories c ON c.id = n.category_id
+       ORDER BY n.created_at DESC LIMIT ?`
+    ).all(lim);
+  }
+  res.json(rows);
+});
+
+app.post('/api/shift-notes', (req, res) => {
+  const content = (req.body.content || '').trim();
+  const author = (req.body.author || '').trim();
+  const category_id = req.body.category_id || null;
+  if (!content) return res.status(400).json({ error: 'Sisältö puuttuu' });
+  const info = db.prepare(
+    'INSERT INTO shift_notes (category_id, author, content, created_at) VALUES (?, ?, ?, ?)'
+  ).run(category_id, author, content, now());
+  res.json(db.prepare('SELECT * FROM shift_notes WHERE id = ?').get(info.lastInsertRowid));
+});
+
+app.delete('/api/shift-notes/:id', (req, res) => {
+  db.prepare('DELETE FROM shift_notes WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ---------- Haku ----------
+app.get('/api/search', (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json({ pages: [], notes: [] });
+  const like = '%' + q + '%';
+  const pages = db.prepare(
+    `SELECT p.id, p.title, p.category_id, c.name AS category_name
+     FROM pages p LEFT JOIN categories c ON c.id = p.category_id
+     WHERE p.title LIKE ? OR p.content LIKE ? ORDER BY p.title LIMIT 50`
+  ).all(like, like);
+  const notes = db.prepare(
+    `SELECT n.id, n.content, n.author, n.created_at, n.category_id, c.name AS category_name
+     FROM shift_notes n LEFT JOIN categories c ON c.id = n.category_id
+     WHERE n.content LIKE ? ORDER BY n.created_at DESC LIMIT 50`
+  ).all(like);
+  res.json({ pages, notes });
+});
+
+// ---------- Apurit ----------
+function deletePageFiles(pageId) {
+  const atts = db.prepare('SELECT stored_name FROM attachments WHERE page_id = ?').all(pageId);
+  for (const a of atts) {
+    const fp = path.join(UPLOAD_DIR, a.stored_name);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  }
+}
+
+// Multer-virheet ihmisluettavaan muotoon.
+app.use((err, req, res, next) => {
+  if (err) return res.status(400).json({ error: err.message });
+  next();
+});
+
+app.listen(PORT, () => {
+  console.log(`Työohje-wiki käynnissä: http://localhost:${PORT}`);
+});

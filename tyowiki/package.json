@@ -1,0 +1,16 @@
+{
+  "name": "tyowiki",
+  "version": "1.0.0",
+  "description": "Selainpohjainen työohje-wiki: kohteiden työohjeet, vuoroloki ja tiedostoliitteet. Paikallinen ylläpito (Node.js + SQLite).",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "express": "^4.21.2",
+    "multer": "^2.2.0"
+  }
+}

@@ -6,6 +6,7 @@ const fs = require('fs');
 const express = require('express');
 const multer = require('multer');
 const db = require('./db');
+const { extractText } = require('./extract');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -125,19 +126,21 @@ app.delete('/api/pages/:id', (req, res) => {
 });
 
 // ---------- Liitteet ----------
-app.post('/api/pages/:id/attachments', upload.array('files', 10), (req, res) => {
+app.post('/api/pages/:id/attachments', upload.array('files', 10), async (req, res) => {
   const page = db.prepare('SELECT id FROM pages WHERE id = ?').get(req.params.id);
   if (!page) return res.status(404).json({ error: 'Sivua ei löydy' });
   const author = (req.body.author || '').trim();
   const stmt = db.prepare(
-    'INSERT INTO attachments (page_id, stored_name, original_name, mimetype, size, uploaded_at, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO attachments (page_id, stored_name, original_name, mimetype, size, uploaded_at, uploaded_by, text_content) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
-  const saved = [];
+  let count = 0;
   for (const f of req.files || []) {
-    const info = stmt.run(page.id, f.filename, f.originalname, f.mimetype, f.size, now(), author);
-    saved.push(info.lastInsertRowid);
+    // Louhitaan tekstisisältö hakua varten (epäonnistuminen ei estä latausta).
+    const text = await extractText(path.join(UPLOAD_DIR, f.filename), f.mimetype);
+    stmt.run(page.id, f.filename, f.originalname, f.mimetype, f.size, now(), author, text);
+    count++;
   }
-  res.json({ ok: true, count: saved.length });
+  res.json({ ok: true, count });
 });
 
 app.get('/api/attachments/:id', (req, res) => {
@@ -203,7 +206,7 @@ app.delete('/api/shift-notes/:id', (req, res) => {
 // ---------- Haku ----------
 app.get('/api/search', (req, res) => {
   const q = (req.query.q || '').trim();
-  if (!q) return res.json({ pages: [], notes: [] });
+  if (!q) return res.json({ pages: [], notes: [], files: [] });
   const like = '%' + q + '%';
   const pages = db.prepare(
     `SELECT p.id, p.title, p.category_id, c.name AS category_name
@@ -215,8 +218,35 @@ app.get('/api/search', (req, res) => {
      FROM shift_notes n LEFT JOIN categories c ON c.id = n.category_id
      WHERE n.content LIKE ? ORDER BY n.created_at DESC LIMIT 50`
   ).all(like);
-  res.json({ pages, notes });
+  // Liitteet: osuma tiedoston nimessä tai louhitussa sisällössä. Palautetaan
+  // myös lyhyt ote (snippet) osumakohdan ympäriltä.
+  const fileRows = db.prepare(
+    `SELECT a.id, a.original_name, a.mimetype, a.text_content, a.page_id,
+            p.title AS page_title, p.category_id, c.name AS category_name
+     FROM attachments a
+     JOIN pages p ON p.id = a.page_id
+     LEFT JOIN categories c ON c.id = p.category_id
+     WHERE a.original_name LIKE ? OR a.text_content LIKE ?
+     ORDER BY a.original_name LIMIT 50`
+  ).all(like, like);
+  const files = fileRows.map((f) => ({
+    id: f.id, original_name: f.original_name, mimetype: f.mimetype,
+    page_id: f.page_id, page_title: f.page_title,
+    category_id: f.category_id, category_name: f.category_name,
+    snippet: makeSnippet(f.text_content, q),
+  }));
+  res.json({ pages, notes, files });
 });
+
+// Muodostaa lyhyen otteen hakusanan ympäriltä liitteen tekstistä.
+function makeSnippet(text, q) {
+  if (!text) return '';
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return '';
+  const start = Math.max(0, idx - 40);
+  const end = Math.min(text.length, idx + q.length + 60);
+  return (start > 0 ? '…' : '') + text.slice(start, end).trim() + (end < text.length ? '…' : '');
+}
 
 // ---------- Apurit ----------
 function deletePageFiles(pageId) {

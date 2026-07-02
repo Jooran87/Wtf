@@ -32,6 +32,14 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Korostaa hakusanan otteessa (escapeta ensin XSS:n välttämiseksi).
+function highlight(text, q) {
+  const safe = esc(text);
+  if (!q) return safe;
+  const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+  return safe.replace(re, '<mark>$1</mark>');
+}
+
 function fmtDate(iso) {
   const d = new Date(iso);
   return d.toLocaleString('fi-FI', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -335,6 +343,20 @@ async function viewSearch(q) {
         ${r.pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
           <span>${esc(p.title)}</span><span class="muted">${esc(p.category_name || 'Yleinen')}</span></button></li>`).join('')
           || '<li class="empty">Ei osumia ohjeista.</li>'}
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">📎 Tiedostot (${r.files.length})</h3>
+      <ul class="attach-list">
+        ${r.files.map((f) => `<li>
+          <span class="att-icon">${fileIcon(f.mimetype)}</span>
+          <span class="att-name">
+            <a href="/api/attachments/${f.id}" target="_blank" rel="noopener">${esc(f.original_name)}</a>
+            <div class="att-meta">Sivulla: <a href="#/sivu/${f.page_id}">${esc(f.page_title)}</a>
+              ${f.category_name ? ' · ' + esc(f.category_name) : ''}</div>
+            ${f.snippet ? `<div class="snippet">${highlight(f.snippet, q)}</div>` : ''}
+          </span>
+        </li>`).join('') || '<li class="muted" style="border:none">Ei osumia tiedostoista.</li>'}
       </ul>
     </div>
     <div class="card">

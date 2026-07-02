@@ -51,4 +51,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_shift_notes_created ON shift_notes(created_at DESC);
 `);
 
+// Migraatio: liitteen louhittu tekstisisältö hakua varten.
+const attCols = db.prepare('PRAGMA table_info(attachments)').all().map((c) => c.name);
+if (!attCols.includes('text_content')) {
+  db.exec("ALTER TABLE attachments ADD COLUMN text_content TEXT NOT NULL DEFAULT ''");
+}
+
 module.exports = db;

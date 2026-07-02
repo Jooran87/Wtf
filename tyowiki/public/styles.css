@@ -137,6 +137,8 @@ input[type=text], input[type=search], textarea, select {
 .attach-list .att-name a { color: var(--text); text-decoration: none; font-weight: 600; }
 .attach-list .att-name a:hover { color: var(--brand); }
 .attach-list .att-meta { font-size: 12px; color: var(--muted); }
+.attach-list .snippet { font-size: 13px; color: var(--text); margin-top: 4px; font-style: italic; }
+mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 
 /* Shift log */
 .note {

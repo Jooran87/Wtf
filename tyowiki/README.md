@@ -5,7 +5,7 @@ Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
 - **Kohteet ja työohjeet** – Wikipedia-tyylinen sivupalkki ja hakukenttä
 - **Vuoroloki** – juokseva aikaleimattu lista vuoron huomioista
 - **Tiedostoliitteet** – PDF, kuvat, Word, Excel (PDF ja kuvat näkyvät suoraan selaimessa, muut latautuvat)
-- **Haku** ohjeista ja huomioista
+- **Haku** ohjeista, huomioista **ja tiedostojen sisällöstä** (PDF, Word, Excel) – näyttää otteen osumakohdasta
 
 Suunniteltu pienelle käyttäjämäärälle (n. 20) ja pyörii firman omalla palvelimella.
 Kaikki data pysyy talon sisällä – ei pilveä.
@@ -15,6 +15,8 @@ Kaikki data pysyy talon sisällä – ei pilveä.
 - **Node.js + Express** – palvelin ja REST-rajapinta
 - **SQLite** (better-sqlite3) – yksi tiedosto `data/tyowiki.db`, helppo varmuuskopioida
 - **Vanilla JS -käyttöliittymä** – ei erillistä build-vaihetta, tarjoillaan `public/`-kansiosta
+- **Tekstinlouhinta** – `pdf-parse` (PDF), `mammoth` + `word-extractor` (Word), `exceljs` (Excel):
+  ladatusta tiedostosta louhitaan teksti latausvaiheessa hakua varten
 
 ## Käyttöönotto
 
@@ -37,6 +39,20 @@ Portin voi vaihtaa: `PORT=8080 npm start`
   (`# otsikko`, `**lihavointi**`, `- lista`, `` `koodi` ``, `> lainaus`, linkit).
 - **📝 Vuoroloki** – kirjaa huomiot; uusin näkyy ylimpänä, voi kohdistaa kohteeseen.
 - Ohjesivulla voi ladata liitteitä (max 50 Mt / tiedosto).
+- **Haku** löytää osumat sivujen tekstistä, vuorohuomioista sekä liitetiedostojen
+  (PDF, Word, Excel) sisällöstä. Tulossivu näyttää tiedostosta lyhyen otteen ja
+  linkin sekä tiedostoon että sen ohjesivuun.
+
+### Haku tiedostojen sisällöstä – huomiot
+
+- Teksti louhitaan **latausvaiheessa**. Jos päivität tämän toiminnon vanhaan
+  asennukseen, jossa on jo tiedostoja, indeksoi ne kerran: `node reindex.js`.
+- **Kuvista ei louhita tekstiä** (ei OCR:ää) – kuvat ovat silti ladattavissa ja
+  näkyvät selaimessa, mutta niiden sisältöä ei voi hakea.
+- **Vanhoista `.xls`-tiedostoista** (Excel 97–2003) ei louhita tekstiä; uudet
+  `.xlsx`-tiedostot indeksoidaan. Tiedosto on silti ladattavissa.
+- Skannatut PDF:t (kuvana) eivät sisällä tekstiä, joten niistä ei löydy osumia
+  ilman OCR:ää.
 
 ## Varmuuskopiointi
 
@@ -53,7 +69,16 @@ Varmuuskopioi koko `data/`-kansio säännöllisesti.
   käyttäjätunnus/salasana ja luku-/muokkausoikeudet.
 - **Versiohistoria** ohjeille (kuka muutti, mitä).
 - **Word/Excel-esikatselu selaimessa** (esim. OnlyOffice/Collabora) latauslinkkien sijaan.
-- **Täystekstihaku** (SQLite FTS5) suuremmalle sisältömäärälle.
+- **Täystekstihaku** (SQLite FTS5) suuremmalle sisältömäärälle (nykyinen haku on
+  `LIKE`-pohjainen; toimii hyvin muutamalle sadalle ohjeelle/liitteelle).
+- **OCR** skannatuille PDF:ille ja kuville (esim. Tesseract), jos tarve.
+
+## Tunnetut riippuvuushuomiot
+
+- `exceljs` käyttää transitiivisesti `uuid`-kirjastoa, jossa on *moderate*-tason
+  varoitus (puskurin rajatarkistus). Se koskee vain tapausta jossa uuid:lle
+  annetaan valmis puskuri – exceljs ei tee niin, joten se ei ole tässä
+  hyödynnettävissä. Downgrade olisi rikkova muutos, joten versio on pidetty.
 
 > Ennen tuotantokäyttöä sovi ICT-osaston kanssa palvelimesta, varmuuskopioinnista
 > ja kirjautumistavasta.

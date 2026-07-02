@@ -16,7 +16,7 @@ const html = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Työohje-wiki – Sandbox</title>
+  <title>Palmia Hälytyskeskus – Työohjeet (Sandbox)</title>
   <style>
 ${css}
     .sandbox-badge { background:#f0a020; color:#1c2430; font-size:11px; font-weight:700;
@@ -26,7 +26,10 @@ ${css}
 <body>
   <header class="topbar">
     <button id="menuToggle" class="icon-btn" title="Valikko" aria-label="Valikko">☰</button>
-    <h1 class="logo" data-nav="home">📘 Työohje-wiki</h1>
+    <div class="brand" data-nav="home">
+      <span class="brand-mark">P</span>
+      <span class="brand-text"><strong>Palmia</strong><small>Hälytyskeskus · Työohjeet</small></span>
+    </div>
     <span class="sandbox-badge" title="Demo: data tallentuu vain tähän selaimeen">Sandbox</span>
     <form id="searchForm" class="search">
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
@@ -40,8 +43,8 @@ ${css}
         <button class="nav-link" data-nav="shiftlog">📝 Vuoroloki</button>
       </nav>
       <div class="sidebar-section">
-        <div class="sidebar-title"><span>Kohteet</span>
-          <button id="addCategoryBtn" class="icon-btn small" title="Lisää kohde">＋</button></div>
+        <div class="sidebar-title"><span>Ohjeet</span>
+          <button id="addCategoryBtn" class="icon-btn small" title="Lisää kategoria">＋</button></div>
         <ul id="categoryList" class="category-list"></ul>
       </div>
     </aside>

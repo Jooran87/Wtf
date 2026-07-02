@@ -6,7 +6,7 @@
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v1';
+const LS_KEY = 'tyowiki_sandbox_v2';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -72,60 +72,74 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [] };
-  const linja1 = { id: nextId(), name: 'Tuotantolinja 1', sort_order: 1 };
-  const pakkaamo = { id: nextId(), name: 'Pakkaamo', sort_order: 2 };
-  const yleiset = { id: nextId(), name: 'Yleiset ohjeet', sort_order: 3 };
-  DB.categories.push(linja1, pakkaamo, yleiset);
+  const halytykset = { id: nextId(), name: 'Hälytysten käsittely', sort_order: 1 };
+  const jarjestelmat = { id: nextId(), name: 'Järjestelmät ja ohjelmistot', sort_order: 2 };
+  const hairio = { id: nextId(), name: 'Häiriö- ja poikkeustilanteet', sort_order: 3 };
+  const yleiset = { id: nextId(), name: 'Yleiset ohjeet', sort_order: 4 };
+  DB.categories.push(halytykset, jarjestelmat, hairio, yleiset);
 
-  const p1 = mkPage(linja1.id, 'Linjan käynnistys aamuvuorossa', `# Linjan käynnistys
+  const p1 = mkPage(halytykset.id, 'Hälytyksen vastaanotto ja luokittelu', `# Hälytyksen vastaanotto ja luokittelu
 
-## Ennen käynnistystä
-- Tarkista että hätäseis-painikkeet ovat vapautettuina
-- Varmista suojaovien lukitus
-- Tarkista voiteluöljyn taso
+## Vastaanotto
+1. Kuittaa saapuva hälytys järjestelmästä
+2. Tarkista kohteen tiedot ja hälytystyyppi
+3. Tarkista mahdolliset toimintaohjeet kohteelle
 
-## Käynnistysjärjestys
-1. Kytke pääkytkin päälle
-2. Odota että ohjausjärjestelmä latautuu (n. 2 min)
-3. Käynnistä kuljetin **vihreästä** painikkeesta
-4. Nosta nopeus vähitellen tavoitearvoon
+## Luokittelu
+- **A – kiireellinen:** henkilö- tai paloturvallisuus vaarassa → toimi välittömästi
+- **B – kiireellinen tekninen:** murtoilmaisu, laiterikko
+- **C – ei-kiireellinen:** tekninen ilmoitus, huoltotarve
 
-> Huom! Jos merkkivalo vilkkuu punaisena, katso vikaohje ennen jatkamista.`, 'Matti');
+> Kirjaa kaikki toimenpiteet järjestelmään reaaliaikaisesti.`, 'Anna');
 
-  mkPage(linja1.id, 'Häiriötilanteen kuittaus', `# Häiriön kuittaus
+  mkPage(halytykset.id, 'Paloilmoitinhälytyksen toimintaohje', `# Paloilmoitinhälytys
 
-- Paina **RESET** ohjauspaneelista
-- Tarkista näytöltä vikakoodi
-- Yleisimmät koodit:
-  - E01 = paperitukos
-  - E02 = ylikuumeneminen
-  - E05 = anturihäiriö`, 'Matti');
+1. Vastaanota ja kuittaa hälytys
+2. Soita kohteen yhteyshenkilölle ja varmista tilanne
+3. Jos tulipaloa ei voida sulkea pois, **hälytä 112**
+4. Ilmoita vartijalle / kohteen edustajalle
+5. Kirjaa tapahtuma ja toimenpiteet lokiin
 
-  mkPage(pakkaamo.id, 'Pakkauskoneen puhdistus', `# Pakkauskoneen puhdistus (vuoron lopussa)
+> Älä koskaan kuittaa paloilmoitusta vääräksi ilman kohteen varmistusta.`, 'Anna');
 
-1. Pysäytä kone ja katkaise virta
-2. Poista pakkausmateriaalin jäänteet
-3. Pyyhi pinnat elintarvikehyväksytyllä puhdistusaineella
-4. Kirjaa puhdistus lokiin`, 'Liisa');
+  mkPage(jarjestelmat.id, 'Hälytystenkäsittelyjärjestelmään kirjautuminen', `# Kirjautuminen
+
+1. Avaa työaseman hälytystenkäsittelyohjelmisto
+2. Kirjaudu henkilökohtaisilla tunnuksilla
+3. Valitse aktiivinen vuoro / työpiste
+4. Varmista että hälytyskanavat näkyvät vihreinä
+
+## Ongelmatilanteet
+- Jos tunnus ei toimi, ilmoita vuoroesihenkilölle
+- Älä käytä toisen henkilön tunnuksia`, 'Anna');
+
+  mkPage(hairio.id, 'Järjestelmäkatkos – varamenettely', `# Järjestelmäkatkos
+
+Jos hälytystenkäsittelyjärjestelmä ei ole käytettävissä:
+
+1. Siirry **manuaaliseen lokiin** (paperilomake / varakone)
+2. Ilmoita katkoksesta tekniselle tuelle ja vuoroesihenkilölle
+3. Kirjaa kaikki hälytykset käsin aikaleimoineen
+4. Kun järjestelmä palautuu, vie manuaaliset kirjaukset järjestelmään`, 'Jukka');
 
   // Esimerkkiliite, jonka sisällöstä haku löytää osumia (snippet).
-  const sampleText = 'Turvaohje: käytä aina suojalaseja ja kuulosuojaimia linjalla. '
-    + 'Hätäseis-painike sijaitsee ohjauspaneelin vasemmassa reunassa. '
-    + 'Kuittaa häiriö vasta kun alue on tyhjä ja turvallinen.';
+  const sampleText = 'Toimintaohje: paloilmoitinhälytyksessä varmista aina kohteen '
+    + 'tilanne yhteyshenkilöltä ennen kuittausta. Epäselvässä tilanteessa hälytä 112. '
+    + 'Kirjaa kaikki toimenpiteet ja aikaleimat lokiin.';
   const att = {
-    id: nextId(), page_id: p1.id, original_name: 'Linjan_turvaohje.pdf',
+    id: nextId(), page_id: p1.id, original_name: 'Paloilmoitin_toimintaohje.pdf',
     mimetype: 'application/pdf', size: sampleText.length,
-    uploaded_at: nowISO(), uploaded_by: 'Matti', text_content: sampleText,
+    uploaded_at: nowISO(), uploaded_by: 'Anna', text_content: sampleText,
   };
   DB.attachments.push(att);
   await putBlob(att.id, new Blob([sampleText], { type: 'application/pdf' }));
 
-  mkNote(linja1.id, 'Matti', 'Linja 1 pyöri hyvin koko aamuvuoron. Öljynpaine hieman koholla iltapäivällä, seurataan.');
-  mkNote(pakkaamo.id, 'Liisa', 'Pakkauskone jumitti kahdesti klo 14 aikaan. Puhdistettu ja kuitattu. Huoltopyyntö tehty.');
-  mkNote(null, 'Liisa', 'Yleinen: varaosavarastosta loppui teippirulla. Tilaus lähtenyt.');
+  mkNote(halytykset.id, 'Anna', 'Aamuvuoro rauhallinen. Kohteessa 4021 toistuva tekninen ilmoitus – huolto tilattu.');
+  mkNote(jarjestelmat.id, 'Jukka', 'Järjestelmässä lyhyt hidastelu klo 13. Tekninen tuki tietoinen, seurataan.');
+  mkNote(null, 'Anna', 'Yleinen: kohteen 5510 uudet toimintaohjeet päivitetty järjestelmään.');
 
   // Esimerkkinä katselukertoja, jotta "Suosituimmat ohjeet" näkyy heti.
-  DB.pages[0].views = 42; DB.pages[1].views = 27; DB.pages[2].views = 15;
+  DB.pages[0].views = 58; DB.pages[1].views = 41; DB.pages[2].views = 47; DB.pages[3].views = 29;
 
   DB.contacts = defaultContacts();
   save(DB);
@@ -134,10 +148,10 @@ async function ensureSeeded() {
 // Oletusyhteystiedot (esimerkkidata + migraatio vanhaan dataan).
 function defaultContacts() {
   return [
-    { id: nextId(), label: 'IT-tuki', phone: '040 123 4567', note: 'ma–pe 8–16, kiireet: alue 200', sort_order: 1 },
+    { id: nextId(), label: 'Tekninen tuki (24/7)', phone: '040 123 4567', note: 'järjestelmä- ja laitehäiriöt', sort_order: 1 },
     { id: nextId(), label: 'Vuoroesihenkilö', phone: '040 234 5678', note: 'ympäri vuorokauden', sort_order: 2 },
-    { id: nextId(), label: 'Kunnossapito / päivystys', phone: '040 345 6789', note: 'häiriöt ja viat', sort_order: 3 },
-    { id: nextId(), label: 'Työterveys', phone: '030 555 0100', note: 'ajanvaraus', sort_order: 4 },
+    { id: nextId(), label: 'Kiinteistöpäivystys', phone: '040 345 6789', note: 'kiinteistöjen viat ja huolto', sort_order: 3 },
+    { id: nextId(), label: 'Hätäkeskus', phone: '112', note: 'henkeä uhkaavat tilanteet', sort_order: 4 },
   ];
 }
 

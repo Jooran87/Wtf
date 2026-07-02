@@ -107,7 +107,7 @@ function renderSidebar() {
   ul.innerHTML = categories.map((c) => `
     <li>
       <button class="cat-btn ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">${esc(c.name)}</button>
-    </li>`).join('') || '<li class="muted" style="padding:8px 12px">Ei kohteita vielä</li>';
+    </li>`).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
 }
 
 function setActiveNav(nav) {
@@ -145,7 +145,7 @@ async function viewHome() {
   ]);
   content.innerHTML = `
     <h2>Tervetuloa työohje-wikiin</h2>
-    <p class="muted">Valitse kohde vasemmalta tai selaa työohjeita ja vuorolokia.</p>
+    <p class="muted">Valitse kategoria vasemmalta tai selaa työohjeita ja vuorolokia.</p>
     <div class="home-grid">
       <div class="home-main">
         <div class="card">
@@ -163,7 +163,7 @@ async function viewHome() {
             ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
               <span>${esc(p.title)}</span>
               <span class="muted">${categoryName(p.category_id)}</span></button></li>`).join('')
-              || '<li class="empty">Ei ohjeita vielä. Lisää kohde ja luo ensimmäinen ohje.</li>'}
+              || '<li class="empty">Ei ohjeita vielä. Lisää kategoria ja luo ensimmäinen ohje.</li>'}
           </ul>
         </div>
       </div>
@@ -216,11 +216,11 @@ async function viewCategory(id) {
   const pages = await Store.pages.list(id);
   content.innerHTML = `
     <div class="spread">
-      <h2 style="margin:0">${esc(cat ? cat.name : 'Kohde')}</h2>
+      <h2 style="margin:0">${esc(cat ? cat.name : 'Kategoria')}</h2>
       <div class="row">
         <button class="btn small" id="newPageBtn">＋ Uusi ohje</button>
         <button class="btn small secondary" id="renameCatBtn">Nimeä</button>
-        <button class="btn small danger" id="delCatBtn">Poista kohde</button>
+        <button class="btn small danger" id="delCatBtn">Poista kategoria</button>
       </div>
     </div>
     <div class="card">
@@ -234,13 +234,13 @@ async function viewCategory(id) {
 
   $('#newPageBtn').onclick = () => { location.hash = `#/uusi?kohde=${id}`; };
   $('#renameCatBtn').onclick = async () => {
-    const name = prompt('Kohteen uusi nimi:', cat.name);
+    const name = prompt('Kategorian uusi nimi:', cat.name);
     if (name && name.trim()) { await Store.categories.rename(id, name); await loadCategories(); viewCategory(id); toast('Nimetty'); }
   };
   $('#delCatBtn').onclick = async () => {
-    if (confirm('Poistetaanko kohde ja KAIKKI sen ohjeet ja liitteet?')) {
+    if (confirm('Poistetaanko kategoria ja KAIKKI sen ohjeet ja liitteet?')) {
       await Store.categories.remove(id);
-      await loadCategories(); location.hash = '#/'; toast('Kohde poistettu');
+      await loadCategories(); location.hash = '#/'; toast('Kategoria poistettu');
     }
   };
 }
@@ -305,7 +305,7 @@ async function viewPageEdit(id, presetCat) {
         <input type="text" id="titleInput" value="${esc(p.title)}" placeholder="Esim. Laitteen X käynnistys" />
       </div>
       <div class="field">
-        <label>Kohde</label>
+        <label>Kategoria</label>
         <select id="catSelect">
           ${categories.map((c) => `<option value="${c.id}" ${c.id === p.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
         </select>
@@ -345,7 +345,7 @@ async function viewShiftLog() {
     <p class="muted">Kirjaa juoksevaan listaan huomiot vuoron ajalta. Uusin näkyy ylimpänä.</p>
     <div class="card">
       <div class="field">
-        <label>Kohde (valinnainen)</label>
+        <label>Kategoria (valinnainen)</label>
         <select id="noteCat">
           <option value="">– Yleinen –</option>
           ${categories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
@@ -461,10 +461,10 @@ document.addEventListener('click', (e) => {
 });
 
 $('#addCategoryBtn').onclick = async () => {
-  const name = prompt('Uuden kohteen nimi:');
+  const name = prompt('Uuden kategorian nimi:');
   if (name && name.trim()) {
     const c = await Store.categories.create(name);
-    await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Kohde lisätty');
+    await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Kategoria lisätty');
   }
 };
 

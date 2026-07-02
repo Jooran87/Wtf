@@ -2,7 +2,7 @@
 
 Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
 
-- **Kohteet ja työohjeet** – Wikipedia-tyylinen sivupalkki ja hakukenttä
+- **Ohjeet ja kategoriat** – Wikipedia-tyylinen sivupalkki ja hakukenttä
 - **Vuoroloki** – juokseva aikaleimattu lista vuoron huomioista
 - **Tiedostoliitteet** – PDF, kuvat, Word, Excel (PDF ja kuvat näkyvät suoraan selaimessa, muut latautuvat)
 - **Haku** ohjeista, huomioista **ja tiedostojen sisällöstä** (PDF, Word, Excel) – näyttää otteen osumakohdasta
@@ -73,8 +73,8 @@ Portin voi vaihtaa: `PORT=8080 npm start`
 ## Käyttö
 
 - **Nimesi** oikeassa yläkulmassa tallentuu selaimeen ja liittyy tekemiisi muutoksiin ja huomioihin.
-- **＋ Kohteet-otsikon vieressä** lisää uuden kohteen (esim. laite tai linja).
-- Kohteen sisällä **＋ Uusi ohje** luo työohjeen. Sisältö tukee kevyttä Markdownia
+- **＋ Ohjeet-otsikon vieressä** lisää uuden kategorian (esim. aihealue).
+- Kategorian sisällä **＋ Uusi ohje** luo työohjeen. Sisältö tukee kevyttä Markdownia
   (`# otsikko`, `**lihavointi**`, `- lista`, `` `koodi` ``, `> lainaus`, linkit).
 - **📝 Vuoroloki** – kirjaa huomiot; uusin näkyy ylimpänä, voi kohdistaa kohteeseen.
 - Ohjesivulla voi ladata liitteitä (max 50 Mt / tiedosto).

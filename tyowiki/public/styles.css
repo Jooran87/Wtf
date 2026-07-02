@@ -4,8 +4,9 @@
   --border: #e2e6ec;
   --text: #1c2430;
   --muted: #6b7686;
-  --brand: #1f6feb;
-  --brand-dark: #1a5fd0;
+  --brand: #2f8f4e;
+  --brand-dark: #26773f;
+  --brand-soft: #e3f3e8;
   --danger: #d43c3c;
   --ok: #2ea043;
   --shadow: 0 1px 3px rgba(0,0,0,.08);
@@ -30,6 +31,18 @@ body {
   position: sticky; top: 0; z-index: 20;
 }
 .logo { font-size: 18px; margin: 0; cursor: pointer; white-space: nowrap; }
+
+/* Brändi (Palmia / Hälytyskeskus) */
+.brand { display: flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap; }
+.brand-mark {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 8px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #fff; font-weight: 800; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-text strong { font-size: 16px; color: var(--text); }
+.brand-text small { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .search { flex: 1; max-width: 520px; }
 .search input {
   width: 100%; padding: 9px 14px; border: 1px solid var(--border);
@@ -52,7 +65,7 @@ body {
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
 .nav-link:hover { background: #eef2f7; }
-.nav-link.active { background: #e5efff; color: var(--brand); font-weight: 600; }
+.nav-link.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
 
 .sidebar-section { border-top: 1px solid var(--border); padding-top: 12px; }
 .sidebar-title {
@@ -67,7 +80,7 @@ body {
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
 .category-list .cat-btn:hover { background: #eef2f7; }
-.category-list .cat-btn.active { background: #e5efff; color: var(--brand); font-weight: 600; }
+.category-list .cat-btn.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
 
 /* Content */
 .content { flex: 1; padding: 26px 34px; max-width: 900px; }
@@ -147,7 +160,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 }
 .note .note-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
 .note .note-body { white-space: pre-wrap; line-height: 1.5; }
-.note .tag { background: #e5efff; color: var(--brand); padding: 1px 8px; border-radius: 10px; font-weight: 600; }
+.note .tag { background: var(--brand-soft); color: var(--brand); padding: 1px 8px; border-radius: 10px; font-weight: 600; }
 
 /* Home dashboard layout */
 .home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
@@ -164,7 +177,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .rank-list li:not(.empty) .page-link::before {
   content: counter(rank); position: absolute; left: 0; top: 50%; transform: translateY(-50%);
   width: 22px; height: 22px; line-height: 22px; text-align: center; font-size: 12px; font-weight: 700;
-  background: #e5efff; color: var(--brand); border-radius: 50%;
+  background: var(--brand-soft); color: var(--brand); border-radius: 50%;
 }
 
 /* Contacts */

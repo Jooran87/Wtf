@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Työohje-wiki – Sandbox</title>
+  <title>Palmia Hälytyskeskus – Työohjeet (Sandbox)</title>
   <style>
 :root {
   --bg: #f4f6f9;
@@ -11,8 +11,9 @@
   --border: #e2e6ec;
   --text: #1c2430;
   --muted: #6b7686;
-  --brand: #1f6feb;
-  --brand-dark: #1a5fd0;
+  --brand: #2f8f4e;
+  --brand-dark: #26773f;
+  --brand-soft: #e3f3e8;
   --danger: #d43c3c;
   --ok: #2ea043;
   --shadow: 0 1px 3px rgba(0,0,0,.08);
@@ -37,6 +38,18 @@ body {
   position: sticky; top: 0; z-index: 20;
 }
 .logo { font-size: 18px; margin: 0; cursor: pointer; white-space: nowrap; }
+
+/* Brändi (Palmia / Hälytyskeskus) */
+.brand { display: flex; align-items: center; gap: 10px; cursor: pointer; white-space: nowrap; }
+.brand-mark {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 8px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #fff; font-weight: 800; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-text strong { font-size: 16px; color: var(--text); }
+.brand-text small { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .search { flex: 1; max-width: 520px; }
 .search input {
   width: 100%; padding: 9px 14px; border: 1px solid var(--border);
@@ -59,7 +72,7 @@ body {
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
 .nav-link:hover { background: #eef2f7; }
-.nav-link.active { background: #e5efff; color: var(--brand); font-weight: 600; }
+.nav-link.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
 
 .sidebar-section { border-top: 1px solid var(--border); padding-top: 12px; }
 .sidebar-title {
@@ -74,7 +87,7 @@ body {
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
 .category-list .cat-btn:hover { background: #eef2f7; }
-.category-list .cat-btn.active { background: #e5efff; color: var(--brand); font-weight: 600; }
+.category-list .cat-btn.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
 
 /* Content */
 .content { flex: 1; padding: 26px 34px; max-width: 900px; }
@@ -154,7 +167,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 }
 .note .note-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
 .note .note-body { white-space: pre-wrap; line-height: 1.5; }
-.note .tag { background: #e5efff; color: var(--brand); padding: 1px 8px; border-radius: 10px; font-weight: 600; }
+.note .tag { background: var(--brand-soft); color: var(--brand); padding: 1px 8px; border-radius: 10px; font-weight: 600; }
 
 /* Home dashboard layout */
 .home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
@@ -171,7 +184,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .rank-list li:not(.empty) .page-link::before {
   content: counter(rank); position: absolute; left: 0; top: 50%; transform: translateY(-50%);
   width: 22px; height: 22px; line-height: 22px; text-align: center; font-size: 12px; font-weight: 700;
-  background: #e5efff; color: var(--brand); border-radius: 50%;
+  background: var(--brand-soft); color: var(--brand); border-radius: 50%;
 }
 
 /* Contacts */
@@ -224,7 +237,10 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 <body>
   <header class="topbar">
     <button id="menuToggle" class="icon-btn" title="Valikko" aria-label="Valikko">☰</button>
-    <h1 class="logo" data-nav="home">📘 Työohje-wiki</h1>
+    <div class="brand" data-nav="home">
+      <span class="brand-mark">P</span>
+      <span class="brand-text"><strong>Palmia</strong><small>Hälytyskeskus · Työohjeet</small></span>
+    </div>
     <span class="sandbox-badge" title="Demo: data tallentuu vain tähän selaimeen">Sandbox</span>
     <form id="searchForm" class="search">
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
@@ -238,8 +254,8 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
         <button class="nav-link" data-nav="shiftlog">📝 Vuoroloki</button>
       </nav>
       <div class="sidebar-section">
-        <div class="sidebar-title"><span>Kohteet</span>
-          <button id="addCategoryBtn" class="icon-btn small" title="Lisää kohde">＋</button></div>
+        <div class="sidebar-title"><span>Ohjeet</span>
+          <button id="addCategoryBtn" class="icon-btn small" title="Lisää kategoria">＋</button></div>
         <ul id="categoryList" class="category-list"></ul>
       </div>
     </aside>
@@ -255,7 +271,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v1';
+const LS_KEY = 'tyowiki_sandbox_v2';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -321,60 +337,74 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [] };
-  const linja1 = { id: nextId(), name: 'Tuotantolinja 1', sort_order: 1 };
-  const pakkaamo = { id: nextId(), name: 'Pakkaamo', sort_order: 2 };
-  const yleiset = { id: nextId(), name: 'Yleiset ohjeet', sort_order: 3 };
-  DB.categories.push(linja1, pakkaamo, yleiset);
+  const halytykset = { id: nextId(), name: 'Hälytysten käsittely', sort_order: 1 };
+  const jarjestelmat = { id: nextId(), name: 'Järjestelmät ja ohjelmistot', sort_order: 2 };
+  const hairio = { id: nextId(), name: 'Häiriö- ja poikkeustilanteet', sort_order: 3 };
+  const yleiset = { id: nextId(), name: 'Yleiset ohjeet', sort_order: 4 };
+  DB.categories.push(halytykset, jarjestelmat, hairio, yleiset);
 
-  const p1 = mkPage(linja1.id, 'Linjan käynnistys aamuvuorossa', `# Linjan käynnistys
+  const p1 = mkPage(halytykset.id, 'Hälytyksen vastaanotto ja luokittelu', `# Hälytyksen vastaanotto ja luokittelu
 
-## Ennen käynnistystä
-- Tarkista että hätäseis-painikkeet ovat vapautettuina
-- Varmista suojaovien lukitus
-- Tarkista voiteluöljyn taso
+## Vastaanotto
+1. Kuittaa saapuva hälytys järjestelmästä
+2. Tarkista kohteen tiedot ja hälytystyyppi
+3. Tarkista mahdolliset toimintaohjeet kohteelle
 
-## Käynnistysjärjestys
-1. Kytke pääkytkin päälle
-2. Odota että ohjausjärjestelmä latautuu (n. 2 min)
-3. Käynnistä kuljetin **vihreästä** painikkeesta
-4. Nosta nopeus vähitellen tavoitearvoon
+## Luokittelu
+- **A – kiireellinen:** henkilö- tai paloturvallisuus vaarassa → toimi välittömästi
+- **B – kiireellinen tekninen:** murtoilmaisu, laiterikko
+- **C – ei-kiireellinen:** tekninen ilmoitus, huoltotarve
 
-> Huom! Jos merkkivalo vilkkuu punaisena, katso vikaohje ennen jatkamista.`, 'Matti');
+> Kirjaa kaikki toimenpiteet järjestelmään reaaliaikaisesti.`, 'Anna');
 
-  mkPage(linja1.id, 'Häiriötilanteen kuittaus', `# Häiriön kuittaus
+  mkPage(halytykset.id, 'Paloilmoitinhälytyksen toimintaohje', `# Paloilmoitinhälytys
 
-- Paina **RESET** ohjauspaneelista
-- Tarkista näytöltä vikakoodi
-- Yleisimmät koodit:
-  - E01 = paperitukos
-  - E02 = ylikuumeneminen
-  - E05 = anturihäiriö`, 'Matti');
+1. Vastaanota ja kuittaa hälytys
+2. Soita kohteen yhteyshenkilölle ja varmista tilanne
+3. Jos tulipaloa ei voida sulkea pois, **hälytä 112**
+4. Ilmoita vartijalle / kohteen edustajalle
+5. Kirjaa tapahtuma ja toimenpiteet lokiin
 
-  mkPage(pakkaamo.id, 'Pakkauskoneen puhdistus', `# Pakkauskoneen puhdistus (vuoron lopussa)
+> Älä koskaan kuittaa paloilmoitusta vääräksi ilman kohteen varmistusta.`, 'Anna');
 
-1. Pysäytä kone ja katkaise virta
-2. Poista pakkausmateriaalin jäänteet
-3. Pyyhi pinnat elintarvikehyväksytyllä puhdistusaineella
-4. Kirjaa puhdistus lokiin`, 'Liisa');
+  mkPage(jarjestelmat.id, 'Hälytystenkäsittelyjärjestelmään kirjautuminen', `# Kirjautuminen
+
+1. Avaa työaseman hälytystenkäsittelyohjelmisto
+2. Kirjaudu henkilökohtaisilla tunnuksilla
+3. Valitse aktiivinen vuoro / työpiste
+4. Varmista että hälytyskanavat näkyvät vihreinä
+
+## Ongelmatilanteet
+- Jos tunnus ei toimi, ilmoita vuoroesihenkilölle
+- Älä käytä toisen henkilön tunnuksia`, 'Anna');
+
+  mkPage(hairio.id, 'Järjestelmäkatkos – varamenettely', `# Järjestelmäkatkos
+
+Jos hälytystenkäsittelyjärjestelmä ei ole käytettävissä:
+
+1. Siirry **manuaaliseen lokiin** (paperilomake / varakone)
+2. Ilmoita katkoksesta tekniselle tuelle ja vuoroesihenkilölle
+3. Kirjaa kaikki hälytykset käsin aikaleimoineen
+4. Kun järjestelmä palautuu, vie manuaaliset kirjaukset järjestelmään`, 'Jukka');
 
   // Esimerkkiliite, jonka sisällöstä haku löytää osumia (snippet).
-  const sampleText = 'Turvaohje: käytä aina suojalaseja ja kuulosuojaimia linjalla. '
-    + 'Hätäseis-painike sijaitsee ohjauspaneelin vasemmassa reunassa. '
-    + 'Kuittaa häiriö vasta kun alue on tyhjä ja turvallinen.';
+  const sampleText = 'Toimintaohje: paloilmoitinhälytyksessä varmista aina kohteen '
+    + 'tilanne yhteyshenkilöltä ennen kuittausta. Epäselvässä tilanteessa hälytä 112. '
+    + 'Kirjaa kaikki toimenpiteet ja aikaleimat lokiin.';
   const att = {
-    id: nextId(), page_id: p1.id, original_name: 'Linjan_turvaohje.pdf',
+    id: nextId(), page_id: p1.id, original_name: 'Paloilmoitin_toimintaohje.pdf',
     mimetype: 'application/pdf', size: sampleText.length,
-    uploaded_at: nowISO(), uploaded_by: 'Matti', text_content: sampleText,
+    uploaded_at: nowISO(), uploaded_by: 'Anna', text_content: sampleText,
   };
   DB.attachments.push(att);
   await putBlob(att.id, new Blob([sampleText], { type: 'application/pdf' }));
 
-  mkNote(linja1.id, 'Matti', 'Linja 1 pyöri hyvin koko aamuvuoron. Öljynpaine hieman koholla iltapäivällä, seurataan.');
-  mkNote(pakkaamo.id, 'Liisa', 'Pakkauskone jumitti kahdesti klo 14 aikaan. Puhdistettu ja kuitattu. Huoltopyyntö tehty.');
-  mkNote(null, 'Liisa', 'Yleinen: varaosavarastosta loppui teippirulla. Tilaus lähtenyt.');
+  mkNote(halytykset.id, 'Anna', 'Aamuvuoro rauhallinen. Kohteessa 4021 toistuva tekninen ilmoitus – huolto tilattu.');
+  mkNote(jarjestelmat.id, 'Jukka', 'Järjestelmässä lyhyt hidastelu klo 13. Tekninen tuki tietoinen, seurataan.');
+  mkNote(null, 'Anna', 'Yleinen: kohteen 5510 uudet toimintaohjeet päivitetty järjestelmään.');
 
   // Esimerkkinä katselukertoja, jotta "Suosituimmat ohjeet" näkyy heti.
-  DB.pages[0].views = 42; DB.pages[1].views = 27; DB.pages[2].views = 15;
+  DB.pages[0].views = 58; DB.pages[1].views = 41; DB.pages[2].views = 47; DB.pages[3].views = 29;
 
   DB.contacts = defaultContacts();
   save(DB);
@@ -383,10 +413,10 @@ async function ensureSeeded() {
 // Oletusyhteystiedot (esimerkkidata + migraatio vanhaan dataan).
 function defaultContacts() {
   return [
-    { id: nextId(), label: 'IT-tuki', phone: '040 123 4567', note: 'ma–pe 8–16, kiireet: alue 200', sort_order: 1 },
+    { id: nextId(), label: 'Tekninen tuki (24/7)', phone: '040 123 4567', note: 'järjestelmä- ja laitehäiriöt', sort_order: 1 },
     { id: nextId(), label: 'Vuoroesihenkilö', phone: '040 234 5678', note: 'ympäri vuorokauden', sort_order: 2 },
-    { id: nextId(), label: 'Kunnossapito / päivystys', phone: '040 345 6789', note: 'häiriöt ja viat', sort_order: 3 },
-    { id: nextId(), label: 'Työterveys', phone: '030 555 0100', note: 'ajanvaraus', sort_order: 4 },
+    { id: nextId(), label: 'Kiinteistöpäivystys', phone: '040 345 6789', note: 'kiinteistöjen viat ja huolto', sort_order: 3 },
+    { id: nextId(), label: 'Hätäkeskus', phone: '112', note: 'henkeä uhkaavat tilanteet', sort_order: 4 },
   ];
 }
 
@@ -700,7 +730,7 @@ function renderSidebar() {
   ul.innerHTML = categories.map((c) => `
     <li>
       <button class="cat-btn ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">${esc(c.name)}</button>
-    </li>`).join('') || '<li class="muted" style="padding:8px 12px">Ei kohteita vielä</li>';
+    </li>`).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
 }
 
 function setActiveNav(nav) {
@@ -738,7 +768,7 @@ async function viewHome() {
   ]);
   content.innerHTML = `
     <h2>Tervetuloa työohje-wikiin</h2>
-    <p class="muted">Valitse kohde vasemmalta tai selaa työohjeita ja vuorolokia.</p>
+    <p class="muted">Valitse kategoria vasemmalta tai selaa työohjeita ja vuorolokia.</p>
     <div class="home-grid">
       <div class="home-main">
         <div class="card">
@@ -756,7 +786,7 @@ async function viewHome() {
             ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
               <span>${esc(p.title)}</span>
               <span class="muted">${categoryName(p.category_id)}</span></button></li>`).join('')
-              || '<li class="empty">Ei ohjeita vielä. Lisää kohde ja luo ensimmäinen ohje.</li>'}
+              || '<li class="empty">Ei ohjeita vielä. Lisää kategoria ja luo ensimmäinen ohje.</li>'}
           </ul>
         </div>
       </div>
@@ -809,11 +839,11 @@ async function viewCategory(id) {
   const pages = await Store.pages.list(id);
   content.innerHTML = `
     <div class="spread">
-      <h2 style="margin:0">${esc(cat ? cat.name : 'Kohde')}</h2>
+      <h2 style="margin:0">${esc(cat ? cat.name : 'Kategoria')}</h2>
       <div class="row">
         <button class="btn small" id="newPageBtn">＋ Uusi ohje</button>
         <button class="btn small secondary" id="renameCatBtn">Nimeä</button>
-        <button class="btn small danger" id="delCatBtn">Poista kohde</button>
+        <button class="btn small danger" id="delCatBtn">Poista kategoria</button>
       </div>
     </div>
     <div class="card">
@@ -827,13 +857,13 @@ async function viewCategory(id) {
 
   $('#newPageBtn').onclick = () => { location.hash = `#/uusi?kohde=${id}`; };
   $('#renameCatBtn').onclick = async () => {
-    const name = prompt('Kohteen uusi nimi:', cat.name);
+    const name = prompt('Kategorian uusi nimi:', cat.name);
     if (name && name.trim()) { await Store.categories.rename(id, name); await loadCategories(); viewCategory(id); toast('Nimetty'); }
   };
   $('#delCatBtn').onclick = async () => {
-    if (confirm('Poistetaanko kohde ja KAIKKI sen ohjeet ja liitteet?')) {
+    if (confirm('Poistetaanko kategoria ja KAIKKI sen ohjeet ja liitteet?')) {
       await Store.categories.remove(id);
-      await loadCategories(); location.hash = '#/'; toast('Kohde poistettu');
+      await loadCategories(); location.hash = '#/'; toast('Kategoria poistettu');
     }
   };
 }
@@ -898,7 +928,7 @@ async function viewPageEdit(id, presetCat) {
         <input type="text" id="titleInput" value="${esc(p.title)}" placeholder="Esim. Laitteen X käynnistys" />
       </div>
       <div class="field">
-        <label>Kohde</label>
+        <label>Kategoria</label>
         <select id="catSelect">
           ${categories.map((c) => `<option value="${c.id}" ${c.id === p.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
         </select>
@@ -938,7 +968,7 @@ async function viewShiftLog() {
     <p class="muted">Kirjaa juoksevaan listaan huomiot vuoron ajalta. Uusin näkyy ylimpänä.</p>
     <div class="card">
       <div class="field">
-        <label>Kohde (valinnainen)</label>
+        <label>Kategoria (valinnainen)</label>
         <select id="noteCat">
           <option value="">– Yleinen –</option>
           ${categories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
@@ -1054,10 +1084,10 @@ document.addEventListener('click', (e) => {
 });
 
 $('#addCategoryBtn').onclick = async () => {
-  const name = prompt('Uuden kohteen nimi:');
+  const name = prompt('Uuden kategorian nimi:');
   if (name && name.trim()) {
     const c = await Store.categories.create(name);
-    await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Kohde lisätty');
+    await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Kategoria lisätty');
   }
 };
 

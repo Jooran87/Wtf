@@ -11,9 +11,10 @@
   --border: #e2e6ec;
   --text: #1c2430;
   --muted: #6b7686;
-  --brand: #2f8f4e;
-  --brand-dark: #26773f;
-  --brand-soft: #e3f3e8;
+  --brand: #ea6a1e;        /* Palmia-oranssi: täytöt, napit, logomerkki */
+  --brand-dark: #cf5a12;   /* hover */
+  --brand-ink: #b8500e;    /* tekstit/linkit – tummempi kontrastin vuoksi */
+  --brand-soft: #fdeadd;   /* pehmeä oranssi taustatäplä */
   --danger: #d43c3c;
   --ok: #2ea043;
   --shadow: 0 1px 3px rgba(0,0,0,.08);
@@ -72,7 +73,7 @@ body {
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
 .nav-link:hover { background: #eef2f7; }
-.nav-link.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+.nav-link.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
 
 .sidebar-section { border-top: 1px solid var(--border); padding-top: 12px; }
 .sidebar-title {
@@ -87,7 +88,7 @@ body {
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
 .category-list .cat-btn:hover { background: #eef2f7; }
-.category-list .cat-btn.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+.category-list .cat-btn.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
 
 /* Content */
 .content { flex: 1; padding: 26px 34px; max-width: 900px; }
@@ -142,7 +143,7 @@ input[type=text], input[type=search], textarea, select {
 .doc pre { background: #1c2430; color: #e6edf3; padding: 12px; border-radius: 6px; overflow-x: auto; }
 .doc pre code { background: none; color: inherit; }
 .doc ul, .doc ol { padding-left: 22px; }
-.doc a { color: var(--brand); }
+.doc a { color: var(--brand-ink); }
 .doc blockquote { border-left: 3px solid var(--brand); margin: 0; padding: 4px 14px; color: var(--muted); }
 .doc img { max-width: 100%; border-radius: 6px; }
 
@@ -155,7 +156,7 @@ input[type=text], input[type=search], textarea, select {
 .attach-list .att-icon { font-size: 20px; }
 .attach-list .att-name { flex: 1; }
 .attach-list .att-name a { color: var(--text); text-decoration: none; font-weight: 600; }
-.attach-list .att-name a:hover { color: var(--brand); }
+.attach-list .att-name a:hover { color: var(--brand-ink); }
 .attach-list .att-meta { font-size: 12px; color: var(--muted); }
 .attach-list .snippet { font-size: 13px; color: var(--text); margin-top: 4px; font-style: italic; }
 mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
@@ -167,7 +168,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 }
 .note .note-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
 .note .note-body { white-space: pre-wrap; line-height: 1.5; }
-.note .tag { background: var(--brand-soft); color: var(--brand); padding: 1px 8px; border-radius: 10px; font-weight: 600; }
+.note .tag { background: var(--brand-soft); color: var(--brand-ink); padding: 1px 8px; border-radius: 10px; font-weight: 600; }
 
 /* Home dashboard layout */
 .home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
@@ -184,7 +185,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .rank-list li:not(.empty) .page-link::before {
   content: counter(rank); position: absolute; left: 0; top: 50%; transform: translateY(-50%);
   width: 22px; height: 22px; line-height: 22px; text-align: center; font-size: 12px; font-weight: 700;
-  background: var(--brand-soft); color: var(--brand); border-radius: 50%;
+  background: var(--brand-soft); color: var(--brand-ink); border-radius: 50%;
 }
 
 /* Contacts */
@@ -194,7 +195,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .contact:last-child { border-bottom: none; }
 .contact-main { min-width: 0; }
 .contact-label { font-weight: 600; }
-.contact-phone { color: var(--brand); text-decoration: none; font-size: 15px; }
+.contact-phone { color: var(--brand-ink); text-decoration: none; font-size: 15px; }
 .contact-phone:hover { text-decoration: underline; }
 .contact-actions { display: flex; flex-shrink: 0; }
 
@@ -206,7 +207,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
   display: flex; justify-content: space-between; width: 100%; text-align: left;
   background: none; border: none; padding: 12px 4px; cursor: pointer; font-size: 15px; color: var(--text);
 }
-.page-list .page-link:hover { color: var(--brand); }
+.page-list .page-link:hover { color: var(--brand-ink); }
 .empty { color: var(--muted); padding: 20px; text-align: center; }
 
 /* Toast */
@@ -230,7 +231,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
   .user { display: none; }
 }
 
-    .sandbox-badge { background:#f0a020; color:#1c2430; font-size:11px; font-weight:700;
+    .sandbox-badge { background:#1c2430; color:#fff; font-size:11px; font-weight:700;
       padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
   </style>
 </head>
@@ -767,7 +768,7 @@ async function viewHome() {
     Store.contacts.list(),
   ]);
   content.innerHTML = `
-    <h2>Tervetuloa työohje-wikiin</h2>
+    <h2>Hälytyskeskuksen työohjeet</h2>
     <p class="muted">Valitse kategoria vasemmalta tai selaa työohjeita ja vuorolokia.</p>
     <div class="home-grid">
       <div class="home-main">

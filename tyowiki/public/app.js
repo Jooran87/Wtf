@@ -144,7 +144,7 @@ async function viewHome() {
     Store.contacts.list(),
   ]);
   content.innerHTML = `
-    <h2>Tervetuloa työohje-wikiin</h2>
+    <h2>Hälytyskeskuksen työohjeet</h2>
     <p class="muted">Valitse kategoria vasemmalta tai selaa työohjeita ja vuorolokia.</p>
     <div class="home-grid">
       <div class="home-main">

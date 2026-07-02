@@ -19,7 +19,7 @@ const html = `<!DOCTYPE html>
   <title>Palmia Hälytyskeskus – Työohjeet (Sandbox)</title>
   <style>
 ${css}
-    .sandbox-badge { background:#f0a020; color:#1c2430; font-size:11px; font-weight:700;
+    .sandbox-badge { background:#1c2430; color:#fff; font-size:11px; font-weight:700;
       padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
   </style>
 </head>

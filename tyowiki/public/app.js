@@ -137,25 +137,73 @@ async function router() {
 // ---------- Näkymät ----------
 async function viewHome() {
   currentCategoryId = null; renderSidebar();
-  const pages = await Store.pages.list();
-  const recentNotes = await Store.notes.list({ limit: 5 });
+  const [pages, recentNotes, popular, contacts] = await Promise.all([
+    Store.pages.list(),
+    Store.notes.list({ limit: 5 }),
+    Store.pages.popular(10),
+    Store.contacts.list(),
+  ]);
   content.innerHTML = `
     <h2>Tervetuloa työohje-wikiin</h2>
     <p class="muted">Valitse kohde vasemmalta tai selaa työohjeita ja vuorolokia.</p>
-    <div class="card">
-      <div class="spread"><h3 style="margin:0">Kaikki työohjeet (${pages.length})</h3></div>
-      <ul class="page-list">
-        ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
-          <span>${esc(p.title)}</span>
-          <span class="muted">${categoryName(p.category_id)}</span></button></li>`).join('')
-          || '<li class="empty">Ei ohjeita vielä. Lisää kohde ja luo ensimmäinen ohje.</li>'}
-      </ul>
-    </div>
-    <div class="card">
-      <div class="spread"><h3 style="margin:0">📝 Viimeisimmät vuorohuomiot</h3>
-        <a class="btn small secondary" href="#/vuoroloki">Näytä kaikki</a></div>
-      ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+    <div class="home-grid">
+      <div class="home-main">
+        <div class="card">
+          <div class="spread"><h3 style="margin:0">🔥 Suosituimmat ohjeet</h3></div>
+          <ol class="rank-list">
+            ${popular.map((p) => `<li><button class="page-link" data-page="${p.id}">
+              <span>${esc(p.title)}</span>
+              <span class="muted">${esc(p.category_name || 'Yleinen')} · ${p.views} katselua</span></button></li>`).join('')
+              || '<li class="empty">Ei vielä tarpeeksi katseluita. Avaa ohjeita, niin suosituimmat kertyvät tähän.</li>'}
+          </ol>
+        </div>
+        <div class="card">
+          <div class="spread"><h3 style="margin:0">Kaikki työohjeet (${pages.length})</h3></div>
+          <ul class="page-list">
+            ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
+              <span>${esc(p.title)}</span>
+              <span class="muted">${categoryName(p.category_id)}</span></button></li>`).join('')
+              || '<li class="empty">Ei ohjeita vielä. Lisää kohde ja luo ensimmäinen ohje.</li>'}
+          </ul>
+        </div>
+      </div>
+      <div class="home-side">
+        <div class="card">
+          <div class="spread"><h3 style="margin:0">☎ Tärkeät numerot</h3>
+            <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">＋</button></div>
+          <ul class="contact-list">
+            ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä.</li>'}
+          </ul>
+        </div>
+        <div class="card">
+          <div class="spread"><h3 style="margin:0">📝 Viimeisimmät vuorohuomiot</h3>
+            <a class="btn small secondary" href="#/vuoroloki">Kaikki</a></div>
+          ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+        </div>
+      </div>
     </div>`;
+
+  $('#addContactBtn').onclick = () => editContact(null);
+  document.querySelectorAll('[data-editcontact]').forEach((b) => b.onclick = () => {
+    editContact(contacts.find((c) => String(c.id) === b.dataset.editcontact));
+  });
+  document.querySelectorAll('[data-delcontact]').forEach((b) => b.onclick = async () => {
+    if (confirm('Poistetaanko yhteystieto?')) { await Store.contacts.remove(b.dataset.delcontact); viewHome(); }
+  });
+}
+
+async function editContact(existing) {
+  const label = prompt('Nimi / rooli (esim. IT-tuki, Vuoroesihenkilö):', existing ? existing.label : '');
+  if (label === null || !label.trim()) return;
+  const phone = prompt('Puhelinnumero:', existing ? existing.phone : '');
+  if (phone === null) return;
+  const note = prompt('Lisätieto (valinnainen, esim. aukioloaika tai sähköposti):', existing ? existing.note : '') || '';
+  const data = { label: label.trim(), phone: phone.trim(), note: note.trim() };
+  try {
+    if (existing) await Store.contacts.update(existing.id, data);
+    else await Store.contacts.create(data);
+    toast('Tallennettu'); viewHome();
+  } catch (err) { toast(err.message, true); }
 }
 
 function categoryName(id) {
@@ -198,7 +246,7 @@ async function viewCategory(id) {
 }
 
 async function viewPage(id) {
-  const p = await Store.pages.get(id);
+  const p = await Store.pages.get(id, { track: true });
   content.innerHTML = `
     <div class="spread">
       <div>
@@ -366,6 +414,21 @@ function noteHtml(n) {
     </div>
     <div class="note-body">${esc(n.content)}</div>
   </div>`;
+}
+
+function contactHtml(c) {
+  const tel = c.phone ? c.phone.replace(/[^\d+]/g, '') : '';
+  return `<li class="contact">
+    <div class="contact-main">
+      <div class="contact-label">${esc(c.label)}</div>
+      ${c.phone ? `<a class="contact-phone" href="tel:${esc(tel)}">${esc(c.phone)}</a>` : ''}
+      ${c.note ? `<div class="att-meta">${esc(c.note)}</div>` : ''}
+    </div>
+    <div class="contact-actions">
+      <button class="icon-btn small" data-editcontact="${c.id}" title="Muokkaa">✏️</button>
+      <button class="icon-btn small" data-delcontact="${c.id}" title="Poista">🗑</button>
+    </div>
+  </li>`;
 }
 
 function attHtml(a) {

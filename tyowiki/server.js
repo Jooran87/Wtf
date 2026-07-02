@@ -76,6 +76,33 @@ app.delete('/api/categories/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Yhteystiedot (puhelinnumerot) ----------
+app.get('/api/contacts', (req, res) => {
+  res.json(db.prepare('SELECT * FROM contacts ORDER BY sort_order, label').all());
+});
+
+app.post('/api/contacts', (req, res) => {
+  const label = (req.body.label || '').trim();
+  if (!label) return res.status(400).json({ error: 'Nimi puuttuu' });
+  const sort = db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS s FROM contacts').get().s;
+  const info = db.prepare('INSERT INTO contacts (label, phone, note, sort_order) VALUES (?, ?, ?, ?)')
+    .run(label, (req.body.phone || '').trim(), (req.body.note || '').trim(), sort);
+  res.json(db.prepare('SELECT * FROM contacts WHERE id = ?').get(info.lastInsertRowid));
+});
+
+app.put('/api/contacts/:id', (req, res) => {
+  const label = (req.body.label || '').trim();
+  if (!label) return res.status(400).json({ error: 'Nimi puuttuu' });
+  db.prepare('UPDATE contacts SET label = ?, phone = ?, note = ? WHERE id = ?')
+    .run(label, (req.body.phone || '').trim(), (req.body.note || '').trim(), req.params.id);
+  res.json(db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id));
+});
+
+app.delete('/api/contacts/:id', (req, res) => {
+  db.prepare('DELETE FROM contacts WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 // ---------- Sivut (työohjeet) ----------
 app.get('/api/pages', (req, res) => {
   const { category_id } = req.query;
@@ -88,9 +115,25 @@ app.get('/api/pages', (req, res) => {
   res.json(rows);
 });
 
+// Suosituimmat ohjeet (katselukertojen mukaan). Määriteltävä ennen :id-reittiä.
+app.get('/api/pages/popular', (req, res) => {
+  const lim = Math.min(parseInt(req.query.limit, 10) || 10, 50);
+  const rows = db.prepare(
+    `SELECT p.id, p.title, p.category_id, p.views, c.name AS category_name
+     FROM pages p LEFT JOIN categories c ON c.id = p.category_id
+     WHERE p.views > 0 ORDER BY p.views DESC, p.title LIMIT ?`
+  ).all(lim);
+  res.json(rows);
+});
+
 app.get('/api/pages/:id', (req, res) => {
   const page = db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
   if (!page) return res.status(404).json({ error: 'Sivua ei löydy' });
+  // Lasketaan katselu vain kun sivua oikeasti avataan (ei muokkausnäkymässä).
+  if (req.query.track) {
+    db.prepare('UPDATE pages SET views = views + 1 WHERE id = ?').run(page.id);
+    page.views += 1;
+  }
   page.attachments = db.prepare('SELECT id, original_name, mimetype, size, uploaded_at, uploaded_by FROM attachments WHERE page_id = ? ORDER BY uploaded_at').all(page.id);
   res.json(page);
 });

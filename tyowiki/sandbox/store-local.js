@@ -70,8 +70,8 @@ const MAX_SIZE = 50 * 1024 * 1024;
 const ready = ensureSeeded();
 
 async function ensureSeeded() {
-  if (DB) return;
-  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [] };
+  if (DB) { migrateExisting(); return; }
+  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [] };
   const linja1 = { id: nextId(), name: 'Tuotantolinja 1', sort_order: 1 };
   const pakkaamo = { id: nextId(), name: 'Pakkaamo', sort_order: 2 };
   const yleiset = { id: nextId(), name: 'Yleiset ohjeet', sort_order: 3 };
@@ -123,11 +123,34 @@ async function ensureSeeded() {
   mkNote(linja1.id, 'Matti', 'Linja 1 pyöri hyvin koko aamuvuoron. Öljynpaine hieman koholla iltapäivällä, seurataan.');
   mkNote(pakkaamo.id, 'Liisa', 'Pakkauskone jumitti kahdesti klo 14 aikaan. Puhdistettu ja kuitattu. Huoltopyyntö tehty.');
   mkNote(null, 'Liisa', 'Yleinen: varaosavarastosta loppui teippirulla. Tilaus lähtenyt.');
+
+  // Esimerkkinä katselukertoja, jotta "Suosituimmat ohjeet" näkyy heti.
+  DB.pages[0].views = 42; DB.pages[1].views = 27; DB.pages[2].views = 15;
+
+  DB.contacts = defaultContacts();
   save(DB);
 }
 
+// Oletusyhteystiedot (esimerkkidata + migraatio vanhaan dataan).
+function defaultContacts() {
+  return [
+    { id: nextId(), label: 'IT-tuki', phone: '040 123 4567', note: 'ma–pe 8–16, kiireet: alue 200', sort_order: 1 },
+    { id: nextId(), label: 'Vuoroesihenkilö', phone: '040 234 5678', note: 'ympäri vuorokauden', sort_order: 2 },
+    { id: nextId(), label: 'Kunnossapito / päivystys', phone: '040 345 6789', note: 'häiriöt ja viat', sort_order: 3 },
+    { id: nextId(), label: 'Työterveys', phone: '030 555 0100', note: 'ajanvaraus', sort_order: 4 },
+  ];
+}
+
+// Täydentää vanhat tallennukset uusilla kentillä ilman datan menetystä.
+function migrateExisting() {
+  let changed = false;
+  if (!DB.contacts) { DB.contacts = defaultContacts(); changed = true; }
+  DB.pages.forEach((p) => { if (typeof p.views !== 'number') { p.views = 0; changed = true; } });
+  if (changed) save(DB);
+}
+
 function mkPage(catId, title, content, by) {
-  const p = { id: nextId(), category_id: catId, title, content, updated_at: nowISO(), updated_by: by || '' };
+  const p = { id: nextId(), category_id: catId, title, content, updated_at: nowISO(), updated_by: by || '', views: 0 };
   DB.pages.push(p); return p;
 }
 function mkNote(catId, author, content) {
@@ -178,10 +201,18 @@ const Store = {
       return clone(rows).sort((a, b) => a.title.localeCompare(b.title))
         .map(({ id, category_id, title, updated_at, updated_by }) => ({ id, category_id, title, updated_at, updated_by }));
     },
-    async get(id) {
+    async popular(limit = 10) {
+      await ready;
+      return clone(DB.pages).filter((p) => (p.views || 0) > 0)
+        .sort((a, b) => b.views - a.views || a.title.localeCompare(b.title))
+        .slice(0, limit)
+        .map((p) => ({ id: p.id, title: p.title, category_id: p.category_id, views: p.views, category_name: catName(p.category_id) }));
+    },
+    async get(id, { track } = {}) {
       await ready; id = Number(id);
       const p = DB.pages.find((x) => x.id === id);
       if (!p) throw new Error('Sivua ei löydy');
+      if (track) { p.views = (p.views || 0) + 1; save(DB); }
       const out = clone(p);
       out.attachments = [];
       for (const a of DB.attachments.filter((x) => x.page_id === id)) {
@@ -235,6 +266,26 @@ const Store = {
       await ready; id = Number(id);
       DB.attachments = DB.attachments.filter((a) => a.id !== id);
       await delBlob(id); save(DB); return { ok: true };
+    },
+  },
+
+  contacts: {
+    async list() { await ready; return clone(DB.contacts).sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label)); },
+    async create(data) {
+      await ready;
+      const c = { id: nextId(), label: (data.label || '').trim(), phone: (data.phone || '').trim(), note: (data.note || '').trim(),
+        sort_order: (Math.max(0, ...DB.contacts.map((x) => x.sort_order)) + 1) };
+      DB.contacts.push(c); save(DB); return clone(c);
+    },
+    async update(id, data) {
+      await ready; id = Number(id);
+      const c = DB.contacts.find((x) => x.id === id);
+      if (c) { c.label = (data.label || '').trim(); c.phone = (data.phone || '').trim(); c.note = (data.note || '').trim(); }
+      save(DB); return clone(c);
+    },
+    async remove(id) {
+      await ready; id = Number(id);
+      DB.contacts = DB.contacts.filter((c) => c.id !== id); save(DB); return { ok: true };
     },
   },
 

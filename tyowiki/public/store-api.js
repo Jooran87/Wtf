@@ -32,9 +32,17 @@ const Store = {
     remove: (id) => api('/api/categories/' + id, { method: 'DELETE' }),
   },
 
+  contacts: {
+    list: () => api('/api/contacts'),
+    create: (data) => api('/api/contacts', jsonBody('POST', data)),
+    update: (id, data) => api('/api/contacts/' + id, jsonBody('PUT', data)),
+    remove: (id) => api('/api/contacts/' + id, { method: 'DELETE' }),
+  },
+
   pages: {
     list: (categoryId) => api('/api/pages' + (categoryId ? '?category_id=' + categoryId : '')),
-    get: (id) => api('/api/pages/' + id).then(withAttachmentUrls),
+    popular: (limit = 10) => api('/api/pages/popular?limit=' + limit),
+    get: (id, { track } = {}) => api('/api/pages/' + id + (track ? '?track=1' : '')).then(withAttachmentUrls),
     create: (data) => api('/api/pages', jsonBody('POST', data)),
     update: (id, data) => api('/api/pages/' + id, jsonBody('PUT', data)),
     remove: (id) => api('/api/pages/' + id, { method: 'DELETE' }),

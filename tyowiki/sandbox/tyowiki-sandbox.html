@@ -156,6 +156,35 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .note .note-body { white-space: pre-wrap; line-height: 1.5; }
 .note .tag { background: #e5efff; color: var(--brand); padding: 1px 8px; border-radius: 10px; font-weight: 600; }
 
+/* Home dashboard layout */
+.home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+.home-main, .home-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.home-main .card, .home-side .card { margin-bottom: 0; }
+@media (max-width: 820px) { .home-grid { grid-template-columns: 1fr; } }
+
+/* Ranked list (suosituimmat) */
+.rank-list { list-style: none; margin: 0; padding: 0; counter-reset: rank; }
+.rank-list li { border-bottom: 1px solid var(--border); counter-increment: rank; }
+.rank-list li:last-child { border-bottom: none; }
+.rank-list li.empty { counter-increment: none; }
+.rank-list .page-link { position: relative; padding-left: 34px; }
+.rank-list li:not(.empty) .page-link::before {
+  content: counter(rank); position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; line-height: 22px; text-align: center; font-size: 12px; font-weight: 700;
+  background: #e5efff; color: var(--brand); border-radius: 50%;
+}
+
+/* Contacts */
+.contact-list { list-style: none; margin: 0; padding: 0; }
+.contact { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  padding: 10px 0; border-bottom: 1px solid var(--border); }
+.contact:last-child { border-bottom: none; }
+.contact-main { min-width: 0; }
+.contact-label { font-weight: 600; }
+.contact-phone { color: var(--brand); text-decoration: none; font-size: 15px; }
+.contact-phone:hover { text-decoration: underline; }
+.contact-actions { display: flex; flex-shrink: 0; }
+
 /* List of pages */
 .page-list { list-style: none; padding: 0; margin: 0; }
 .page-list li { border-bottom: 1px solid var(--border); }
@@ -290,8 +319,8 @@ const MAX_SIZE = 50 * 1024 * 1024;
 const ready = ensureSeeded();
 
 async function ensureSeeded() {
-  if (DB) return;
-  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [] };
+  if (DB) { migrateExisting(); return; }
+  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [] };
   const linja1 = { id: nextId(), name: 'Tuotantolinja 1', sort_order: 1 };
   const pakkaamo = { id: nextId(), name: 'Pakkaamo', sort_order: 2 };
   const yleiset = { id: nextId(), name: 'Yleiset ohjeet', sort_order: 3 };
@@ -343,11 +372,34 @@ async function ensureSeeded() {
   mkNote(linja1.id, 'Matti', 'Linja 1 pyöri hyvin koko aamuvuoron. Öljynpaine hieman koholla iltapäivällä, seurataan.');
   mkNote(pakkaamo.id, 'Liisa', 'Pakkauskone jumitti kahdesti klo 14 aikaan. Puhdistettu ja kuitattu. Huoltopyyntö tehty.');
   mkNote(null, 'Liisa', 'Yleinen: varaosavarastosta loppui teippirulla. Tilaus lähtenyt.');
+
+  // Esimerkkinä katselukertoja, jotta "Suosituimmat ohjeet" näkyy heti.
+  DB.pages[0].views = 42; DB.pages[1].views = 27; DB.pages[2].views = 15;
+
+  DB.contacts = defaultContacts();
   save(DB);
 }
 
+// Oletusyhteystiedot (esimerkkidata + migraatio vanhaan dataan).
+function defaultContacts() {
+  return [
+    { id: nextId(), label: 'IT-tuki', phone: '040 123 4567', note: 'ma–pe 8–16, kiireet: alue 200', sort_order: 1 },
+    { id: nextId(), label: 'Vuoroesihenkilö', phone: '040 234 5678', note: 'ympäri vuorokauden', sort_order: 2 },
+    { id: nextId(), label: 'Kunnossapito / päivystys', phone: '040 345 6789', note: 'häiriöt ja viat', sort_order: 3 },
+    { id: nextId(), label: 'Työterveys', phone: '030 555 0100', note: 'ajanvaraus', sort_order: 4 },
+  ];
+}
+
+// Täydentää vanhat tallennukset uusilla kentillä ilman datan menetystä.
+function migrateExisting() {
+  let changed = false;
+  if (!DB.contacts) { DB.contacts = defaultContacts(); changed = true; }
+  DB.pages.forEach((p) => { if (typeof p.views !== 'number') { p.views = 0; changed = true; } });
+  if (changed) save(DB);
+}
+
 function mkPage(catId, title, content, by) {
-  const p = { id: nextId(), category_id: catId, title, content, updated_at: nowISO(), updated_by: by || '' };
+  const p = { id: nextId(), category_id: catId, title, content, updated_at: nowISO(), updated_by: by || '', views: 0 };
   DB.pages.push(p); return p;
 }
 function mkNote(catId, author, content) {
@@ -398,10 +450,18 @@ const Store = {
       return clone(rows).sort((a, b) => a.title.localeCompare(b.title))
         .map(({ id, category_id, title, updated_at, updated_by }) => ({ id, category_id, title, updated_at, updated_by }));
     },
-    async get(id) {
+    async popular(limit = 10) {
+      await ready;
+      return clone(DB.pages).filter((p) => (p.views || 0) > 0)
+        .sort((a, b) => b.views - a.views || a.title.localeCompare(b.title))
+        .slice(0, limit)
+        .map((p) => ({ id: p.id, title: p.title, category_id: p.category_id, views: p.views, category_name: catName(p.category_id) }));
+    },
+    async get(id, { track } = {}) {
       await ready; id = Number(id);
       const p = DB.pages.find((x) => x.id === id);
       if (!p) throw new Error('Sivua ei löydy');
+      if (track) { p.views = (p.views || 0) + 1; save(DB); }
       const out = clone(p);
       out.attachments = [];
       for (const a of DB.attachments.filter((x) => x.page_id === id)) {
@@ -455,6 +515,26 @@ const Store = {
       await ready; id = Number(id);
       DB.attachments = DB.attachments.filter((a) => a.id !== id);
       await delBlob(id); save(DB); return { ok: true };
+    },
+  },
+
+  contacts: {
+    async list() { await ready; return clone(DB.contacts).sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label)); },
+    async create(data) {
+      await ready;
+      const c = { id: nextId(), label: (data.label || '').trim(), phone: (data.phone || '').trim(), note: (data.note || '').trim(),
+        sort_order: (Math.max(0, ...DB.contacts.map((x) => x.sort_order)) + 1) };
+      DB.contacts.push(c); save(DB); return clone(c);
+    },
+    async update(id, data) {
+      await ready; id = Number(id);
+      const c = DB.contacts.find((x) => x.id === id);
+      if (c) { c.label = (data.label || '').trim(); c.phone = (data.phone || '').trim(); c.note = (data.note || '').trim(); }
+      save(DB); return clone(c);
+    },
+    async remove(id) {
+      await ready; id = Number(id);
+      DB.contacts = DB.contacts.filter((c) => c.id !== id); save(DB); return { ok: true };
     },
   },
 
@@ -650,25 +730,73 @@ async function router() {
 // ---------- Näkymät ----------
 async function viewHome() {
   currentCategoryId = null; renderSidebar();
-  const pages = await Store.pages.list();
-  const recentNotes = await Store.notes.list({ limit: 5 });
+  const [pages, recentNotes, popular, contacts] = await Promise.all([
+    Store.pages.list(),
+    Store.notes.list({ limit: 5 }),
+    Store.pages.popular(10),
+    Store.contacts.list(),
+  ]);
   content.innerHTML = `
     <h2>Tervetuloa työohje-wikiin</h2>
     <p class="muted">Valitse kohde vasemmalta tai selaa työohjeita ja vuorolokia.</p>
-    <div class="card">
-      <div class="spread"><h3 style="margin:0">Kaikki työohjeet (${pages.length})</h3></div>
-      <ul class="page-list">
-        ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
-          <span>${esc(p.title)}</span>
-          <span class="muted">${categoryName(p.category_id)}</span></button></li>`).join('')
-          || '<li class="empty">Ei ohjeita vielä. Lisää kohde ja luo ensimmäinen ohje.</li>'}
-      </ul>
-    </div>
-    <div class="card">
-      <div class="spread"><h3 style="margin:0">📝 Viimeisimmät vuorohuomiot</h3>
-        <a class="btn small secondary" href="#/vuoroloki">Näytä kaikki</a></div>
-      ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+    <div class="home-grid">
+      <div class="home-main">
+        <div class="card">
+          <div class="spread"><h3 style="margin:0">🔥 Suosituimmat ohjeet</h3></div>
+          <ol class="rank-list">
+            ${popular.map((p) => `<li><button class="page-link" data-page="${p.id}">
+              <span>${esc(p.title)}</span>
+              <span class="muted">${esc(p.category_name || 'Yleinen')} · ${p.views} katselua</span></button></li>`).join('')
+              || '<li class="empty">Ei vielä tarpeeksi katseluita. Avaa ohjeita, niin suosituimmat kertyvät tähän.</li>'}
+          </ol>
+        </div>
+        <div class="card">
+          <div class="spread"><h3 style="margin:0">Kaikki työohjeet (${pages.length})</h3></div>
+          <ul class="page-list">
+            ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
+              <span>${esc(p.title)}</span>
+              <span class="muted">${categoryName(p.category_id)}</span></button></li>`).join('')
+              || '<li class="empty">Ei ohjeita vielä. Lisää kohde ja luo ensimmäinen ohje.</li>'}
+          </ul>
+        </div>
+      </div>
+      <div class="home-side">
+        <div class="card">
+          <div class="spread"><h3 style="margin:0">☎ Tärkeät numerot</h3>
+            <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">＋</button></div>
+          <ul class="contact-list">
+            ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä.</li>'}
+          </ul>
+        </div>
+        <div class="card">
+          <div class="spread"><h3 style="margin:0">📝 Viimeisimmät vuorohuomiot</h3>
+            <a class="btn small secondary" href="#/vuoroloki">Kaikki</a></div>
+          ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+        </div>
+      </div>
     </div>`;
+
+  $('#addContactBtn').onclick = () => editContact(null);
+  document.querySelectorAll('[data-editcontact]').forEach((b) => b.onclick = () => {
+    editContact(contacts.find((c) => String(c.id) === b.dataset.editcontact));
+  });
+  document.querySelectorAll('[data-delcontact]').forEach((b) => b.onclick = async () => {
+    if (confirm('Poistetaanko yhteystieto?')) { await Store.contacts.remove(b.dataset.delcontact); viewHome(); }
+  });
+}
+
+async function editContact(existing) {
+  const label = prompt('Nimi / rooli (esim. IT-tuki, Vuoroesihenkilö):', existing ? existing.label : '');
+  if (label === null || !label.trim()) return;
+  const phone = prompt('Puhelinnumero:', existing ? existing.phone : '');
+  if (phone === null) return;
+  const note = prompt('Lisätieto (valinnainen, esim. aukioloaika tai sähköposti):', existing ? existing.note : '') || '';
+  const data = { label: label.trim(), phone: phone.trim(), note: note.trim() };
+  try {
+    if (existing) await Store.contacts.update(existing.id, data);
+    else await Store.contacts.create(data);
+    toast('Tallennettu'); viewHome();
+  } catch (err) { toast(err.message, true); }
 }
 
 function categoryName(id) {
@@ -711,7 +839,7 @@ async function viewCategory(id) {
 }
 
 async function viewPage(id) {
-  const p = await Store.pages.get(id);
+  const p = await Store.pages.get(id, { track: true });
   content.innerHTML = `
     <div class="spread">
       <div>
@@ -879,6 +1007,21 @@ function noteHtml(n) {
     </div>
     <div class="note-body">${esc(n.content)}</div>
   </div>`;
+}
+
+function contactHtml(c) {
+  const tel = c.phone ? c.phone.replace(/[^\d+]/g, '') : '';
+  return `<li class="contact">
+    <div class="contact-main">
+      <div class="contact-label">${esc(c.label)}</div>
+      ${c.phone ? `<a class="contact-phone" href="tel:${esc(tel)}">${esc(c.phone)}</a>` : ''}
+      ${c.note ? `<div class="att-meta">${esc(c.note)}</div>` : ''}
+    </div>
+    <div class="contact-actions">
+      <button class="icon-btn small" data-editcontact="${c.id}" title="Muokkaa">✏️</button>
+      <button class="icon-btn small" data-delcontact="${c.id}" title="Poista">🗑</button>
+    </div>
+  </li>`;
 }
 
 function attHtml(a) {

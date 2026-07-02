@@ -38,6 +38,14 @@ db.exec(`
     uploaded_by   TEXT NOT NULL DEFAULT ''
   );
 
+  CREATE TABLE IF NOT EXISTS contacts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    label      TEXT NOT NULL,
+    phone      TEXT NOT NULL DEFAULT '',
+    note       TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+
   CREATE TABLE IF NOT EXISTS shift_notes (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
@@ -55,6 +63,12 @@ db.exec(`
 const attCols = db.prepare('PRAGMA table_info(attachments)').all().map((c) => c.name);
 if (!attCols.includes('text_content')) {
   db.exec("ALTER TABLE attachments ADD COLUMN text_content TEXT NOT NULL DEFAULT ''");
+}
+
+// Migraatio: sivun katselukerrat (suosituimmat ohjeet -listaa varten).
+const pageCols = db.prepare('PRAGMA table_info(pages)').all().map((c) => c.name);
+if (!pageCols.includes('views')) {
+  db.exec('ALTER TABLE pages ADD COLUMN views INTEGER NOT NULL DEFAULT 0');
 }
 
 module.exports = db;

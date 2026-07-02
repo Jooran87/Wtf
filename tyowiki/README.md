@@ -35,7 +35,13 @@ molemmat versiot päivittyvät.
 
 ### Sandboxin avaaminen
 
-Avaa `sandbox/index.html` selaimessa. Helpoin tapa nähdä se paikallisesti:
+**Helpoin tapa (ei asennusta):** avaa `sandbox/tyowiki-sandbox.html` selaimessa
+(tuplaklikkaus). Se on yksi itsenäinen tiedosto – ei vaadi palvelinta eikä muita
+tiedostoja vierellä. Voit lähettää sen vaikka sähköpostilla ja avata missä vain.
+
+**Vaihtoehto:** avaa `sandbox/index.html` (vaatii että koko `tyowiki`-kansio on
+kasassa, koska se viittaa `../public/`-tiedostoihin). Jos selaimesi estää jotain
+file://-tilassa, tarjoile kansio paikallisen palvelimen kautta:
 
 ```bash
 cd tyowiki
@@ -46,6 +52,10 @@ npx serve .        # tai: python3 -m http.server 8080
 Sandbox on esitäytetty esimerkkisisällöllä. Data tallentuu vain kyseiseen
 selaimeen; tyhjennä sivuston tallennustila (localStorage + IndexedDB)
 nollataksesi sen esimerkkidataan.
+
+> **Huom:** `tyowiki-sandbox.html` on koottu tiedosto. Jos muokkaat ulkoasua
+> (`public/styles.css`) tai logiikkaa, päivitä se komennolla
+> `node sandbox/build-single.js`.
 
 ## Käyttöönotto (palvelinversio)
 

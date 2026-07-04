@@ -126,6 +126,7 @@ async function router() {
     if (parts[0] === 'vuoroloki') { setActiveNav('shiftlog'); return viewShiftLog(); }
     if (parts[0] === 'tiedotteet') { setActiveNav('announcements'); return viewAnnouncements(); }
     if (parts[0] === 'termipankki') { setActiveNav('terms'); return viewTerms(); }
+    if (parts[0] === 'linkit') { setActiveNav('links'); return viewLinks(); }
     if (parts[0] === 'historia') { setActiveNav(''); return viewHistory(+parts[1]); }
     if (parts[0] === 'versio') { setActiveNav(''); return viewRevision(+parts[1]); }
     if (parts[0] === 'kohde') { setActiveNav(''); currentCategoryId = +parts[1]; renderSidebar(); return viewCategory(+parts[1]); }
@@ -562,6 +563,70 @@ async function viewTerms(editId) {
   });
 }
 
+async function viewLinks(editId) {
+  const links = await Store.links.list();
+  const editing = editId ? links.find((l) => l.id === editId) : null;
+  content.innerHTML = `
+    <h2>🔗 Linkit</h2>
+    <p class="muted">Usein tarvitut osoitteet: järjestelmät, häiriökartat, intranet ym.</p>
+    <div class="card">
+      <h3 style="margin-top:0">${editing ? 'Muokkaa linkkiä' : 'Lisää linkki'}</h3>
+      <div class="row" style="align-items:flex-start">
+        <div class="field" style="flex:1; min-width:160px; margin-bottom:0">
+          <label>Nimi</label>
+          <input type="text" id="linkLabel" value="${editing ? esc(editing.label) : ''}" placeholder="Esim. Sähköyhtiön häiriökartta" />
+        </div>
+        <div class="field" style="flex:1; min-width:200px; margin-bottom:0">
+          <label>Osoite (URL)</label>
+          <input type="text" id="linkUrl" value="${editing ? esc(editing.url) : ''}" placeholder="esim. hairiokartta.fi" />
+        </div>
+        <div class="field" style="flex:1; min-width:180px; margin-bottom:0">
+          <label>Kuvaus (valinnainen)</label>
+          <input type="text" id="linkNote" value="${editing ? esc(editing.note) : ''}" placeholder="Mihin linkkiä käytetään" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="linkSaveBtn">${editing ? 'Tallenna' : 'Lisää'}</button>
+        ${editing ? '<button class="btn secondary" id="linkCancelBtn">Peruuta</button>' : ''}
+      </div>
+    </div>
+    <div class="card">
+      <ul class="link-list">
+        ${links.map(linkHtml).join('') || '<li class="empty">Ei linkkejä vielä. Lisää ensimmäinen yllä.</li>'}
+      </ul>
+    </div>`;
+
+  $('#linkSaveBtn').onclick = async () => {
+    const body = { label: $('#linkLabel').value, url: $('#linkUrl').value, note: $('#linkNote').value };
+    if (!body.label.trim()) return toast('Anna nimi', true);
+    if (!body.url.trim()) return toast('Anna osoite', true);
+    try {
+      if (editing) await Store.links.update(editing.id, body);
+      else await Store.links.create(body);
+      toast('Tallennettu'); viewLinks();
+    } catch (err) { toast(err.message, true); }
+  };
+  if (editing) $('#linkCancelBtn').onclick = () => viewLinks();
+  document.querySelectorAll('[data-editlink]').forEach((b) => b.onclick = () => viewLinks(+b.dataset.editlink));
+  document.querySelectorAll('[data-dellink]').forEach((b) => b.onclick = async () => {
+    if (confirm('Poistetaanko linkki?')) { await Store.links.remove(b.dataset.dellink); viewLinks(); }
+  });
+}
+
+function linkHtml(l) {
+  return `<li class="link-row">
+    <span class="att-icon">🔗</span>
+    <span class="att-name">
+      <a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>
+      <div class="att-meta">${esc(l.url)}${l.note ? ' · ' + esc(l.note) : ''}</div>
+    </span>
+    <span class="contact-actions">
+      <button class="icon-btn small" data-editlink="${l.id}" title="Muokkaa">✏️</button>
+      <button class="icon-btn small" data-dellink="${l.id}" title="Poista">🗑</button>
+    </span>
+  </li>`;
+}
+
 async function viewSearch(q) {
   $('#searchInput').value = q;
   const r = await Store.search(q);
@@ -593,6 +658,18 @@ async function viewSearch(q) {
         </li>`).join('') || '<li class="muted" style="border:none">Ei osumia tiedostoista.</li>'}
       </ul>
     </div>
+    ${(r.links || []).length ? `<div class="card">
+      <h3 style="margin-top:0">🔗 Linkit (${r.links.length})</h3>
+      <ul class="link-list">
+        ${r.links.map((l) => `<li class="link-row">
+          <span class="att-icon">🔗</span>
+          <span class="att-name">
+            <a href="${esc(l.url)}" target="_blank" rel="noopener">${highlight(l.label, q)}</a>
+            <div class="att-meta">${esc(l.url)}${l.note ? ' · ' + esc(l.note) : ''}</div>
+          </span>
+        </li>`).join('')}
+      </ul>
+    </div>` : ''}
     ${(r.terms || []).length ? `<div class="card">
       <h3 style="margin-top:0">📖 Termit (${r.terms.length})</h3>
       <dl class="term-list">
@@ -700,7 +777,7 @@ document.addEventListener('click', (e) => {
   if (cat) { location.hash = '#/kohde/' + cat.dataset.cat; return; }
   const nav = e.target.closest('[data-nav]');
   if (nav) {
-    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet', terms: '#/termipankki' };
+    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet', terms: '#/termipankki', links: '#/linkit' };
     location.hash = routes[nav.dataset.nav] || '#/';
     return;
   }
@@ -729,15 +806,15 @@ if (offlineBtn) offlineBtn.onclick = async () => {
   // Sandbox: koostetaan tiedosto selaimen datasta.
   toast('Kootaan offline-versiota…');
   try {
-    const [cats, pageList, terms, contacts, anns] = await Promise.all([
+    const [cats, pageList, terms, contacts, anns, links] = await Promise.all([
       Store.categories.list(), Store.pages.list(), Store.terms.list(),
-      Store.contacts.list(), Store.announcements.list(),
+      Store.contacts.list(), Store.announcements.list(), Store.links.list(),
     ]);
     const pages = [];
     for (const p of pageList) pages.push(await Store.pages.get(p.id));
     const html = buildOfflineHtml({
       generatedAt: new Date().toISOString(),
-      categories: cats, pages, terms, contacts, announcements: anns,
+      categories: cats, pages, terms, contacts, announcements: anns, links,
     });
     const blob = new Blob([html], { type: 'text/html' });
     const a = document.createElement('a');

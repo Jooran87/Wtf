@@ -60,6 +60,7 @@
     const pages = (data.pages || []).slice();
     const terms = (data.terms || []).slice().sort((a, b) => a.term.localeCompare(b.term, 'fi'));
     const contacts = (data.contacts || []).slice();
+    const links = (data.links || []).slice();
     const anns = (data.announcements || []).slice()
       .sort((a, b) => (b.pinned - a.pinned) || String(b.created_at).localeCompare(String(a.created_at)));
 
@@ -151,6 +152,12 @@
     ${c.note ? `<small>${esc(c.note)}</small>` : ''}
   </div>`).join('') || '<p class="meta">Ei yhteystietoja.</p>'}
 </section>
+
+${links.length ? `<section>
+  <h2>🔗 Linkit</h2>
+  ${links.map((l) => `<div class="term"><b><a href="${esc(l.url)}">${esc(l.label)}</a></b>${l.note ? ' – ' + esc(l.note) : ''}<br/><small style="color:#6b7686">${esc(l.url)}</small></div>`).join('')}
+  <p class="meta" style="padding:6px 0 0">Huom: linkit vaativat verkkoyhteyden.</p>
+</section>` : ''}
 
 ${anns.length ? `<section>
   <h2>📢 Tiedotteet</h2>

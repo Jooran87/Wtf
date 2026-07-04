@@ -9,6 +9,8 @@ Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
 - **Versiohistoria** – jokainen muokkaus tallentaa edellisen version talteen;
   vanhoja versioita voi katsella ja palauttaa (🕘 Historia -nappi ohjesivulla)
 - **Termipankki** – talon termit ja lyhenteet aakkosittain; termit löytyvät myös haulla
+- **Linkit** – usein tarvitut osoitteet (järjestelmät, häiriökartat, intranet);
+  mukana haussa ja offline-versiossa
 - **Perehdytys** – oma kategoria pohja-artikkeleineen (ensimmäinen viikko, tarkistuslista)
 - **Vahvistettu ajantasaiseksi** – ohjeen voi kuitata tarkistetuksi; merkki näyttää
   vihreää (vahvistettu ≤ 180 pv), punaista (vahvistus vanhentunut) tai harmaata

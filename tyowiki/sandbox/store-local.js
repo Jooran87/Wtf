@@ -6,7 +6,7 @@
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v7';
+const LS_KEY = 'tyowiki_sandbox_v8';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -85,7 +85,7 @@ const ready = ensureSeeded();
 
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
-  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [] };
+  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [], links: [] };
   const pereh = { id: nextId(), name: 'Perehdytys', sort_order: 0 };
   DB.categories.push(pereh);
   const kipa = { id: nextId(), name: 'Kipa', sort_order: 1 };
@@ -278,6 +278,17 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
 
   DB.contacts = defaultContacts();
 
+  // Esimerkkilinkit.
+  const seedLinks = [
+    ['Sähköyhtiön häiriökartta', 'https://www.example-sahko.fi/hairiokartta', 'sähkökatkojen laajuus ja arvioitu kesto'],
+    ['Palmia intranet', 'https://intra.palmia.fi', 'sisäiset tiedotteet ja lomakkeet'],
+    ['Työvuorojärjestelmä', 'https://vuorot.example.fi', 'vuorolistat ja vaihtopyynnöt'],
+    ['Ilmatieteen laitos', 'https://www.ilmatieteenlaitos.fi', 'säävaroitukset ja ennusteet'],
+  ];
+  for (const [label, url, note] of seedLinks) {
+    DB.links.push({ id: nextId(), label, url, note, sort_order: DB.links.length + 1 });
+  }
+
   // Esimerkkitiedotteet: yksi kiinnitetty, yksi tavallinen.
   DB.announcements.push(
     { id: nextId(), title: 'Uusi työohje-wiki käytössä', content: 'Tervetuloa! Ohjeet, tiedotteet ja vuoroloki löytyvät jatkossa täältä. Palaute esihenkilölle.', pinned: 1, created_at: nowISO(), created_by: 'Anna', updated_at: nowISO() },
@@ -304,6 +315,7 @@ function migrateExisting() {
   if (!DB.revisions) { DB.revisions = []; changed = true; }
   if (!DB.announcements) { DB.announcements = []; changed = true; }
   if (!DB.terms) { DB.terms = []; changed = true; }
+  if (!DB.links) { DB.links = []; changed = true; }
   DB.pages.forEach((p) => {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
@@ -322,6 +334,13 @@ function mkNote(catId, author, content) {
 
 // ---------- Hakuapurit (samat kuin palvelimen logiikka) ----------
 function includesCI(hay, q) { return (hay || '').toLowerCase().includes(q.toLowerCase()); }
+function normalizeUrl(u) {
+  u = (u || '').trim();
+  if (!u) return '';
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+
 function makeSnippet(text, q) {
   if (!text) return '';
   const plain = text.replace(/[#*`>]/g, '').replace(/\s+/g, ' ').trim();
@@ -453,6 +472,38 @@ const Store = {
     },
   },
 
+  links: {
+    async list() {
+      await ready;
+      return clone(DB.links).sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label, 'fi'));
+    },
+    async create(data) {
+      await ready;
+      const label = (data.label || '').trim();
+      const url = normalizeUrl(data.url);
+      if (!label) throw new Error('Nimi puuttuu');
+      if (!url) throw new Error('Osoite puuttuu');
+      const l = { id: nextId(), label, url, note: (data.note || '').trim(),
+        sort_order: (Math.max(0, ...DB.links.map((x) => x.sort_order)) + 1) };
+      DB.links.push(l); save(DB); return clone(l);
+    },
+    async update(id, data) {
+      await ready; id = Number(id);
+      const l = DB.links.find((x) => x.id === id);
+      if (!l) throw new Error('Linkkiä ei löydy');
+      const label = (data.label || '').trim();
+      const url = normalizeUrl(data.url);
+      if (!label) throw new Error('Nimi puuttuu');
+      if (!url) throw new Error('Osoite puuttuu');
+      l.label = label; l.url = url; l.note = (data.note || '').trim();
+      save(DB); return clone(l);
+    },
+    async remove(id) {
+      await ready; id = Number(id);
+      DB.links = DB.links.filter((l) => l.id !== id); save(DB); return { ok: true };
+    },
+  },
+
   terms: {
     async list() {
       await ready;
@@ -571,7 +622,7 @@ const Store = {
   async search(q) {
     await ready;
     q = (q || '').trim();
-    if (!q) return { pages: [], notes: [], files: [], announcements: [], terms: [] };
+    if (!q) return { pages: [], notes: [], files: [], announcements: [], terms: [], links: [] };
     const pages = DB.pages.filter((p) => includesCI(p.title, q) || includesCI(p.content, q) || includesCI(p.keywords, q))
       .sort((a, b) => a.title.localeCompare(b.title))
       .map((p) => ({
@@ -599,7 +650,10 @@ const Store = {
     const terms = clone(DB.terms)
       .filter((t) => includesCI(t.term, q) || includesCI(t.definition, q))
       .sort((a, b) => a.term.localeCompare(b.term, 'fi'));
-    return { pages, notes, files, announcements, terms };
+    const links = clone(DB.links)
+      .filter((l) => includesCI(l.label, q) || includesCI(l.url, q) || includesCI(l.note, q))
+      .sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label, 'fi'));
+    return { pages, notes, files, announcements, terms, links };
   },
 };
 

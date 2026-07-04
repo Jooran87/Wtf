@@ -54,6 +54,13 @@ const Store = {
     get: (id) => api('/api/revisions/' + id),
   },
 
+  links: {
+    list: () => api('/api/links'),
+    create: (data) => api('/api/links', jsonBody('POST', data)),
+    update: (id, data) => api('/api/links/' + id, jsonBody('PUT', data)),
+    remove: (id) => api('/api/links/' + id, { method: 'DELETE' }),
+  },
+
   terms: {
     list: () => api('/api/terms'),
     create: (data) => api('/api/terms', jsonBody('POST', data)),

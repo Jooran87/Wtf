@@ -276,6 +276,45 @@ app.delete('/api/announcements/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Linkit ----------
+app.get('/api/links', (req, res) => {
+  res.json(db.prepare('SELECT * FROM links ORDER BY sort_order, label').all());
+});
+
+app.post('/api/links', (req, res) => {
+  const label = (req.body.label || '').trim();
+  const url = normalizeUrl(req.body.url);
+  if (!label) return res.status(400).json({ error: 'Nimi puuttuu' });
+  if (!url) return res.status(400).json({ error: 'Osoite puuttuu' });
+  const sort = db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS s FROM links').get().s;
+  const info = db.prepare('INSERT INTO links (label, url, note, sort_order) VALUES (?, ?, ?, ?)')
+    .run(label, url, (req.body.note || '').trim(), sort);
+  res.json(db.prepare('SELECT * FROM links WHERE id = ?').get(info.lastInsertRowid));
+});
+
+app.put('/api/links/:id', (req, res) => {
+  const label = (req.body.label || '').trim();
+  const url = normalizeUrl(req.body.url);
+  if (!label) return res.status(400).json({ error: 'Nimi puuttuu' });
+  if (!url) return res.status(400).json({ error: 'Osoite puuttuu' });
+  db.prepare('UPDATE links SET label = ?, url = ?, note = ? WHERE id = ?')
+    .run(label, url, (req.body.note || '').trim(), req.params.id);
+  res.json(db.prepare('SELECT * FROM links WHERE id = ?').get(req.params.id));
+});
+
+app.delete('/api/links/:id', (req, res) => {
+  db.prepare('DELETE FROM links WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// Lisää https:// jos protokolla puuttuu.
+function normalizeUrl(u) {
+  u = (u || '').trim();
+  if (!u) return '';
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+
 // ---------- Termipankki ----------
 app.get('/api/terms', (req, res) => {
   const rows = db.prepare('SELECT * FROM terms').all();
@@ -388,7 +427,10 @@ app.get('/api/search', (req, res) => {
     'SELECT id, term, definition FROM terms WHERE term LIKE ? OR definition LIKE ? LIMIT 20'
   ).all(like, like);
   terms.sort((a, b) => a.term.localeCompare(b.term, 'fi'));
-  res.json({ pages, notes, files, announcements, terms });
+  const links = db.prepare(
+    'SELECT * FROM links WHERE label LIKE ? OR url LIKE ? OR note LIKE ? ORDER BY sort_order, label LIMIT 20'
+  ).all(like, like, like);
+  res.json({ pages, notes, files, announcements, terms, links });
 });
 
 // Muodostaa lyhyen otteen hakusanan ympäriltä (Markdown-merkit siivottuna).
@@ -416,6 +458,7 @@ app.get('/offline', (req, res) => {
     terms: db.prepare('SELECT * FROM terms').all(),
     contacts: db.prepare('SELECT * FROM contacts ORDER BY sort_order, label').all(),
     announcements: db.prepare('SELECT * FROM announcements').all(),
+    links: db.prepare('SELECT * FROM links ORDER BY sort_order, label').all(),
   });
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   if (req.query.download) {

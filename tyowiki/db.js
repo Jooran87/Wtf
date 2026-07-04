@@ -75,6 +75,14 @@ db.exec(`
     updated_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS links (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    label      TEXT NOT NULL,
+    url        TEXT NOT NULL,
+    note       TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+
   CREATE TABLE IF NOT EXISTS terms (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     term       TEXT NOT NULL,

@@ -165,6 +165,13 @@ insContact.run('Vuoroesihenkilö', '040 234 5678', 'ympäri vuorokauden', 2);
 insContact.run('Kiinteistöpäivystys', '040 345 6789', 'kiinteistöjen viat ja huolto', 3);
 insContact.run('Hätäkeskus', '112', 'henkeä uhkaavat tilanteet', 4);
 
+// Esimerkkilinkit
+const insLink = db.prepare('INSERT INTO links (label, url, note, sort_order) VALUES (?, ?, ?, ?)');
+insLink.run('Sähköyhtiön häiriökartta', 'https://www.example-sahko.fi/hairiokartta', 'sähkökatkojen laajuus ja arvioitu kesto', 1);
+insLink.run('Palmia intranet', 'https://intra.palmia.fi', 'sisäiset tiedotteet ja lomakkeet', 2);
+insLink.run('Työvuorojärjestelmä', 'https://vuorot.example.fi', 'vuorolistat ja vaihtopyynnöt', 3);
+insLink.run('Ilmatieteen laitos', 'https://www.ilmatieteenlaitos.fi', 'säävaroitukset ja ennusteet', 4);
+
 // Termipankin esimerkkitermit
 insTerm.run('Kipa', 'Asiakkuus, jolle tuotamme kiinteistöhoitoa. Kohdeohjeet omassa kategoriassaan.', now(), 'Anna');
 insTerm.run('ISM', 'Toimintajärjestelmän mukaiset ohjeet ja menettelyt (toimintakäsikirja).', now(), 'Anna');

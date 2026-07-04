@@ -27,6 +27,21 @@ Kaikki data pysyy talon sisällä – ei pilveä.
 - **Tekstinlouhinta** – `pdf-parse` (PDF), `mammoth` + `word-extractor` (Word), `exceljs` (Excel):
   ladatusta tiedostosta louhitaan teksti latausvaiheessa hakua varten
 
+## 📴 Offline-versio puhelimeen
+
+Sivupalkin **📴 Offline-versio** -nappi lataa koko wikin (ohjeet, termipankki,
+tärkeät numerot soittolinkkeineen, tiedotteet) yhtenä HTML-tiedostona
+(`tyowiki-offline.html`). Tiedosto toimii puhelimessa **täysin ilman verkkoa** –
+esim. nettikatkoksen aikana voi omalla puhelimella hakea ohjeen vikailmoituksen
+tekemiseen ja soittaa IT-tukeen suoraan numerolinkistä.
+
+- Palvelinversiossa myös suora osoite: `/offline` (katselu) ja
+  `/offline?download=1` (lataus tiedostona)
+- Offline-tiedostossa on haku ja avattavat ohjeet; se ei käytä selaimen
+  tallennustilaa, joten se aukeaa myös tiukoissa selaimissa (Safari, esikatselut)
+- Liitetiedostot eivät sisälly offline-versioon
+- Suositus: lataa tuore kopio esim. viikoittain tai isojen ohjepäivitysten jälkeen
+
 ## Kaksi versiota: palvelin vs. sandbox
 
 | | **Palvelinversio** (`public/` + `server.js`) | **Sandbox** (`sandbox/`) |

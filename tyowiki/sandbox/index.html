@@ -38,6 +38,7 @@
         <button class="nav-link" data-nav="announcements">📢 Tiedotteet</button>
         <button class="nav-link" data-nav="shiftlog">📝 Vuoroloki</button>
         <button class="nav-link" data-nav="terms">📖 Termipankki</button>
+        <button class="nav-link" id="offlineBtn" title="Lataa puhelimeen – toimii ilman verkkoa">📴 Offline-versio</button>
       </nav>
       <div class="sidebar-section">
         <div class="sidebar-title">
@@ -54,6 +55,7 @@
   <div id="toast" class="toast"></div>
 
   <!-- Sandbox-datakerros (selaimen tallennus) korvaa store-api.js:n -->
+  <script src="../public/offline-template.js"></script>
   <script src="store-local.js"></script>
   <script src="../public/app.js"></script>
 </body>

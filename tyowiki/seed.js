@@ -126,6 +126,24 @@ insPage.run(hairiot, 'Sähkökatko kohteessa', `# Sähkökatko kohteessa
 3. Ilmoita kohteen yhteyshenkilölle ja kirjaa tapahtuma
 4. Sähköjen palauduttua varmista järjestelmien normaali tila`, 'sähkökatko, varavoima, UPS', now(), 'Jukka', 18);
 
+insPage.run(hairiot, 'Vikailmoituksen tekeminen IT-tukeen', `# Vikailmoitus IT-tukeen
+
+## Ennen ilmoitusta
+- Kokeile ensin: käynnistä ohjelma/laite uudelleen
+- Katso onko tiedotteissa tietoa tunnetusta häiriöstä
+
+## Ilmoituksen tekeminen
+1. Soita **tekniseen tukeen 040 123 4567** (24/7)
+2. Kerro: nimesi, työpiste, mikä laite/järjestelmä, mitä tapahtui ja milloin
+3. Kerro näkyykö virheilmoitus – lue koodi sellaisenaan
+4. Kirjaa saamasi tiketin numero vuorolokiin
+
+## Kiireellisyys
+- **Kriittinen** (hälytysjärjestelmä alhaalla): soita AINA, älä jätä vain viestiä
+- Muut viat: voi ilmoittaa myös sähköpostilla
+
+> Nettikatkoksen aikana: käytä puhelinta ja kirjaa tapahtumat käsin – vie ne järjestelmään kun yhteys palaa.`, 'vikailmoitus, IT-tuki, tiketti, häiriö', now(), 'Jukka', 25);
+
 insPage.run(ism, 'ISM – toimintakäsikirjan periaatteet', `# ISM-ohjeet
 
 ## Tarkoitus

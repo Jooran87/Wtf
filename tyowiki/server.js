@@ -7,6 +7,7 @@ const express = require('express');
 const multer = require('multer');
 const db = require('./db');
 const { extractText } = require('./extract');
+const buildOfflineHtml = require('./public/offline-template');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -400,6 +401,28 @@ function makeSnippet(text, q) {
   const end = Math.min(plain.length, idx + q.length + 60);
   return (start > 0 ? '…' : '') + plain.slice(start, end).trim() + (end < plain.length ? '…' : '');
 }
+
+// ---------- Offline-versio ----------
+// Kokoaa koko wikin yhdeksi HTML-tiedostoksi, jonka voi tallentaa puhelimeen
+// ja käyttää ilman verkkoa. ?download=1 pakottaa tallennuksen tiedostona.
+app.get('/offline', (req, res) => {
+  const pages = db.prepare('SELECT * FROM pages').all();
+  const attStmt = db.prepare('SELECT original_name FROM attachments WHERE page_id = ?');
+  for (const p of pages) p.attachments = attStmt.all(p.id);
+  const html = buildOfflineHtml({
+    generatedAt: now(),
+    categories: db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all(),
+    pages,
+    terms: db.prepare('SELECT * FROM terms').all(),
+    contacts: db.prepare('SELECT * FROM contacts ORDER BY sort_order, label').all(),
+    announcements: db.prepare('SELECT * FROM announcements').all(),
+  });
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  if (req.query.download) {
+    res.setHeader('Content-Disposition', 'attachment; filename="tyowiki-offline.html"');
+  }
+  res.send(html);
+});
 
 // ---------- Apurit ----------
 function deletePageFiles(pageId) {

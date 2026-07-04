@@ -8,6 +8,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'public', 'styles.css'), 'utf8');
+const offlineTpl = fs.readFileSync(path.join(root, 'public', 'offline-template.js'), 'utf8');
 const storeLocal = fs.readFileSync(path.join(__dirname, 'store-local.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
 
@@ -43,6 +44,7 @@ ${css}
         <button class="nav-link" data-nav="announcements">📢 Tiedotteet</button>
         <button class="nav-link" data-nav="shiftlog">📝 Vuoroloki</button>
         <button class="nav-link" data-nav="terms">📖 Termipankki</button>
+        <button class="nav-link" id="offlineBtn" title="Lataa puhelimeen – toimii ilman verkkoa">📴 Offline-versio</button>
       </nav>
       <div class="sidebar-section">
         <div class="sidebar-title"><span>Ohjeet</span>
@@ -53,6 +55,9 @@ ${css}
     <main id="content" class="content"></main>
   </div>
   <div id="toast" class="toast"></div>
+  <script>
+${offlineTpl}
+  </script>
   <script>
 ${storeLocal}
   </script>

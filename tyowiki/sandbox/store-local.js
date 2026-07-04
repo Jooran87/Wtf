@@ -6,13 +6,16 @@
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v6';
+const LS_KEY = 'tyowiki_sandbox_v7';
 
 // ---------- localStorage-malli ----------
 function load() {
   try { return JSON.parse(localStorage.getItem(LS_KEY)) || null; } catch (_) { return null; }
 }
-function save(db) { localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+function save(db) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+  catch (e) { console.warn('Tallennus selaimeen ei onnistunut:', e); }
+}
 let DB = load();
 
 const nowISO = () => new Date().toISOString();
@@ -21,38 +24,49 @@ function catName(id) { const c = DB.categories.find((x) => x.id === id); return 
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
 // ---------- IndexedDB blobit ----------
+// Osa selaimista (mm. Safari file://-tilassa) estää IndexedDB:n. Silloin
+// liitteiden sisältö ei ole käytettävissä, mutta KAIKKI MUU toimii –
+// virheet eivät saa kaataa sovellusta.
 function idb() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open('tyowiki_sandbox_files', 1);
-    r.onupgradeneeded = () => r.result.createObjectStore('files');
-    r.onsuccess = () => res(r.result);
-    r.onerror = () => rej(r.error);
+    try {
+      const r = indexedDB.open('tyowiki_sandbox_files', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('files');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    } catch (e) { rej(e); }
   });
 }
 async function putBlob(id, blob) {
-  const db = await idb();
-  return new Promise((res, rej) => {
-    const tx = db.transaction('files', 'readwrite');
-    tx.objectStore('files').put(blob, id);
-    tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
-  });
+  try {
+    const db = await idb();
+    return await new Promise((res, rej) => {
+      const tx = db.transaction('files', 'readwrite');
+      tx.objectStore('files').put(blob, id);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    });
+  } catch (e) { console.warn('Liitteen tallennus ei onnistu tässä selaimessa:', e); }
 }
 async function getBlobUrl(id) {
-  const db = await idb();
-  const blob = await new Promise((res, rej) => {
-    const tx = db.transaction('files', 'readonly');
-    const rq = tx.objectStore('files').get(id);
-    rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
-  });
-  return blob ? URL.createObjectURL(blob) : '#';
+  try {
+    const db = await idb();
+    const blob = await new Promise((res, rej) => {
+      const tx = db.transaction('files', 'readonly');
+      const rq = tx.objectStore('files').get(id);
+      rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+    });
+    return blob ? URL.createObjectURL(blob) : '#';
+  } catch (e) { return '#'; }
 }
 async function delBlob(id) {
-  const db = await idb();
-  return new Promise((res) => {
-    const tx = db.transaction('files', 'readwrite');
-    tx.objectStore('files').delete(id);
-    tx.oncomplete = () => res();
-  });
+  try {
+    const db = await idb();
+    return await new Promise((res) => {
+      const tx = db.transaction('files', 'readwrite');
+      tx.objectStore('files').delete(id);
+      tx.oncomplete = () => res();
+    });
+  } catch (e) { /* ei kriittinen */ }
 }
 
 // ---------- Sallitut tiedostotyypit (kuten palvelimessa) ----------
@@ -182,6 +196,24 @@ Jos hälytystenkäsittelyjärjestelmä ei ole käytettävissä:
 3. Ilmoita kohteen yhteyshenkilölle ja kirjaa tapahtuma
 4. Sähköjen palauduttua varmista järjestelmien normaali tila`, 'Jukka', 'sähkökatko, varavoima, UPS');
 
+  mkPage(hairiot.id, 'Vikailmoituksen tekeminen IT-tukeen', `# Vikailmoitus IT-tukeen
+
+## Ennen ilmoitusta
+- Kokeile ensin: käynnistä ohjelma/laite uudelleen
+- Katso onko tiedotteissa tietoa tunnetusta häiriöstä
+
+## Ilmoituksen tekeminen
+1. Soita **tekniseen tukeen 040 123 4567** (24/7)
+2. Kerro: nimesi, työpiste, mikä laite/järjestelmä, mitä tapahtui ja milloin
+3. Kerro näkyykö virheilmoitus – lue koodi sellaisenaan
+4. Kirjaa saamasi tiketin numero vuorolokiin
+
+## Kiireellisyys
+- **Kriittinen** (hälytysjärjestelmä alhaalla): soita AINA, älä jätä vain viestiä
+- Muut viat: voi ilmoittaa myös sähköpostilla
+
+> Nettikatkoksen aikana: käytä puhelinta ja kirjaa tapahtumat käsin – vie ne järjestelmään kun yhteys palaa.`, 'Jukka', 'vikailmoitus, IT-tuki, tiketti, häiriö');
+
   const pIsm = mkPage(ism.id, 'ISM – toimintakäsikirjan periaatteet', `# ISM-ohjeet
 
 ## Tarkoitus
@@ -223,7 +255,7 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
   mkNote(null, 'Anna', 'Yleinen: uudet ISM-ohjeet päivitetty järjestelmään.');
 
   // Esimerkkinä katselukertoja, jotta "Suosituimmat ohjeet" näkyy heti.
-  const seedViews = [12, 9, 34, 58, 41, 29, 18, 22];
+  const seedViews = [12, 9, 34, 58, 41, 29, 18, 25, 22];
   DB.pages.forEach((p, i) => { p.views = seedViews[i] || 0; });
 
   // Esimerkit ajantasaisuusvahvistuksesta: tuore, vanhentunut ja vahvistamaton.

@@ -722,6 +722,33 @@ $('#searchForm').onsubmit = (e) => {
 
 $('#menuToggle').onclick = () => $('#sidebar').classList.toggle('open');
 
+// Offline-versio: yksi HTML-tiedosto puhelimeen, toimii ilman verkkoa.
+const offlineBtn = $('#offlineBtn');
+if (offlineBtn) offlineBtn.onclick = async () => {
+  if (Store.mode === 'server') { window.location.href = '/offline?download=1'; return; }
+  // Sandbox: koostetaan tiedosto selaimen datasta.
+  toast('Kootaan offline-versiota…');
+  try {
+    const [cats, pageList, terms, contacts, anns] = await Promise.all([
+      Store.categories.list(), Store.pages.list(), Store.terms.list(),
+      Store.contacts.list(), Store.announcements.list(),
+    ]);
+    const pages = [];
+    for (const p of pageList) pages.push(await Store.pages.get(p.id));
+    const html = buildOfflineHtml({
+      generatedAt: new Date().toISOString(),
+      categories: cats, pages, terms, contacts, announcements: anns,
+    });
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'tyowiki-offline.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Offline-versio ladattu');
+  } catch (err) { toast(err.message, true); }
+};
+
 const authorInput = $('#authorInput');
 authorInput.value = author.get();
 authorInput.oninput = () => author.set(authorInput.value);
@@ -730,6 +757,11 @@ window.addEventListener('hashchange', router);
 
 // ---------- Käynnistys ----------
 (async function init() {
-  await loadCategories();
-  router();
+  try {
+    await loadCategories();
+    router();
+  } catch (e) {
+    content.innerHTML = `<div class="card empty">Sovelluksen käynnistys epäonnistui: ${esc(e.message)}.<br/>
+      Kokeile toista selainta (Chrome/Edge/Firefox) tai tyhjennä sivuston selaintiedot.</div>`;
+  }
 })();

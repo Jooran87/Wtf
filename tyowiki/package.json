@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "test": "node tests/api.test.js && node tests/ui.test.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
@@ -16,5 +17,8 @@
     "multer": "^2.2.0",
     "pdf-parse": "^1.1.4",
     "word-extractor": "^1.0.4"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.61.1"
   }
 }

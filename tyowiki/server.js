@@ -12,7 +12,7 @@ const buildOfflineHtml = require('./public/offline-template');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
+const UPLOAD_DIR = path.join(process.env.TYOWIKI_DATA_DIR || path.join(__dirname, 'data'), 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 app.use(express.json({ limit: '2mb' }));

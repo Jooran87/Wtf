@@ -124,6 +124,24 @@ Portin voi vaihtaa: `PORT=8080 npm start`
 - Skannatut PDF:t (kuvana) eivät sisällä tekstiä, joten niistä ei löydy osumia
   ilman OCR:ää.
 
+## Testit
+
+```bash
+npm test
+```
+
+Ajaa kaksi sarjaa:
+- **Rajapintatestit** (`tests/api.test.js`) – käynnistää palvelimen väliaikaisella
+  datahakemistolla (ympäristömuuttuja `TYOWIKI_DATA_DIR`), joten oikea kanta ei
+  koskaan muutu. Kattaa CRUD:t, validoinnit, XSS-syötteet, versiokaton,
+  liitteiden siivouksen, haun kaikki osiot ja offline-koonnin.
+- **Selaintestit** (`tests/ui.test.js`) – kokoaa sandboxin ja ajaa sen oikeassa
+  Chromiumissa (käynnistys, XSS-renderöinti, virhetilat, teema, esikatselu).
+  Ohitetaan automaattisesti jos Chromiumia ei ole; polun voi antaa
+  muuttujalla `CHROMIUM_PATH`.
+
+Aja testit aina muutosten jälkeen ennen tuotantoon vientiä.
+
 ## Varmuuskopiointi
 
 Kaikki data on kansiossa `data/`:

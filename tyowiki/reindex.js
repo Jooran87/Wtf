@@ -7,7 +7,7 @@ const fs = require('fs');
 const db = require('./db');
 const { extractText } = require('./extract');
 
-const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
+const UPLOAD_DIR = path.join(process.env.TYOWIKI_DATA_DIR || path.join(__dirname, 'data'), 'uploads');
 
 (async function run() {
   const atts = db.prepare('SELECT id, stored_name, original_name, mimetype FROM attachments').all();

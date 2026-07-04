@@ -144,11 +144,36 @@ Aja testit aina muutosten jälkeen ennen tuotantoon vientiä.
 
 ## Varmuuskopiointi
 
-Kaikki data on kansiossa `data/`:
-- `tyowiki.db` – tietokanta (ohjeet, huomiot, liitteiden tiedot)
-- `uploads/` – ladatut tiedostot
+Kaikki data on kansiossa `data/` (`tyowiki.db` + `uploads/`).
 
-Varmuuskopioi koko `data/`-kansio säännöllisesti.
+```bash
+npm run backup            # kopio kansioon ./backups/<aikaleima>/
+node backup.js /polku     # tai omaan kohteeseen (esim. verkkolevy)
+```
+
+- Turvallinen ajaa **palvelimen ollessa käynnissä** (SQLiten `VACUUM INTO`
+  tuottaa eheän kopion).
+- Mukana tietokanta, liitetiedostot ja manifest.json (sisällön yhteenveto).
+- Vanhat kopiot siivotaan automaattisesti: oletuksena säilytetään 30 uusinta
+  (`TYOWIKI_BACKUP_KEEP`-ympäristömuuttujalla säädettävissä).
+
+**Palautus** (pysäytä palvelin ensin):
+
+```bash
+node restore.js backups/2026-07-04_120000
+```
+
+Nykyinen data siirtyy turvaan kansioon `data_ennen_palautusta_<aikaleima>` –
+mitään ei tuhota.
+
+**Ajastus (ICT):**
+
+- Linux (cron, joka yö klo 03:15):
+  `15 3 * * * cd /polku/tyowiki && /usr/bin/node backup.js /varmuuskopiot/tyowiki`
+- Windows (Task Scheduler): ajastettu tehtävä, ohjelma `node`,
+  argumentit `backup.js D:\varmuuskopiot\tyowiki`, aloituskansio wikin kansio.
+- Suositus: kohteeksi eri levy/verkkolevy kuin missä wiki pyörii, ja
+  varmuuskopiokansio mukaan talon yleiseen nauhakiertoon/pilvikopioon.
 
 ## Jatkokehitys (ehdotuksia)
 

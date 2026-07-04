@@ -13,6 +13,7 @@ const insCat = db.prepare('INSERT INTO categories (name, sort_order) VALUES (?, 
 const insPage = db.prepare('INSERT INTO pages (category_id, title, content, keywords, updated_at, updated_by, views) VALUES (?, ?, ?, ?, ?, ?, ?)');
 const insNote = db.prepare('INSERT INTO shift_notes (category_id, author, content, created_at) VALUES (?, ?, ?, ?)');
 const insContact = db.prepare('INSERT INTO contacts (label, phone, note, sort_order) VALUES (?, ?, ?, ?)');
+const insAnn = db.prepare('INSERT INTO announcements (title, content, pinned, created_at, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
 
 // Kategoriat asiakkuuksittain / aihealueittain (Palmia – kiinteistöhoito)
 const kipa = insCat.run('Kipa', 1).lastInsertRowid;
@@ -93,5 +94,8 @@ insContact.run('Tekninen tuki (24/7)', '040 123 4567', 'järjestelmä- ja laiteh
 insContact.run('Vuoroesihenkilö', '040 234 5678', 'ympäri vuorokauden', 2);
 insContact.run('Kiinteistöpäivystys', '040 345 6789', 'kiinteistöjen viat ja huolto', 3);
 insContact.run('Hätäkeskus', '112', 'henkeä uhkaavat tilanteet', 4);
+
+insAnn.run('Uusi työohje-wiki käytössä', 'Tervetuloa! Ohjeet, tiedotteet ja vuoroloki löytyvät jatkossa täältä. Palaute esihenkilölle.', 1, now(), 'Anna', now());
+insAnn.run('Kohteen 4021 huoltokatko 12.7.', 'Paloilmoitinjärjestelmä huollossa klo 8–14. Hälytykset kohteesta ohjautuvat varajärjestelmään.', 0, now(), 'Jukka', now());
 
 console.log('Esimerkkisisältö lisätty (Palmia – kategoriat asiakkuuksittain).');

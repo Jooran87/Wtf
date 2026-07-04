@@ -124,6 +124,9 @@ async function router() {
   try {
     if (parts.length === 0) { setActiveNav('home'); return viewHome(); }
     if (parts[0] === 'vuoroloki') { setActiveNav('shiftlog'); return viewShiftLog(); }
+    if (parts[0] === 'tiedotteet') { setActiveNav('announcements'); return viewAnnouncements(); }
+    if (parts[0] === 'historia') { setActiveNav(''); return viewHistory(+parts[1]); }
+    if (parts[0] === 'versio') { setActiveNav(''); return viewRevision(+parts[1]); }
     if (parts[0] === 'kohde') { setActiveNav(''); currentCategoryId = +parts[1]; renderSidebar(); return viewCategory(+parts[1]); }
     if (parts[0] === 'sivu') { setActiveNav(''); return viewPage(+parts[1]); }
     if (parts[0] === 'muokkaa') { setActiveNav(''); return viewPageEdit(+parts[1]); }
@@ -137,15 +140,23 @@ async function router() {
 // ---------- Näkymät ----------
 async function viewHome() {
   currentCategoryId = null; renderSidebar();
-  const [pages, recentNotes, popular, contacts] = await Promise.all([
+  const [pages, recentNotes, popular, contacts, anns] = await Promise.all([
     Store.pages.list(),
     Store.notes.list({ limit: 5 }),
     Store.pages.popular(10),
     Store.contacts.list(),
+    Store.announcements.list(),
   ]);
+  // Etusivulle kiinnitetyt + uusimmat, yhteensä enintään 4.
+  const homeAnns = anns.filter((a) => a.pinned).concat(anns.filter((a) => !a.pinned)).slice(0, 4);
   content.innerHTML = `
     <h2>Hälytyskeskuksen työohjeet</h2>
     <p class="muted">Valitse kategoria vasemmalta tai selaa työohjeita ja vuorolokia.</p>
+    ${anns.length ? `<div class="card">
+      <div class="spread"><h3 style="margin:0">📢 Tiedotteet</h3>
+        <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
+      ${homeAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
+    </div>` : ''}
     <div class="home-grid">
       <div class="home-main">
         <div class="card">
@@ -255,6 +266,7 @@ async function viewPage(id) {
       </div>
       <div class="row">
         <button class="btn small secondary" id="editBtn">✏️ Muokkaa</button>
+        <a class="btn small secondary" href="#/historia/${p.id}">🕘 Historia</a>
         <button class="btn small danger" id="delBtn">Poista</button>
       </div>
     </div>
@@ -377,6 +389,108 @@ async function viewShiftLog() {
   bindNoteDelete(viewShiftLog);
 }
 
+async function viewHistory(pageId) {
+  const [p, revs] = await Promise.all([Store.pages.get(pageId), Store.pages.revisions(pageId)]);
+  content.innerHTML = `
+    <div class="muted"><a href="#/sivu/${p.id}">← ${esc(p.title)}</a></div>
+    <h2 style="margin-top:4px">🕘 Versiohistoria</h2>
+    <div class="card">
+      <ul class="page-list">
+        <li><button class="page-link" data-page="${p.id}">
+          <span><strong>Nykyinen versio</strong></span>
+          <span class="muted">${esc(fmtDate(p.updated_at))}${p.updated_by ? ' · ' + esc(p.updated_by) : ''}</span>
+        </button></li>
+        ${revs.map((r) => `<li><button class="page-link" data-rev="${r.id}">
+          <span>${esc(r.title)}</span>
+          <span class="muted">${esc(fmtDate(r.saved_at))}${r.saved_by ? ' · ' + esc(r.saved_by) : ''}</span>
+        </button></li>`).join('')
+        || '<li class="empty">Ei aiempia versioita. Versio tallentuu aina kun ohjetta muokataan.</li>'}
+      </ul>
+    </div>`;
+  document.querySelectorAll('[data-rev]').forEach((b) => b.onclick = () => {
+    location.hash = '#/versio/' + b.dataset.rev;
+  });
+}
+
+async function viewRevision(revId) {
+  const rev = await Store.revisions.get(revId);
+  content.innerHTML = `
+    <div class="muted"><a href="#/historia/${rev.page_id}">← Versiohistoria</a></div>
+    <div class="spread">
+      <h2 style="margin:4px 0 0">${esc(rev.title)}</h2>
+      <button class="btn small" id="restoreBtn">↩️ Palauta tämä versio</button>
+    </div>
+    <p class="muted">Vanha versio · tallennettu ${esc(fmtDate(rev.saved_at))}${rev.saved_by ? ' · ' + esc(rev.saved_by) : ''}</p>
+    <div class="card doc">${rev.content.trim() ? renderMarkdown(rev.content) : '<p class="muted">Tyhjä sisältö.</p>'}</div>`;
+
+  $('#restoreBtn').onclick = async () => {
+    if (!confirm('Palautetaanko tämä versio? Nykyinen versio tallentuu historiaan.')) return;
+    try {
+      await Store.pages.update(rev.page_id, {
+        title: rev.title, content: rev.content, keywords: rev.keywords || '',
+        category_id: rev.category_id, author: author.get(),
+      });
+      toast('Versio palautettu'); location.hash = '#/sivu/' + rev.page_id;
+    } catch (err) { toast(err.message, true); }
+  };
+}
+
+async function viewAnnouncements(editId) {
+  const anns = await Store.announcements.list();
+  const editing = editId ? anns.find((a) => a.id === editId) : null;
+  content.innerHTML = `
+    <h2>📢 Tiedotteet</h2>
+    <p class="muted">Kiinnitetyt tiedotteet (📌) pysyvät listan ja etusivun kärjessä.</p>
+    <div class="card">
+      <h3 style="margin-top:0">${editing ? 'Muokkaa tiedotetta' : 'Uusi tiedote'}</h3>
+      <div class="field">
+        <label>Otsikko</label>
+        <input type="text" id="annTitle" value="${editing ? esc(editing.title) : ''}" placeholder="Esim. Kohteen 4021 huoltokatko 12.7." />
+      </div>
+      <div class="field">
+        <label>Sisältö</label>
+        <textarea id="annContent" style="min-height:110px" placeholder="Tiedotteen teksti…">${editing ? esc(editing.content) : ''}</textarea>
+      </div>
+      <label class="row" style="margin-bottom:12px; cursor:pointer">
+        <input type="checkbox" id="annPinned" ${editing && editing.pinned ? 'checked' : ''} />
+        📌 Kiinnitä tärkeänä (pysyy kärjessä)
+      </label>
+      <div class="row">
+        <button class="btn" id="annSaveBtn">${editing ? 'Tallenna muutokset' : 'Julkaise tiedote'}</button>
+        ${editing ? '<button class="btn secondary" id="annCancelBtn">Peruuta</button>' : ''}
+      </div>
+    </div>
+    <div id="annList">
+      ${anns.map((a) => announcementHtml(a)).join('') || '<p class="empty">Ei tiedotteita vielä.</p>'}
+    </div>`;
+
+  $('#annSaveBtn').onclick = async () => {
+    const body = {
+      title: $('#annTitle').value, content: $('#annContent').value,
+      pinned: $('#annPinned').checked, author: author.get(),
+    };
+    if (!body.title.trim()) return toast('Anna otsikko', true);
+    try {
+      if (editing) await Store.announcements.update(editing.id, body);
+      else await Store.announcements.create(body);
+      toast(editing ? 'Tallennettu' : 'Tiedote julkaistu'); viewAnnouncements();
+    } catch (err) { toast(err.message, true); }
+  };
+  if (editing) $('#annCancelBtn').onclick = () => viewAnnouncements();
+  bindAnnouncementActions(() => viewAnnouncements());
+}
+
+function bindAnnouncementActions(refresh) {
+  document.querySelectorAll('[data-pin]').forEach((b) => b.onclick = async () => {
+    await Store.announcements.update(+b.dataset.pin, { pinned: b.dataset.pinned !== '1' });
+    toast(b.dataset.pinned !== '1' ? 'Kiinnitetty' : 'Kiinnitys poistettu'); refresh();
+  });
+  document.querySelectorAll('[data-editann]').forEach((b) => b.onclick = () => viewAnnouncements(+b.dataset.editann));
+  document.querySelectorAll('[data-delann]').forEach((b) => b.onclick = async () => {
+    if (confirm('Poistetaanko tiedote?')) { await Store.announcements.remove(b.dataset.delann); refresh(); }
+  });
+}
+
 async function viewSearch(q) {
   $('#searchInput').value = q;
   const r = await Store.search(q);
@@ -409,6 +523,11 @@ async function viewSearch(q) {
       </ul>
     </div>
     <div class="card">
+      <h3 style="margin-top:0">📢 Tiedotteet (${(r.announcements || []).length})</h3>
+      ${(r.announcements || []).map((a) => announcementHtml(a, { compact: true })).join('')
+        || '<p class="empty">Ei osumia tiedotteista.</p>'}
+    </div>
+    <div class="card">
       <h3 style="margin-top:0">Vuorohuomiot (${r.notes.length})</h3>
       ${r.notes.map(noteHtml).join('') || '<p class="empty">Ei osumia huomioista.</p>'}
     </div>`;
@@ -416,6 +535,22 @@ async function viewSearch(q) {
 }
 
 // ---------- Osittaiset HTML-palaset ----------
+function announcementHtml(a, { compact } = {}) {
+  return `<div class="ann ${a.pinned ? 'pinned' : ''}">
+    <div class="ann-head">
+      <strong class="ann-title">${a.pinned ? '📌 ' : ''}${esc(a.title)}</strong>
+      <span class="ann-actions">
+        ${compact ? '' : `<button class="icon-btn small" data-pin="${a.id}" data-pinned="${a.pinned ? 1 : 0}"
+          title="${a.pinned ? 'Poista kiinnitys' : 'Kiinnitä'}">${a.pinned ? '📌' : '📍'}</button>
+        <button class="icon-btn small" data-editann="${a.id}" title="Muokkaa">✏️</button>
+        <button class="icon-btn small" data-delann="${a.id}" title="Poista">🗑</button>`}
+      </span>
+    </div>
+    ${a.content.trim() ? `<div class="ann-body">${esc(a.content)}</div>` : ''}
+    <div class="ann-meta">${esc(fmtDate(a.created_at))}${a.created_by ? ' · ' + esc(a.created_by) : ''}</div>
+  </div>`;
+}
+
 function noteHtml(n) {
   return `<div class="note">
     <div class="note-head">
@@ -468,7 +603,11 @@ document.addEventListener('click', (e) => {
   const cat = e.target.closest('[data-cat]');
   if (cat) { location.hash = '#/kohde/' + cat.dataset.cat; return; }
   const nav = e.target.closest('[data-nav]');
-  if (nav) { location.hash = nav.dataset.nav === 'home' ? '#/' : '#/vuoroloki'; return; }
+  if (nav) {
+    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet' };
+    location.hash = routes[nav.dataset.nav] || '#/';
+    return;
+  }
 });
 
 $('#addCategoryBtn').onclick = async () => {

@@ -170,6 +170,19 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .note .note-body { white-space: pre-wrap; line-height: 1.5; }
 .note .tag { background: var(--brand-soft); color: var(--brand-ink); padding: 1px 8px; border-radius: 10px; font-weight: 600; }
 
+/* Tiedotteet */
+.ann {
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px 14px; margin-bottom: 8px; background: var(--panel);
+}
+.ann.pinned { background: var(--brand-soft); border-color: #f5c9a4; }
+.ann-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.ann-title { font-size: 15px; }
+.ann.pinned .ann-title { color: var(--brand-ink); }
+.ann-actions { display: flex; flex-shrink: 0; }
+.ann-body { white-space: pre-wrap; line-height: 1.5; margin-top: 4px; font-size: 14px; }
+.ann-meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
 /* Avainsanat */
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
 .tag-chip {
@@ -265,6 +278,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
     <aside id="sidebar" class="sidebar">
       <nav>
         <button class="nav-link" data-nav="home">🏠 Etusivu</button>
+        <button class="nav-link" data-nav="announcements">📢 Tiedotteet</button>
         <button class="nav-link" data-nav="shiftlog">📝 Vuoroloki</button>
       </nav>
       <div class="sidebar-section">
@@ -285,7 +299,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v4';
+const LS_KEY = 'tyowiki_sandbox_v5';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -350,7 +364,7 @@ const ready = ensureSeeded();
 
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
-  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [] };
+  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [] };
   const kipa = { id: nextId(), name: 'Kipa', sort_order: 1 };
   const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', sort_order: 2 };
   const hairiot = { id: nextId(), name: 'Häiriötilanteet', sort_order: 3 };
@@ -455,6 +469,13 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
   DB.pages[3].views = 29; DB.pages[4].views = 18; DB.pages[5].views = 22;
 
   DB.contacts = defaultContacts();
+
+  // Esimerkkitiedotteet: yksi kiinnitetty, yksi tavallinen.
+  DB.announcements.push(
+    { id: nextId(), title: 'Uusi työohje-wiki käytössä', content: 'Tervetuloa! Ohjeet, tiedotteet ja vuoroloki löytyvät jatkossa täältä. Palaute esihenkilölle.', pinned: 1, created_at: nowISO(), created_by: 'Anna', updated_at: nowISO() },
+    { id: nextId(), title: 'Kohteen 4021 huoltokatko 12.7.', content: 'Paloilmoitinjärjestelmä huollossa klo 8–14. Hälytykset kohteesta ohjautuvat varajärjestelmään.', pinned: 0, created_at: nowISO(), created_by: 'Jukka', updated_at: nowISO() }
+  );
+
   save(DB);
 }
 
@@ -472,6 +493,8 @@ function defaultContacts() {
 function migrateExisting() {
   let changed = false;
   if (!DB.contacts) { DB.contacts = defaultContacts(); changed = true; }
+  if (!DB.revisions) { DB.revisions = []; changed = true; }
+  if (!DB.announcements) { DB.announcements = []; changed = true; }
   DB.pages.forEach((p) => {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
@@ -563,6 +586,12 @@ const Store = {
       await ready; id = Number(id);
       const p = DB.pages.find((x) => x.id === id);
       if (!p) throw new Error('Sivua ei löydy');
+      // Versiohistoria: nykyinen versio talteen ennen päällekirjoitusta.
+      DB.revisions.push({
+        id: nextId(), page_id: p.id, title: p.title, content: p.content,
+        keywords: p.keywords || '', category_id: p.category_id,
+        saved_at: p.updated_at, saved_by: p.updated_by,
+      });
       p.title = (data.title || '').trim();
       p.content = data.content || '';
       p.keywords = (data.keywords || '').trim();
@@ -571,6 +600,12 @@ const Store = {
       save(DB); return clone(p);
     },
     async remove(id) { await ready; await removePageInternal(Number(id)); save(DB); return { ok: true }; },
+    async revisions(id) {
+      await ready; id = Number(id);
+      return clone(DB.revisions.filter((r) => r.page_id === id))
+        .sort((a, b) => b.id - a.id)
+        .map(({ id: rid, page_id, title, saved_at, saved_by }) => ({ id: rid, page_id, title, saved_at, saved_by }));
+    },
   },
 
   attachments: {
@@ -598,6 +633,53 @@ const Store = {
       await ready; id = Number(id);
       DB.attachments = DB.attachments.filter((a) => a.id !== id);
       await delBlob(id); save(DB); return { ok: true };
+    },
+  },
+
+  revisions: {
+    async get(id) {
+      await ready; id = Number(id);
+      const r = DB.revisions.find((x) => x.id === id);
+      if (!r) throw new Error('Versiota ei löydy');
+      return clone(r);
+    },
+  },
+
+  announcements: {
+    async list(limit) {
+      await ready;
+      const rows = clone(DB.announcements)
+        .sort((a, b) => (b.pinned - a.pinned) || b.created_at.localeCompare(a.created_at));
+      return limit ? rows.slice(0, limit) : rows;
+    },
+    async create(data) {
+      await ready;
+      const title = (data.title || '').trim();
+      if (!title) throw new Error('Otsikko puuttuu');
+      const a = {
+        id: nextId(), title, content: data.content || '', pinned: data.pinned ? 1 : 0,
+        created_at: nowISO(), created_by: (data.author || '').trim(), updated_at: nowISO(),
+      };
+      DB.announcements.push(a); save(DB); return clone(a);
+    },
+    async update(id, data) {
+      await ready; id = Number(id);
+      const a = DB.announcements.find((x) => x.id === id);
+      if (!a) throw new Error('Tiedotetta ei löydy');
+      if (data.title !== undefined) {
+        const t = (data.title || '').trim();
+        if (!t) throw new Error('Otsikko puuttuu');
+        a.title = t;
+      }
+      if (data.content !== undefined) a.content = data.content;
+      if (data.pinned !== undefined) a.pinned = data.pinned ? 1 : 0;
+      a.updated_at = nowISO();
+      save(DB); return clone(a);
+    },
+    async remove(id) {
+      await ready; id = Number(id);
+      DB.announcements = DB.announcements.filter((a) => a.id !== id);
+      save(DB); return { ok: true };
     },
   },
 
@@ -644,7 +726,7 @@ const Store = {
   async search(q) {
     await ready;
     q = (q || '').trim();
-    if (!q) return { pages: [], notes: [], files: [] };
+    if (!q) return { pages: [], notes: [], files: [], announcements: [] };
     const pages = DB.pages.filter((p) => includesCI(p.title, q) || includesCI(p.content, q) || includesCI(p.keywords, q))
       .sort((a, b) => a.title.localeCompare(b.title))
       .map((p) => ({
@@ -665,7 +747,11 @@ const Store = {
         snippet: makeSnippet(a.text_content, q), url: await getBlobUrl(a.id),
       });
     }
-    return { pages, notes, files };
+    const announcements = clone(DB.announcements)
+      .filter((a) => includesCI(a.title, q) || includesCI(a.content, q))
+      .sort((a, b) => (b.pinned - a.pinned) || b.created_at.localeCompare(a.created_at))
+      .map((a) => ({ ...a, snippet: makeSnippet(a.content, q) }));
+    return { pages, notes, files, announcements };
   },
 };
 
@@ -673,6 +759,7 @@ async function removePageInternal(id) {
   const atts = DB.attachments.filter((a) => a.page_id === id);
   for (const a of atts) await delBlob(a.id);
   DB.attachments = DB.attachments.filter((a) => a.page_id !== id);
+  DB.revisions = DB.revisions.filter((r) => r.page_id !== id);
   DB.pages = DB.pages.filter((p) => p.id !== id);
 }
 
@@ -804,6 +891,9 @@ async function router() {
   try {
     if (parts.length === 0) { setActiveNav('home'); return viewHome(); }
     if (parts[0] === 'vuoroloki') { setActiveNav('shiftlog'); return viewShiftLog(); }
+    if (parts[0] === 'tiedotteet') { setActiveNav('announcements'); return viewAnnouncements(); }
+    if (parts[0] === 'historia') { setActiveNav(''); return viewHistory(+parts[1]); }
+    if (parts[0] === 'versio') { setActiveNav(''); return viewRevision(+parts[1]); }
     if (parts[0] === 'kohde') { setActiveNav(''); currentCategoryId = +parts[1]; renderSidebar(); return viewCategory(+parts[1]); }
     if (parts[0] === 'sivu') { setActiveNav(''); return viewPage(+parts[1]); }
     if (parts[0] === 'muokkaa') { setActiveNav(''); return viewPageEdit(+parts[1]); }
@@ -817,15 +907,23 @@ async function router() {
 // ---------- Näkymät ----------
 async function viewHome() {
   currentCategoryId = null; renderSidebar();
-  const [pages, recentNotes, popular, contacts] = await Promise.all([
+  const [pages, recentNotes, popular, contacts, anns] = await Promise.all([
     Store.pages.list(),
     Store.notes.list({ limit: 5 }),
     Store.pages.popular(10),
     Store.contacts.list(),
+    Store.announcements.list(),
   ]);
+  // Etusivulle kiinnitetyt + uusimmat, yhteensä enintään 4.
+  const homeAnns = anns.filter((a) => a.pinned).concat(anns.filter((a) => !a.pinned)).slice(0, 4);
   content.innerHTML = `
     <h2>Hälytyskeskuksen työohjeet</h2>
     <p class="muted">Valitse kategoria vasemmalta tai selaa työohjeita ja vuorolokia.</p>
+    ${anns.length ? `<div class="card">
+      <div class="spread"><h3 style="margin:0">📢 Tiedotteet</h3>
+        <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
+      ${homeAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
+    </div>` : ''}
     <div class="home-grid">
       <div class="home-main">
         <div class="card">
@@ -935,6 +1033,7 @@ async function viewPage(id) {
       </div>
       <div class="row">
         <button class="btn small secondary" id="editBtn">✏️ Muokkaa</button>
+        <a class="btn small secondary" href="#/historia/${p.id}">🕘 Historia</a>
         <button class="btn small danger" id="delBtn">Poista</button>
       </div>
     </div>
@@ -1057,6 +1156,108 @@ async function viewShiftLog() {
   bindNoteDelete(viewShiftLog);
 }
 
+async function viewHistory(pageId) {
+  const [p, revs] = await Promise.all([Store.pages.get(pageId), Store.pages.revisions(pageId)]);
+  content.innerHTML = `
+    <div class="muted"><a href="#/sivu/${p.id}">← ${esc(p.title)}</a></div>
+    <h2 style="margin-top:4px">🕘 Versiohistoria</h2>
+    <div class="card">
+      <ul class="page-list">
+        <li><button class="page-link" data-page="${p.id}">
+          <span><strong>Nykyinen versio</strong></span>
+          <span class="muted">${esc(fmtDate(p.updated_at))}${p.updated_by ? ' · ' + esc(p.updated_by) : ''}</span>
+        </button></li>
+        ${revs.map((r) => `<li><button class="page-link" data-rev="${r.id}">
+          <span>${esc(r.title)}</span>
+          <span class="muted">${esc(fmtDate(r.saved_at))}${r.saved_by ? ' · ' + esc(r.saved_by) : ''}</span>
+        </button></li>`).join('')
+        || '<li class="empty">Ei aiempia versioita. Versio tallentuu aina kun ohjetta muokataan.</li>'}
+      </ul>
+    </div>`;
+  document.querySelectorAll('[data-rev]').forEach((b) => b.onclick = () => {
+    location.hash = '#/versio/' + b.dataset.rev;
+  });
+}
+
+async function viewRevision(revId) {
+  const rev = await Store.revisions.get(revId);
+  content.innerHTML = `
+    <div class="muted"><a href="#/historia/${rev.page_id}">← Versiohistoria</a></div>
+    <div class="spread">
+      <h2 style="margin:4px 0 0">${esc(rev.title)}</h2>
+      <button class="btn small" id="restoreBtn">↩️ Palauta tämä versio</button>
+    </div>
+    <p class="muted">Vanha versio · tallennettu ${esc(fmtDate(rev.saved_at))}${rev.saved_by ? ' · ' + esc(rev.saved_by) : ''}</p>
+    <div class="card doc">${rev.content.trim() ? renderMarkdown(rev.content) : '<p class="muted">Tyhjä sisältö.</p>'}</div>`;
+
+  $('#restoreBtn').onclick = async () => {
+    if (!confirm('Palautetaanko tämä versio? Nykyinen versio tallentuu historiaan.')) return;
+    try {
+      await Store.pages.update(rev.page_id, {
+        title: rev.title, content: rev.content, keywords: rev.keywords || '',
+        category_id: rev.category_id, author: author.get(),
+      });
+      toast('Versio palautettu'); location.hash = '#/sivu/' + rev.page_id;
+    } catch (err) { toast(err.message, true); }
+  };
+}
+
+async function viewAnnouncements(editId) {
+  const anns = await Store.announcements.list();
+  const editing = editId ? anns.find((a) => a.id === editId) : null;
+  content.innerHTML = `
+    <h2>📢 Tiedotteet</h2>
+    <p class="muted">Kiinnitetyt tiedotteet (📌) pysyvät listan ja etusivun kärjessä.</p>
+    <div class="card">
+      <h3 style="margin-top:0">${editing ? 'Muokkaa tiedotetta' : 'Uusi tiedote'}</h3>
+      <div class="field">
+        <label>Otsikko</label>
+        <input type="text" id="annTitle" value="${editing ? esc(editing.title) : ''}" placeholder="Esim. Kohteen 4021 huoltokatko 12.7." />
+      </div>
+      <div class="field">
+        <label>Sisältö</label>
+        <textarea id="annContent" style="min-height:110px" placeholder="Tiedotteen teksti…">${editing ? esc(editing.content) : ''}</textarea>
+      </div>
+      <label class="row" style="margin-bottom:12px; cursor:pointer">
+        <input type="checkbox" id="annPinned" ${editing && editing.pinned ? 'checked' : ''} />
+        📌 Kiinnitä tärkeänä (pysyy kärjessä)
+      </label>
+      <div class="row">
+        <button class="btn" id="annSaveBtn">${editing ? 'Tallenna muutokset' : 'Julkaise tiedote'}</button>
+        ${editing ? '<button class="btn secondary" id="annCancelBtn">Peruuta</button>' : ''}
+      </div>
+    </div>
+    <div id="annList">
+      ${anns.map((a) => announcementHtml(a)).join('') || '<p class="empty">Ei tiedotteita vielä.</p>'}
+    </div>`;
+
+  $('#annSaveBtn').onclick = async () => {
+    const body = {
+      title: $('#annTitle').value, content: $('#annContent').value,
+      pinned: $('#annPinned').checked, author: author.get(),
+    };
+    if (!body.title.trim()) return toast('Anna otsikko', true);
+    try {
+      if (editing) await Store.announcements.update(editing.id, body);
+      else await Store.announcements.create(body);
+      toast(editing ? 'Tallennettu' : 'Tiedote julkaistu'); viewAnnouncements();
+    } catch (err) { toast(err.message, true); }
+  };
+  if (editing) $('#annCancelBtn').onclick = () => viewAnnouncements();
+  bindAnnouncementActions(() => viewAnnouncements());
+}
+
+function bindAnnouncementActions(refresh) {
+  document.querySelectorAll('[data-pin]').forEach((b) => b.onclick = async () => {
+    await Store.announcements.update(+b.dataset.pin, { pinned: b.dataset.pinned !== '1' });
+    toast(b.dataset.pinned !== '1' ? 'Kiinnitetty' : 'Kiinnitys poistettu'); refresh();
+  });
+  document.querySelectorAll('[data-editann]').forEach((b) => b.onclick = () => viewAnnouncements(+b.dataset.editann));
+  document.querySelectorAll('[data-delann]').forEach((b) => b.onclick = async () => {
+    if (confirm('Poistetaanko tiedote?')) { await Store.announcements.remove(b.dataset.delann); refresh(); }
+  });
+}
+
 async function viewSearch(q) {
   $('#searchInput').value = q;
   const r = await Store.search(q);
@@ -1089,6 +1290,11 @@ async function viewSearch(q) {
       </ul>
     </div>
     <div class="card">
+      <h3 style="margin-top:0">📢 Tiedotteet (${(r.announcements || []).length})</h3>
+      ${(r.announcements || []).map((a) => announcementHtml(a, { compact: true })).join('')
+        || '<p class="empty">Ei osumia tiedotteista.</p>'}
+    </div>
+    <div class="card">
       <h3 style="margin-top:0">Vuorohuomiot (${r.notes.length})</h3>
       ${r.notes.map(noteHtml).join('') || '<p class="empty">Ei osumia huomioista.</p>'}
     </div>`;
@@ -1096,6 +1302,22 @@ async function viewSearch(q) {
 }
 
 // ---------- Osittaiset HTML-palaset ----------
+function announcementHtml(a, { compact } = {}) {
+  return `<div class="ann ${a.pinned ? 'pinned' : ''}">
+    <div class="ann-head">
+      <strong class="ann-title">${a.pinned ? '📌 ' : ''}${esc(a.title)}</strong>
+      <span class="ann-actions">
+        ${compact ? '' : `<button class="icon-btn small" data-pin="${a.id}" data-pinned="${a.pinned ? 1 : 0}"
+          title="${a.pinned ? 'Poista kiinnitys' : 'Kiinnitä'}">${a.pinned ? '📌' : '📍'}</button>
+        <button class="icon-btn small" data-editann="${a.id}" title="Muokkaa">✏️</button>
+        <button class="icon-btn small" data-delann="${a.id}" title="Poista">🗑</button>`}
+      </span>
+    </div>
+    ${a.content.trim() ? `<div class="ann-body">${esc(a.content)}</div>` : ''}
+    <div class="ann-meta">${esc(fmtDate(a.created_at))}${a.created_by ? ' · ' + esc(a.created_by) : ''}</div>
+  </div>`;
+}
+
 function noteHtml(n) {
   return `<div class="note">
     <div class="note-head">
@@ -1148,7 +1370,11 @@ document.addEventListener('click', (e) => {
   const cat = e.target.closest('[data-cat]');
   if (cat) { location.hash = '#/kohde/' + cat.dataset.cat; return; }
   const nav = e.target.closest('[data-nav]');
-  if (nav) { location.hash = nav.dataset.nav === 'home' ? '#/' : '#/vuoroloki'; return; }
+  if (nav) {
+    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet' };
+    location.hash = routes[nav.dataset.nav] || '#/';
+    return;
+  }
 });
 
 $('#addCategoryBtn').onclick = async () => {

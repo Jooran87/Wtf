@@ -46,6 +46,18 @@ const Store = {
     create: (data) => api('/api/pages', jsonBody('POST', data)),
     update: (id, data) => api('/api/pages/' + id, jsonBody('PUT', data)),
     remove: (id) => api('/api/pages/' + id, { method: 'DELETE' }),
+    revisions: (id) => api('/api/pages/' + id + '/revisions'),
+  },
+
+  revisions: {
+    get: (id) => api('/api/revisions/' + id),
+  },
+
+  announcements: {
+    list: (limit) => api('/api/announcements' + (limit ? '?limit=' + limit : '')),
+    create: (data) => api('/api/announcements', jsonBody('POST', data)),
+    update: (id, data) => api('/api/announcements/' + id, jsonBody('PUT', data)),
+    remove: (id) => api('/api/announcements/' + id, { method: 'DELETE' }),
   },
 
   attachments: {

@@ -6,7 +6,7 @@
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v4';
+const LS_KEY = 'tyowiki_sandbox_v5';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -71,7 +71,7 @@ const ready = ensureSeeded();
 
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
-  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [] };
+  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [] };
   const kipa = { id: nextId(), name: 'Kipa', sort_order: 1 };
   const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', sort_order: 2 };
   const hairiot = { id: nextId(), name: 'Häiriötilanteet', sort_order: 3 };
@@ -176,6 +176,13 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
   DB.pages[3].views = 29; DB.pages[4].views = 18; DB.pages[5].views = 22;
 
   DB.contacts = defaultContacts();
+
+  // Esimerkkitiedotteet: yksi kiinnitetty, yksi tavallinen.
+  DB.announcements.push(
+    { id: nextId(), title: 'Uusi työohje-wiki käytössä', content: 'Tervetuloa! Ohjeet, tiedotteet ja vuoroloki löytyvät jatkossa täältä. Palaute esihenkilölle.', pinned: 1, created_at: nowISO(), created_by: 'Anna', updated_at: nowISO() },
+    { id: nextId(), title: 'Kohteen 4021 huoltokatko 12.7.', content: 'Paloilmoitinjärjestelmä huollossa klo 8–14. Hälytykset kohteesta ohjautuvat varajärjestelmään.', pinned: 0, created_at: nowISO(), created_by: 'Jukka', updated_at: nowISO() }
+  );
+
   save(DB);
 }
 
@@ -193,6 +200,8 @@ function defaultContacts() {
 function migrateExisting() {
   let changed = false;
   if (!DB.contacts) { DB.contacts = defaultContacts(); changed = true; }
+  if (!DB.revisions) { DB.revisions = []; changed = true; }
+  if (!DB.announcements) { DB.announcements = []; changed = true; }
   DB.pages.forEach((p) => {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
@@ -284,6 +293,12 @@ const Store = {
       await ready; id = Number(id);
       const p = DB.pages.find((x) => x.id === id);
       if (!p) throw new Error('Sivua ei löydy');
+      // Versiohistoria: nykyinen versio talteen ennen päällekirjoitusta.
+      DB.revisions.push({
+        id: nextId(), page_id: p.id, title: p.title, content: p.content,
+        keywords: p.keywords || '', category_id: p.category_id,
+        saved_at: p.updated_at, saved_by: p.updated_by,
+      });
       p.title = (data.title || '').trim();
       p.content = data.content || '';
       p.keywords = (data.keywords || '').trim();
@@ -292,6 +307,12 @@ const Store = {
       save(DB); return clone(p);
     },
     async remove(id) { await ready; await removePageInternal(Number(id)); save(DB); return { ok: true }; },
+    async revisions(id) {
+      await ready; id = Number(id);
+      return clone(DB.revisions.filter((r) => r.page_id === id))
+        .sort((a, b) => b.id - a.id)
+        .map(({ id: rid, page_id, title, saved_at, saved_by }) => ({ id: rid, page_id, title, saved_at, saved_by }));
+    },
   },
 
   attachments: {
@@ -319,6 +340,53 @@ const Store = {
       await ready; id = Number(id);
       DB.attachments = DB.attachments.filter((a) => a.id !== id);
       await delBlob(id); save(DB); return { ok: true };
+    },
+  },
+
+  revisions: {
+    async get(id) {
+      await ready; id = Number(id);
+      const r = DB.revisions.find((x) => x.id === id);
+      if (!r) throw new Error('Versiota ei löydy');
+      return clone(r);
+    },
+  },
+
+  announcements: {
+    async list(limit) {
+      await ready;
+      const rows = clone(DB.announcements)
+        .sort((a, b) => (b.pinned - a.pinned) || b.created_at.localeCompare(a.created_at));
+      return limit ? rows.slice(0, limit) : rows;
+    },
+    async create(data) {
+      await ready;
+      const title = (data.title || '').trim();
+      if (!title) throw new Error('Otsikko puuttuu');
+      const a = {
+        id: nextId(), title, content: data.content || '', pinned: data.pinned ? 1 : 0,
+        created_at: nowISO(), created_by: (data.author || '').trim(), updated_at: nowISO(),
+      };
+      DB.announcements.push(a); save(DB); return clone(a);
+    },
+    async update(id, data) {
+      await ready; id = Number(id);
+      const a = DB.announcements.find((x) => x.id === id);
+      if (!a) throw new Error('Tiedotetta ei löydy');
+      if (data.title !== undefined) {
+        const t = (data.title || '').trim();
+        if (!t) throw new Error('Otsikko puuttuu');
+        a.title = t;
+      }
+      if (data.content !== undefined) a.content = data.content;
+      if (data.pinned !== undefined) a.pinned = data.pinned ? 1 : 0;
+      a.updated_at = nowISO();
+      save(DB); return clone(a);
+    },
+    async remove(id) {
+      await ready; id = Number(id);
+      DB.announcements = DB.announcements.filter((a) => a.id !== id);
+      save(DB); return { ok: true };
     },
   },
 
@@ -365,7 +433,7 @@ const Store = {
   async search(q) {
     await ready;
     q = (q || '').trim();
-    if (!q) return { pages: [], notes: [], files: [] };
+    if (!q) return { pages: [], notes: [], files: [], announcements: [] };
     const pages = DB.pages.filter((p) => includesCI(p.title, q) || includesCI(p.content, q) || includesCI(p.keywords, q))
       .sort((a, b) => a.title.localeCompare(b.title))
       .map((p) => ({
@@ -386,7 +454,11 @@ const Store = {
         snippet: makeSnippet(a.text_content, q), url: await getBlobUrl(a.id),
       });
     }
-    return { pages, notes, files };
+    const announcements = clone(DB.announcements)
+      .filter((a) => includesCI(a.title, q) || includesCI(a.content, q))
+      .sort((a, b) => (b.pinned - a.pinned) || b.created_at.localeCompare(a.created_at))
+      .map((a) => ({ ...a, snippet: makeSnippet(a.content, q) }));
+    return { pages, notes, files, announcements };
   },
 };
 
@@ -394,5 +466,6 @@ async function removePageInternal(id) {
   const atts = DB.attachments.filter((a) => a.page_id === id);
   for (const a of atts) await delBlob(a.id);
   DB.attachments = DB.attachments.filter((a) => a.page_id !== id);
+  DB.revisions = DB.revisions.filter((r) => r.page_id !== id);
   DB.pages = DB.pages.filter((p) => p.id !== id);
 }

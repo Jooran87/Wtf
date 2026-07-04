@@ -4,6 +4,10 @@ Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
 
 - **Ohjeet ja kategoriat** – Wikipedia-tyylinen sivupalkki ja hakukenttä
 - **Vuoroloki** – juokseva aikaleimattu lista vuoron huomioista
+- **Tiedotteet** – oma sivu + nosto etusivulle; tärkeät tiedotteet voi 📌-kiinnittää,
+  jolloin ne pysyvät listan ja etusivun kärjessä
+- **Versiohistoria** – jokainen muokkaus tallentaa edellisen version talteen;
+  vanhoja versioita voi katsella ja palauttaa (🕘 Historia -nappi ohjesivulla)
 - **Tiedostoliitteet** – PDF, kuvat, Word, Excel (PDF ja kuvat näkyvät suoraan selaimessa, muut latautuvat)
 - **Haku** ohjeista, huomioista **ja tiedostojen sisällöstä** (PDF, Word, Excel) – näyttää otteen osumakohdasta
 
@@ -111,7 +115,6 @@ Varmuuskopioi koko `data/`-kansio säännöllisesti.
 - **Kirjautuminen** – tällä hetkellä nimi on vapaa tekstikenttä (prototyyppi).
   Tuotantoon suositellaan firman AD/Microsoft-kirjautumista tai vähintään
   käyttäjätunnus/salasana ja luku-/muokkausoikeudet.
-- **Versiohistoria** ohjeille (kuka muutti, mitä).
 - **Word/Excel-esikatselu selaimessa** (esim. OnlyOffice/Collabora) latauslinkkien sijaan.
 - **Täystekstihaku** (SQLite FTS5) suuremmalle sisältömäärälle (nykyinen haku on
   `LIKE`-pohjainen; toimii hyvin muutamalle sadalle ohjeelle/liitteelle).

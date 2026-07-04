@@ -40,6 +40,7 @@ ${css}
     <aside id="sidebar" class="sidebar">
       <nav>
         <button class="nav-link" data-nav="home">🏠 Etusivu</button>
+        <button class="nav-link" data-nav="announcements">📢 Tiedotteet</button>
         <button class="nav-link" data-nav="shiftlog">📝 Vuoroloki</button>
       </nav>
       <div class="sidebar-section">

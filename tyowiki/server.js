@@ -158,10 +158,31 @@ app.put('/api/pages/:id', (req, res) => {
   const category_id = req.body.category_id || null;
   const keywords = (req.body.keywords || '').trim();
   if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
+  const old = db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
+  if (!old) return res.status(404).json({ error: 'Sivua ei löydy' });
+  // Versiohistoria: nykyinen versio talteen ennen päällekirjoitusta.
+  // saved_at/saved_by = milloin ja kenen toimesta TUO versio aikanaan syntyi.
+  db.prepare(
+    'INSERT INTO page_revisions (page_id, title, content, keywords, category_id, saved_at, saved_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(old.id, old.title, old.content, old.keywords, old.category_id, old.updated_at, old.updated_by);
   db.prepare(
     'UPDATE pages SET title = ?, content = ?, keywords = ?, category_id = ?, updated_at = ?, updated_by = ? WHERE id = ?'
   ).run(title, content, keywords, category_id, now(), author, req.params.id);
   res.json(db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id));
+});
+
+// ---------- Versiohistoria ----------
+app.get('/api/pages/:id/revisions', (req, res) => {
+  const rows = db.prepare(
+    'SELECT id, page_id, title, saved_at, saved_by FROM page_revisions WHERE page_id = ? ORDER BY id DESC'
+  ).all(req.params.id);
+  res.json(rows);
+});
+
+app.get('/api/revisions/:id', (req, res) => {
+  const rev = db.prepare('SELECT * FROM page_revisions WHERE id = ?').get(req.params.id);
+  if (!rev) return res.status(404).json({ error: 'Versiota ei löydy' });
+  res.json(rev);
 });
 
 app.delete('/api/pages/:id', (req, res) => {
@@ -211,6 +232,40 @@ app.delete('/api/attachments/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Tiedotteet ----------
+app.get('/api/announcements', (req, res) => {
+  const lim = Math.min(parseInt(req.query.limit, 10) || 100, 200);
+  res.json(db.prepare(
+    'SELECT * FROM announcements ORDER BY pinned DESC, created_at DESC LIMIT ?'
+  ).all(lim));
+});
+
+app.post('/api/announcements', (req, res) => {
+  const title = (req.body.title || '').trim();
+  if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
+  const info = db.prepare(
+    'INSERT INTO announcements (title, content, pinned, created_at, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(title, req.body.content || '', req.body.pinned ? 1 : 0, now(), (req.body.author || '').trim(), now());
+  res.json(db.prepare('SELECT * FROM announcements WHERE id = ?').get(info.lastInsertRowid));
+});
+
+app.put('/api/announcements/:id', (req, res) => {
+  const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Tiedotetta ei löydy' });
+  const title = req.body.title !== undefined ? (req.body.title || '').trim() : existing.title;
+  if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
+  const content = req.body.content !== undefined ? req.body.content : existing.content;
+  const pinned = req.body.pinned !== undefined ? (req.body.pinned ? 1 : 0) : existing.pinned;
+  db.prepare('UPDATE announcements SET title = ?, content = ?, pinned = ?, updated_at = ? WHERE id = ?')
+    .run(title, content, pinned, now(), req.params.id);
+  res.json(db.prepare('SELECT * FROM announcements WHERE id = ?').get(req.params.id));
+});
+
+app.delete('/api/announcements/:id', (req, res) => {
+  db.prepare('DELETE FROM announcements WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 // ---------- Vuoroloki ----------
 app.get('/api/shift-notes', (req, res) => {
   const { category_id, limit } = req.query;
@@ -251,7 +306,7 @@ app.delete('/api/shift-notes/:id', (req, res) => {
 // ---------- Haku ----------
 app.get('/api/search', (req, res) => {
   const q = (req.query.q || '').trim();
-  if (!q) return res.json({ pages: [], notes: [], files: [] });
+  if (!q) return res.json({ pages: [], notes: [], files: [], announcements: [] });
   const like = '%' + q + '%';
   // Artikkelit: osuma otsikossa, sisällössä tai avainsanoissa. Mukaan ote.
   const pageRows = db.prepare(
@@ -287,7 +342,11 @@ app.get('/api/search', (req, res) => {
     category_id: f.category_id, category_name: f.category_name,
     snippet: makeSnippet(f.text_content, q),
   }));
-  res.json({ pages, notes, files });
+  const announcements = db.prepare(
+    `SELECT id, title, content, pinned, created_at, created_by FROM announcements
+     WHERE title LIKE ? OR content LIKE ? ORDER BY pinned DESC, created_at DESC LIMIT 20`
+  ).all(like, like).map((a) => ({ ...a, snippet: makeSnippet(a.content, q) }));
+  res.json({ pages, notes, files, announcements });
 });
 
 // Muodostaa lyhyen otteen hakusanan ympäriltä (Markdown-merkit siivottuna).

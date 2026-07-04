@@ -54,6 +54,28 @@ db.exec(`
     created_at  TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS page_revisions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    page_id     INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+    title       TEXT NOT NULL,
+    content     TEXT NOT NULL DEFAULT '',
+    keywords    TEXT NOT NULL DEFAULT '',
+    category_id INTEGER,
+    saved_at    TEXT NOT NULL,
+    saved_by    TEXT NOT NULL DEFAULT ''
+  );
+
+  CREATE TABLE IF NOT EXISTS announcements (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    title      TEXT NOT NULL,
+    content    TEXT NOT NULL DEFAULT '',
+    pinned     INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    created_by TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_revisions_page ON page_revisions(page_id);
   CREATE INDEX IF NOT EXISTS idx_pages_category ON pages(category_id);
   CREATE INDEX IF NOT EXISTS idx_attachments_page ON attachments(page_id);
   CREATE INDEX IF NOT EXISTS idx_shift_notes_created ON shift_notes(created_at DESC);

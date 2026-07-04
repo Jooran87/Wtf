@@ -132,6 +132,8 @@ async function router() {
   const [pathPart, queryPart] = hash.split('?');
   const parts = pathPart.split('/').filter(Boolean);
   closeSidebarMobile();
+  const openCatForm = $('#catForm');
+  if (openCatForm) openCatForm.remove();
 
   // Huom: await on pakollinen, jotta catch nappaa myös async-näkymien virheet
   // (esim. poistetun sivun avaaminen).
@@ -907,6 +909,14 @@ if (themeToggle) themeToggle.onclick = () => {
   applyTheme();
 };
 applyTheme();
+// Seuraa käyttöjärjestelmän teemanvaihtoa, jos käyttäjä ei ole valinnut itse.
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    let saved = null;
+    try { saved = localStorage.getItem('tyowiki_theme'); } catch (_) {}
+    if (!saved) applyTheme();
+  });
+}
 
 // Pikanäppäin: / vie hakukenttään.
 document.addEventListener('keydown', (e) => {

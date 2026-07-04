@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Palmia Hälytyskeskus – Työohjeet (Sandbox)</title>
   <!-- Jaettu ulkoasu palvelinversion kanssa: muokkaa vain public/styles.css -->
+  <script>
+    /* Teema ennen renderöintiä, ettei sivu välähdä väärällä värillä */
+    (function(){try{var t=localStorage.getItem('tyowiki_theme');
+      if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';
+      document.documentElement.dataset.theme=t==='dark'?'dark':'light';}catch(e){}})();
+  </script>
   <link rel="stylesheet" href="../public/styles.css" />
   <style>
     /* Vain sandboxille: pieni merkki joka erottaa demon oikeasta versiosta */
@@ -25,6 +31,7 @@
     <form id="searchForm" class="search">
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
     </form>
+    <button id="themeToggle" class="icon-btn" title="Tumma tila">🌙</button>
     <div class="user">
       <label>Nimesi:</label>
       <input id="authorInput" type="text" placeholder="Etunimi" />

@@ -27,8 +27,8 @@ const Store = {
 
   categories: {
     list: () => api('/api/categories'),
-    create: (name) => api('/api/categories', jsonBody('POST', { name })),
-    rename: (id, name) => api('/api/categories/' + id, jsonBody('PUT', { name })),
+    create: (data) => api('/api/categories', jsonBody('POST', data)),
+    update: (id, data) => api('/api/categories/' + id, jsonBody('PUT', data)),
     remove: (id) => api('/api/categories/' + id, { method: 'DELETE' }),
   },
 

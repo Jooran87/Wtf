@@ -114,6 +114,12 @@ if (!pageCols.includes('keywords')) {
   db.exec("ALTER TABLE pages ADD COLUMN keywords TEXT NOT NULL DEFAULT ''");
 }
 
+// Migraatio: kategorian ikoni.
+const catCols = db.prepare('PRAGMA table_info(categories)').all().map((c) => c.name);
+if (!catCols.includes('icon')) {
+  db.exec("ALTER TABLE categories ADD COLUMN icon TEXT NOT NULL DEFAULT ''");
+}
+
 // Migraatio: "vahvistettu ajantasaiseksi" -leima.
 if (!pageCols.includes('verified_at')) {
   db.exec('ALTER TABLE pages ADD COLUMN verified_at TEXT');

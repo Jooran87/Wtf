@@ -6,7 +6,7 @@
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v8';
+const LS_KEY = 'tyowiki_sandbox_v9';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -95,12 +95,12 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [], links: [] };
-  const pereh = { id: nextId(), name: 'Perehdytys', sort_order: 0 };
+  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', sort_order: 0 };
   DB.categories.push(pereh);
-  const kipa = { id: nextId(), name: 'Kipa', sort_order: 1 };
-  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', sort_order: 2 };
-  const hairiot = { id: nextId(), name: 'Häiriötilanteet', sort_order: 3 };
-  const ism = { id: nextId(), name: 'ISM-ohjeet', sort_order: 4 };
+  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', sort_order: 1 };
+  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', sort_order: 2 };
+  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', sort_order: 3 };
+  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', sort_order: 4 };
   DB.categories.push(kipa, halytyskeskus, hairiot, ism);
 
   const pTervetuloa = mkPage(pereh.id, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
@@ -325,6 +325,7 @@ function migrateExisting() {
   if (!DB.announcements) { DB.announcements = []; changed = true; }
   if (!DB.terms) { DB.terms = []; changed = true; }
   if (!DB.links) { DB.links = []; changed = true; }
+  DB.categories.forEach((c) => { if (typeof c.icon !== 'string') { c.icon = ''; changed = true; } });
   DB.pages.forEach((p) => {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
@@ -365,15 +366,27 @@ const Store = {
   mode: 'sandbox',
 
   categories: {
-    async list() { await ready; return clone(DB.categories).sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)); },
-    async create(name) {
+    async list() {
       await ready;
-      const c = { id: nextId(), name: name.trim(), sort_order: (Math.max(0, ...DB.categories.map((x) => x.sort_order)) + 1) };
+      return clone(DB.categories)
+        .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+        .map((c) => ({ ...c, page_count: DB.pages.filter((p) => p.category_id === c.id).length }));
+    },
+    async create(data) {
+      await ready;
+      const name = (data.name || '').trim();
+      if (!name) throw new Error('Nimi puuttuu');
+      const c = { id: nextId(), name, icon: (data.icon || '').trim(),
+        sort_order: (Math.max(0, ...DB.categories.map((x) => x.sort_order)) + 1) };
       DB.categories.push(c); save(DB); return clone(c);
     },
-    async rename(id, name) {
+    async update(id, data) {
       await ready; id = Number(id);
-      const c = DB.categories.find((x) => x.id === id); if (c) c.name = name.trim();
+      const c = DB.categories.find((x) => x.id === id);
+      if (!c) throw new Error('Kategoriaa ei löydy');
+      const name = (data.name || '').trim();
+      if (!name) throw new Error('Nimi puuttuu');
+      c.name = name; c.icon = (data.icon || '').trim();
       save(DB); return clone(c);
     },
     async remove(id) {

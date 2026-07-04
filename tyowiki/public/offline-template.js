@@ -131,6 +131,15 @@
   .term b { color:var(--ink); }
   .hidden { display:none; }
   footer { padding:16px 14px 30px; font-size:12px; color:var(--muted); text-align:center; }
+  /* Tumma tila automaattisesti puhelimen asetuksen mukaan */
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#f5944f; --soft:#3a2818; --border:#2b3442; --muted:#93a0b1; }
+    body { background:#12161d; color:#e6ebf3; }
+    header { background:#12161d; }
+    .doc pre, .doc code { background:#263140; color:#e6edf3; }
+    details.art[open] summary { background:var(--soft); }
+    #q { background:#1b212b; color:#e6ebf3; }
+  }
 </style>
 </head>
 <body>

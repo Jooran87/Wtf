@@ -18,6 +18,12 @@ const html = `<!DOCTYPE html>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Palmia Hälytyskeskus – Työohjeet (Sandbox)</title>
+  <script>
+    /* Teema ennen renderöintiä, ettei sivu välähdä väärällä värillä */
+    (function(){try{var t=localStorage.getItem('tyowiki_theme');
+      if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';
+      document.documentElement.dataset.theme=t==='dark'?'dark':'light';}catch(e){}})();
+  </script>
   <style>
 ${css}
     .sandbox-badge { background:#1c2430; color:#fff; font-size:11px; font-weight:700;
@@ -35,6 +41,7 @@ ${css}
     <form id="searchForm" class="search">
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
     </form>
+    <button id="themeToggle" class="icon-btn" title="Tumma tila">🌙</button>
     <div class="user"><label>Nimesi:</label><input id="authorInput" type="text" placeholder="Etunimi" /></div>
   </header>
   <div class="layout">

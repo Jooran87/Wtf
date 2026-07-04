@@ -9,7 +9,7 @@ if (existing > 0) {
   process.exit(0);
 }
 
-const insCat = db.prepare('INSERT INTO categories (name, sort_order) VALUES (?, ?)');
+const insCat = db.prepare('INSERT INTO categories (name, icon, sort_order) VALUES (?, ?, ?)');
 const insPage = db.prepare('INSERT INTO pages (category_id, title, content, keywords, updated_at, updated_by, views) VALUES (?, ?, ?, ?, ?, ?, ?)');
 const insNote = db.prepare('INSERT INTO shift_notes (category_id, author, content, created_at) VALUES (?, ?, ?, ?)');
 const insContact = db.prepare('INSERT INTO contacts (label, phone, note, sort_order) VALUES (?, ?, ?, ?)');
@@ -18,11 +18,11 @@ const insAnn = db.prepare('INSERT INTO announcements (title, content, pinned, cr
 const insTerm = db.prepare('INSERT INTO terms (term, definition, updated_at, updated_by) VALUES (?, ?, ?, ?)');
 
 // Kategoriat asiakkuuksittain / aihealueittain (Palmia – kiinteistöhoito)
-const pereh = insCat.run('Perehdytys', 0).lastInsertRowid;
-const kipa = insCat.run('Kipa', 1).lastInsertRowid;
-const halytyskeskus = insCat.run('Hälytyskeskus', 2).lastInsertRowid;
-const hairiot = insCat.run('Häiriötilanteet', 3).lastInsertRowid;
-const ism = insCat.run('ISM-ohjeet', 4).lastInsertRowid;
+const pereh = insCat.run('Perehdytys', '🎓', 0).lastInsertRowid;
+const kipa = insCat.run('Kipa', '🏢', 1).lastInsertRowid;
+const halytyskeskus = insCat.run('Hälytyskeskus', '🚨', 2).lastInsertRowid;
+const hairiot = insCat.run('Häiriötilanteet', '⚡', 3).lastInsertRowid;
+const ism = insCat.run('ISM-ohjeet', '📘', 4).lastInsertRowid;
 
 insPage.run(pereh, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
 

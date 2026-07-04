@@ -50,22 +50,27 @@ const now = () => new Date().toISOString();
 
 // ---------- Kategoriat (kohteet) ----------
 app.get('/api/categories', (req, res) => {
-  const rows = db.prepare('SELECT * FROM categories ORDER BY sort_order, name').all();
+  const rows = db.prepare(
+    `SELECT c.*, (SELECT COUNT(*) FROM pages p WHERE p.category_id = c.id) AS page_count
+     FROM categories c ORDER BY c.sort_order, c.name`
+  ).all();
   res.json(rows);
 });
 
 app.post('/api/categories', (req, res) => {
   const name = (req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'Nimi puuttuu' });
+  const icon = (req.body.icon || '').trim();
   const sort = db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS s FROM categories').get().s;
-  const info = db.prepare('INSERT INTO categories (name, sort_order) VALUES (?, ?)').run(name, sort);
+  const info = db.prepare('INSERT INTO categories (name, icon, sort_order) VALUES (?, ?, ?)').run(name, icon, sort);
   res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(info.lastInsertRowid));
 });
 
 app.put('/api/categories/:id', (req, res) => {
   const name = (req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'Nimi puuttuu' });
-  db.prepare('UPDATE categories SET name = ? WHERE id = ?').run(name, req.params.id);
+  const icon = (req.body.icon || '').trim();
+  db.prepare('UPDATE categories SET name = ?, icon = ? WHERE id = ?').run(name, icon, req.params.id);
   res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id));
 });
 

@@ -4,21 +4,63 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Palmia Hälytyskeskus – Työohjeet (Sandbox)</title>
+  <script>
+    /* Teema ennen renderöintiä, ettei sivu välähdä väärällä värillä */
+    (function(){try{var t=localStorage.getItem('tyowiki_theme');
+      if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';
+      document.documentElement.dataset.theme=t==='dark'?'dark':'light';}catch(e){}})();
+  </script>
   <style>
+/* Teemamuuttujat: vaalea (oletus) ja tumma. JS asettaa <html data-theme="...">. */
 :root {
   --bg: #f4f6f9;
   --panel: #ffffff;
   --border: #e2e6ec;
   --text: #1c2430;
   --muted: #6b7686;
+  --hover: #eef2f7;
   --brand: #ea6a1e;        /* Palmia-oranssi: täytöt, napit, logomerkki */
   --brand-dark: #cf5a12;   /* hover */
   --brand-ink: #b8500e;    /* tekstit/linkit – tummempi kontrastin vuoksi */
   --brand-soft: #fdeadd;   /* pehmeä oranssi taustatäplä */
+  --code-bg: #eef2f7;
+  --pre-bg: #1c2430;
+  --pre-text: #e6edf3;
+  --mark-bg: #fff3a3;
+  --mark-text: inherit;
+  --ok-bg: #e5f4e9;
+  --ok-text: #1d7a34;
   --danger: #d43c3c;
-  --ok: #2ea043;
+  --danger-bg: #fdeaea;
+  --danger-text: #b03030;
+  --pin-border: #f5c9a4;
   --shadow: 0 1px 3px rgba(0,0,0,.08);
   --radius: 8px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #12161d;
+  --panel: #1b212b;
+  --border: #2b3442;
+  --text: #e6ebf3;
+  --muted: #93a0b1;
+  --hover: #242e3b;
+  --brand: #f0762a;
+  --brand-dark: #e2661d;
+  --brand-ink: #f5944f;    /* tummalla pohjalla vaaleampi oranssi lukee paremmin */
+  --brand-soft: #3a2818;
+  --code-bg: #263140;
+  --pre-bg: #0d1117;
+  --pre-text: #e6edf3;
+  --mark-bg: #7a6420;
+  --mark-text: #fff;
+  --ok-bg: #17301f;
+  --ok-text: #62d386;
+  --danger: #e05252;
+  --danger-bg: #3a1d1d;
+  --danger-text: #ff9090;
+  --pin-border: #5a3d22;
+  --shadow: 0 1px 3px rgba(0,0,0,.4);
 }
 
 * { box-sizing: border-box; }
@@ -32,7 +74,7 @@ body {
 
 /* Topbar */
 .topbar {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 14px;
   padding: 10px 18px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
@@ -51,6 +93,7 @@ body {
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-text strong { font-size: 16px; color: var(--text); }
 .brand-text small { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
 .search { flex: 1; max-width: 520px; }
 .search input {
   width: 100%; padding: 9px 14px; border: 1px solid var(--border);
@@ -59,6 +102,8 @@ body {
 .search input:focus { border-color: var(--brand); }
 .user { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .user input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; width: 110px; }
+
+input, textarea, select { background: var(--panel); color: var(--text); }
 
 /* Layout */
 .layout { display: flex; align-items: flex-start; }
@@ -72,7 +117,7 @@ body {
   text-align: left; background: none; border: none; padding: 9px 12px;
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
-.nav-link:hover { background: #eef2f7; }
+.nav-link:hover { background: var(--hover); }
 .nav-link.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
 
 .sidebar-section { border-top: 1px solid var(--border); padding-top: 12px; }
@@ -84,14 +129,28 @@ body {
 .category-list { list-style: none; margin: 0; padding: 0; }
 .category-list li { display: flex; align-items: center; }
 .category-list .cat-btn {
-  flex: 1; text-align: left; background: none; border: none; padding: 8px 12px;
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  text-align: left; background: none; border: none; padding: 8px 12px;
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
-.category-list .cat-btn:hover { background: #eef2f7; }
+.category-list .cat-btn:hover { background: var(--hover); }
 .category-list .cat-btn.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
+.cat-ico { flex-shrink: 0; }
+.cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.count-badge {
+  background: var(--hover); color: var(--muted); font-size: 11px; font-weight: 700;
+  padding: 1px 7px; border-radius: 9px; flex-shrink: 0;
+}
+.cat-btn.active .count-badge { background: var(--panel); color: var(--brand-ink); }
+
+/* Kategorian lisäyslomake sivupalkissa */
+.cat-form { display: flex; gap: 6px; padding: 4px 8px 10px; align-items: center; }
+.cat-form select { width: 58px; padding: 7px 4px; border: 1px solid var(--border); border-radius: 6px; }
+.cat-form input { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; outline: none; }
+.cat-form input:focus { border-color: var(--brand); }
 
 /* Content */
-.content { flex: 1; padding: 26px 34px; max-width: 900px; }
+.content { flex: 1; padding: 26px 34px; max-width: 960px; min-width: 0; }
 .content h2 { margin-top: 0; }
 .card {
   background: var(--panel); border: 1px solid var(--border);
@@ -99,31 +158,38 @@ body {
   margin-bottom: 16px;
 }
 .muted { color: var(--muted); font-size: 13px; }
+.muted a { color: var(--muted); }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+/* Murupolku */
+.crumbs { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--brand-ink); }
+.crumbs .sep { margin: 0 5px; opacity: .6; }
 
 /* Buttons */
 .btn {
   background: var(--brand); color: #fff; border: none; padding: 9px 16px;
   border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
+  transition: background .12s;
 }
 .btn:hover { background: var(--brand-dark); }
-.btn.secondary { background: #eef2f7; color: var(--text); }
-.btn.secondary:hover { background: #e2e8f0; }
+.btn.secondary { background: var(--hover); color: var(--text); }
+.btn.secondary:hover { background: var(--border); }
 .btn.danger { background: var(--danger); }
 .btn.small { padding: 5px 10px; font-size: 13px; }
 .icon-btn {
   background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted);
   padding: 2px 6px; border-radius: 6px;
 }
-.icon-btn:hover { background: #eef2f7; color: var(--text); }
+.icon-btn:hover { background: var(--hover); color: var(--text); }
 .icon-btn.small { font-size: 15px; }
 #menuToggle { display: none; }
+#themeToggle { font-size: 17px; }
 
 /* Forms */
-input[type=text], input[type=search], textarea, select {
-  font-family: inherit; font-size: 14px;
-}
+input[type=text], input[type=search], textarea, select { font-family: inherit; font-size: 14px; }
 .field { margin-bottom: 12px; }
 .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
 .field input, .field textarea, .field select {
@@ -132,19 +198,26 @@ input[type=text], input[type=search], textarea, select {
 }
 .field textarea { min-height: 260px; resize: vertical; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--brand); }
+.preview-box { border: 1px dashed var(--border); border-radius: 6px; padding: 6px 16px; min-height: 260px; }
 
-/* Page content rendering */
-.doc { line-height: 1.65; }
+/* Artikkelin sisältö: isompi teksti, kapeampi palsta, ilmavampi */
+.doc { line-height: 1.7; font-size: 17px; max-width: 720px; }
 .doc h1, .doc h2, .doc h3 { line-height: 1.3; }
-.doc h1 { font-size: 24px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-.doc h2 { font-size: 20px; }
-.doc h3 { font-size: 17px; }
-.doc code { background: #eef2f7; padding: 1px 5px; border-radius: 4px; font-size: 90%; }
-.doc pre { background: #1c2430; color: #e6edf3; padding: 12px; border-radius: 6px; overflow-x: auto; }
+.doc h1 { font-size: 26px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin: 18px 0 14px; }
+.doc h2 { font-size: 21px; margin: 26px 0 10px; }
+.doc h3 { font-size: 18px; margin: 20px 0 8px; }
+.doc p { margin: 10px 0; }
+.doc code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 88%; }
+.doc pre { background: var(--pre-bg); color: var(--pre-text); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 14px; }
 .doc pre code { background: none; color: inherit; }
-.doc ul, .doc ol { padding-left: 22px; }
+.doc ul, .doc ol { padding-left: 24px; }
+.doc li { margin: 7px 0; }
 .doc a { color: var(--brand-ink); }
-.doc blockquote { border-left: 3px solid var(--brand); margin: 0; padding: 4px 14px; color: var(--muted); }
+.doc blockquote {
+  border-left: 3px solid var(--brand); margin: 14px 0; padding: 8px 16px;
+  color: var(--muted); background: var(--brand-soft); border-radius: 0 6px 6px 0;
+}
+:root[data-theme="dark"] .doc blockquote { color: var(--text); }
 .doc img { max-width: 100%; border-radius: 6px; }
 
 /* Attachments */
@@ -154,12 +227,12 @@ input[type=text], input[type=search], textarea, select {
   border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px;
 }
 .attach-list .att-icon { font-size: 20px; }
-.attach-list .att-name { flex: 1; }
+.attach-list .att-name { flex: 1; min-width: 0; }
 .attach-list .att-name a { color: var(--text); text-decoration: none; font-weight: 600; }
 .attach-list .att-name a:hover { color: var(--brand-ink); }
 .attach-list .att-meta { font-size: 12px; color: var(--muted); }
 .attach-list .snippet { font-size: 13px; color: var(--text); margin-top: 4px; font-style: italic; }
-mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
+mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; border-radius: 2px; }
 
 /* Shift log */
 .note {
@@ -175,7 +248,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
   border: 1px solid var(--border); border-radius: 6px;
   padding: 10px 14px; margin-bottom: 8px; background: var(--panel);
 }
-.ann.pinned { background: var(--brand-soft); border-color: #f5c9a4; }
+.ann.pinned { background: var(--brand-soft); border-color: var(--pin-border); border-left: 4px solid var(--brand); }
 .ann-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .ann-title { font-size: 15px; }
 .ann.pinned .ann-title { color: var(--brand-ink); }
@@ -218,9 +291,9 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 13px; padding: 4px 12px; border-radius: 14px; font-weight: 600;
 }
-.verify-badge.ok { background: #e5f4e9; color: #1d7a34; }
-.verify-badge.stale { background: #fdeaea; color: #b03030; }
-.verify-badge.never { background: #eef2f7; color: var(--muted); }
+.verify-badge.ok { background: var(--ok-bg); color: var(--ok-text); }
+.verify-badge.stale { background: var(--danger-bg); color: var(--danger-text); }
+.verify-badge.never { background: var(--hover); color: var(--muted); }
 
 /* Avainsanat */
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
@@ -228,12 +301,28 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
   background: var(--brand-soft); color: var(--brand-ink); text-decoration: none;
   font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px;
 }
-.tag-chip:hover { background: #fbdcc4; }
+.tag-chip:hover { filter: brightness(.95); }
 
 /* Hakutulosten otteet */
 .page-list .result { align-items: flex-start; }
 .result-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding-right: 10px; }
 .result-main .snippet { font-size: 13px; color: var(--muted); font-style: italic; line-height: 1.4; }
+
+/* Etusivun kategoriakortit */
+.cat-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.cat-card {
+  display: flex; flex-direction: column; gap: 4px; text-decoration: none;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; box-shadow: var(--shadow);
+  transition: transform .1s, border-color .12s;
+}
+.cat-card:hover { border-color: var(--brand); transform: translateY(-2px); }
+.cc-ico { font-size: 26px; line-height: 1; }
+.cc-name { font-weight: 700; color: var(--text); }
+.cc-count { font-size: 12px; color: var(--muted); }
 
 /* Home dashboard layout */
 .home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
@@ -263,6 +352,9 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .contact-phone { color: var(--brand-ink); text-decoration: none; font-size: 15px; }
 .contact-phone:hover { text-decoration: underline; }
 .contact-actions { display: flex; flex-shrink: 0; }
+.contact-form { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 8px; }
+.contact-form input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; outline: none; }
+.contact-form input:focus { border-color: var(--brand); }
 
 /* List of pages */
 .page-list { list-style: none; padding: 0; margin: 0; }
@@ -274,6 +366,15 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 }
 .page-list .page-link:hover { color: var(--brand-ink); }
 .empty { color: var(--muted); padding: 20px; text-align: center; }
+
+/* Takaisin ylös (mobiili/pitkät sivut) */
+#backTop {
+  position: fixed; right: 18px; bottom: 18px; width: 42px; height: 42px;
+  border-radius: 50%; border: none; background: var(--brand); color: #fff;
+  font-size: 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 40;
+}
+#backTop.show { opacity: 1; pointer-events: auto; }
 
 /* Toast */
 .toast {
@@ -288,12 +389,13 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 @media (max-width: 780px) {
   #menuToggle { display: inline-block; }
   .sidebar {
-    position: fixed; top: 57px; left: 0; bottom: 0; z-index: 30;
+    position: fixed; top: 57px; left: 0; bottom: 0; z-index: 30; overflow-y: auto;
     transform: translateX(-100%); transition: transform .2s; box-shadow: 2px 0 12px rgba(0,0,0,.15);
   }
   .sidebar.open { transform: translateX(0); }
   .content { padding: 18px; }
   .user { display: none; }
+  .doc { font-size: 16px; }
 }
 
     .sandbox-badge { background:#1c2430; color:#fff; font-size:11px; font-weight:700;
@@ -311,6 +413,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
     <form id="searchForm" class="search">
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
     </form>
+    <button id="themeToggle" class="icon-btn" title="Tumma tila">🌙</button>
     <div class="user"><label>Nimesi:</label><input id="authorInput" type="text" placeholder="Etunimi" /></div>
   </header>
   <div class="layout">
@@ -475,6 +578,15 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
   .term b { color:var(--ink); }
   .hidden { display:none; }
   footer { padding:16px 14px 30px; font-size:12px; color:var(--muted); text-align:center; }
+  /* Tumma tila automaattisesti puhelimen asetuksen mukaan */
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#f5944f; --soft:#3a2818; --border:#2b3442; --muted:#93a0b1; }
+    body { background:#12161d; color:#e6ebf3; }
+    header { background:#12161d; }
+    .doc pre, .doc code { background:#263140; color:#e6edf3; }
+    details.art[open] summary { background:var(--soft); }
+    #q { background:#1b212b; color:#e6ebf3; }
+  }
 </style>
 </head>
 <body>
@@ -582,7 +694,7 @@ ${anns.length ? `<section>
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v8';
+const LS_KEY = 'tyowiki_sandbox_v9';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -671,12 +783,12 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [], links: [] };
-  const pereh = { id: nextId(), name: 'Perehdytys', sort_order: 0 };
+  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', sort_order: 0 };
   DB.categories.push(pereh);
-  const kipa = { id: nextId(), name: 'Kipa', sort_order: 1 };
-  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', sort_order: 2 };
-  const hairiot = { id: nextId(), name: 'Häiriötilanteet', sort_order: 3 };
-  const ism = { id: nextId(), name: 'ISM-ohjeet', sort_order: 4 };
+  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', sort_order: 1 };
+  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', sort_order: 2 };
+  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', sort_order: 3 };
+  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', sort_order: 4 };
   DB.categories.push(kipa, halytyskeskus, hairiot, ism);
 
   const pTervetuloa = mkPage(pereh.id, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
@@ -901,6 +1013,7 @@ function migrateExisting() {
   if (!DB.announcements) { DB.announcements = []; changed = true; }
   if (!DB.terms) { DB.terms = []; changed = true; }
   if (!DB.links) { DB.links = []; changed = true; }
+  DB.categories.forEach((c) => { if (typeof c.icon !== 'string') { c.icon = ''; changed = true; } });
   DB.pages.forEach((p) => {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
@@ -941,15 +1054,27 @@ const Store = {
   mode: 'sandbox',
 
   categories: {
-    async list() { await ready; return clone(DB.categories).sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)); },
-    async create(name) {
+    async list() {
       await ready;
-      const c = { id: nextId(), name: name.trim(), sort_order: (Math.max(0, ...DB.categories.map((x) => x.sort_order)) + 1) };
+      return clone(DB.categories)
+        .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+        .map((c) => ({ ...c, page_count: DB.pages.filter((p) => p.category_id === c.id).length }));
+    },
+    async create(data) {
+      await ready;
+      const name = (data.name || '').trim();
+      if (!name) throw new Error('Nimi puuttuu');
+      const c = { id: nextId(), name, icon: (data.icon || '').trim(),
+        sort_order: (Math.max(0, ...DB.categories.map((x) => x.sort_order)) + 1) };
       DB.categories.push(c); save(DB); return clone(c);
     },
-    async rename(id, name) {
+    async update(id, data) {
       await ready; id = Number(id);
-      const c = DB.categories.find((x) => x.id === id); if (c) c.name = name.trim();
+      const c = DB.categories.find((x) => x.id === id);
+      if (!c) throw new Error('Kategoriaa ei löydy');
+      const name = (data.name || '').trim();
+      if (!name) throw new Error('Nimi puuttuu');
+      c.name = name; c.icon = (data.icon || '').trim();
       save(DB); return clone(c);
     },
     async remove(id) {
@@ -1365,12 +1490,24 @@ async function loadCategories() {
   renderSidebar();
 }
 
+const CAT_ICONS = ['📄', '🎓', '🏢', '🚨', '⚡', '📘', '🧰', '🧹', '🔧', '🛡️', '🗂️', '🏥'];
+const catIcon = (c) => (c && c.icon) ? c.icon : '📄';
+
 function renderSidebar() {
   const ul = $('#categoryList');
   ul.innerHTML = categories.map((c) => `
     <li>
-      <button class="cat-btn ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">${esc(c.name)}</button>
+      <button class="cat-btn ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">
+        <span class="cat-ico">${esc(catIcon(c))}</span>
+        <span class="cat-name">${esc(c.name)}</span>
+        <span class="count-badge">${c.page_count != null ? c.page_count : ''}</span>
+      </button>
     </li>`).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
+}
+
+function iconSelectHtml(id, selected) {
+  return `<select id="${id}" title="Ikoni">${CAT_ICONS.map((i) =>
+    `<option ${i === selected ? 'selected' : ''}>${i}</option>`).join('')}</select>`;
 }
 
 function setActiveNav(nav) {
@@ -1418,7 +1555,14 @@ async function viewHome() {
   const homeAnns = anns.filter((a) => a.pinned).concat(anns.filter((a) => !a.pinned)).slice(0, 4);
   content.innerHTML = `
     <h2>Hälytyskeskuksen työohjeet</h2>
-    <p class="muted">Valitse kategoria vasemmalta tai selaa työohjeita ja vuorolokia.</p>
+    <p class="muted">Valitse kategoria tai hae yläpalkista (pikanäppäin <code>/</code>).</p>
+    <div class="cat-grid">
+      ${categories.map((c) => `<a class="cat-card" href="#/kohde/${c.id}">
+        <span class="cc-ico">${esc(catIcon(c))}</span>
+        <span class="cc-name">${esc(c.name)}</span>
+        <span class="cc-count">${c.page_count || 0} ohjetta</span>
+      </a>`).join('')}
+    </div>
     ${anns.length ? `<div class="card">
       <div class="spread"><h3 style="margin:0">📢 Tiedotteet</h3>
         <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
@@ -1449,6 +1593,7 @@ async function viewHome() {
         <div class="card">
           <div class="spread"><h3 style="margin:0">☎ Tärkeät numerot</h3>
             <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">＋</button></div>
+          <div id="contactFormWrap"></div>
           <ul class="contact-list">
             ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä.</li>'}
           </ul>
@@ -1470,18 +1615,31 @@ async function viewHome() {
   });
 }
 
-async function editContact(existing) {
-  const label = prompt('Nimi / rooli (esim. IT-tuki, Vuoroesihenkilö):', existing ? existing.label : '');
-  if (label === null || !label.trim()) return;
-  const phone = prompt('Puhelinnumero:', existing ? existing.phone : '');
-  if (phone === null) return;
-  const note = prompt('Lisätieto (valinnainen, esim. aukioloaika tai sähköposti):', existing ? existing.note : '') || '';
-  const data = { label: label.trim(), phone: phone.trim(), note: note.trim() };
-  try {
-    if (existing) await Store.contacts.update(existing.id, data);
-    else await Store.contacts.create(data);
-    toast('Tallennettu'); viewHome();
-  } catch (err) { toast(err.message, true); }
+// Yhteystiedon lisäys/muokkaus: lomake kortin sisään (ei prompt-ikkunoita).
+function editContact(existing) {
+  const wrap = $('#contactFormWrap');
+  if (!wrap) return;
+  if (wrap.innerHTML && !existing) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `<div class="contact-form">
+    <input type="text" id="cfLabel" placeholder="Nimi / rooli (esim. IT-tuki)" value="${existing ? esc(existing.label) : ''}" />
+    <input type="text" id="cfPhone" placeholder="Puhelinnumero" value="${existing ? esc(existing.phone) : ''}" />
+    <input type="text" id="cfNote" placeholder="Lisätieto (valinnainen)" value="${existing ? esc(existing.note) : ''}" />
+    <div class="row">
+      <button class="btn small" id="cfSave">${existing ? 'Tallenna' : 'Lisää'}</button>
+      <button class="btn small secondary" id="cfCancel">Peruuta</button>
+    </div>
+  </div>`;
+  $('#cfSave').onclick = async () => {
+    const data = { label: $('#cfLabel').value.trim(), phone: $('#cfPhone').value.trim(), note: $('#cfNote').value.trim() };
+    if (!data.label) return toast('Anna nimi', true);
+    try {
+      if (existing) await Store.contacts.update(existing.id, data);
+      else await Store.contacts.create(data);
+      toast('Tallennettu'); viewHome();
+    } catch (err) { toast(err.message, true); }
+  };
+  $('#cfCancel').onclick = () => { wrap.innerHTML = ''; };
+  $('#cfLabel').focus();
 }
 
 function categoryName(id) {
@@ -1497,27 +1655,43 @@ async function viewCategory(id) {
   }
   const pages = await Store.pages.list(id);
   content.innerHTML = `
+    <div class="crumbs"><a href="#/">Etusivu</a><span class="sep">›</span><span>${esc(cat.name)}</span></div>
     <div class="spread">
-      <h2 style="margin:0">${esc(cat ? cat.name : 'Kategoria')}</h2>
+      <h2 style="margin:0">${esc(catIcon(cat))} ${esc(cat.name)}</h2>
       <div class="row">
         <button class="btn small" id="newPageBtn">＋ Uusi ohje</button>
-        <button class="btn small secondary" id="renameCatBtn">Nimeä</button>
+        <button class="btn small secondary" id="renameCatBtn">✏️ Muokkaa</button>
         <button class="btn small danger" id="delCatBtn">Poista kategoria</button>
       </div>
     </div>
+    <div id="catEditRow"></div>
     <div class="card">
       <ul class="page-list">
         ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
           <span>${esc(p.title)}</span>
           <span class="muted">${esc(fmtDate(p.updated_at))}</span></button></li>`).join('')
-          || '<li class="empty">Ei ohjeita tässä kohteessa. Luo ensimmäinen.</li>'}
+          || '<li class="empty">Ei ohjeita tässä kategoriassa. Luo ensimmäinen.</li>'}
       </ul>
     </div>`;
 
   $('#newPageBtn').onclick = () => { location.hash = `#/uusi?kohde=${id}`; };
-  $('#renameCatBtn').onclick = async () => {
-    const name = prompt('Kategorian uusi nimi:', cat.name);
-    if (name && name.trim()) { await Store.categories.rename(id, name); await loadCategories(); viewCategory(id); toast('Nimetty'); }
+  // Kategorian muokkaus: siisti lomake promptin sijaan.
+  $('#renameCatBtn').onclick = () => {
+    const row = $('#catEditRow');
+    if (row.innerHTML) { row.innerHTML = ''; return; }
+    row.innerHTML = `<div class="card"><div class="row">
+      ${iconSelectHtml('editCatIcon', catIcon(cat))}
+      <input type="text" id="editCatName" value="${esc(cat.name)}"
+        style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
+      <button class="btn small" id="editCatSave">Tallenna</button>
+    </div></div>`;
+    $('#editCatSave').onclick = async () => {
+      const name = $('#editCatName').value.trim();
+      if (!name) return toast('Anna nimi', true);
+      await Store.categories.update(id, { name, icon: $('#editCatIcon').value });
+      await loadCategories(); viewCategory(id); toast('Tallennettu');
+    };
+    $('#editCatName').focus();
   };
   $('#delCatBtn').onclick = async () => {
     if (confirm('Poistetaanko kategoria ja KAIKKI sen ohjeet ja liitteet?')) {
@@ -1532,9 +1706,9 @@ async function viewPage(id) {
   content.innerHTML = `
     <div class="spread">
       <div>
-        <div class="muted">${p.category_id
+        <div class="crumbs"><a href="#/">Etusivu</a><span class="sep">›</span>${p.category_id
           ? `<a href="#/kohde/${p.category_id}">${esc(categoryName(p.category_id))}</a>`
-          : esc(categoryName(p.category_id))}</div>
+          : esc(categoryName(p.category_id))}<span class="sep">›</span><span>${esc(p.title)}</span></div>
         <h2 style="margin:4px 0 0">${esc(p.title)}</h2>
       </div>
       <div class="row">
@@ -1611,14 +1785,32 @@ async function viewPageEdit(id, presetCat) {
         <input type="text" id="keywordsInput" value="${esc(p.keywords || '')}" placeholder="Esim. ISM, laatu, toimintajärjestelmä" />
       </div>
       <div class="field">
-        <label>Sisältö (Markdown: # otsikko, **lihavointi**, - lista)</label>
+        <div class="spread" style="margin-bottom:4px">
+          <label style="margin-bottom:0">Sisältö (Markdown: # otsikko, **lihavointi**, - lista)</label>
+          <button type="button" class="btn small secondary" id="previewToggle">👁 Esikatselu</button>
+        </div>
         <textarea id="contentInput" placeholder="Kirjoita työohje tähän…">${esc(p.content)}</textarea>
+        <div id="previewBox" class="doc preview-box" style="display:none"></div>
       </div>
       <div class="row">
         <button class="btn" id="saveBtn">Tallenna</button>
         <button class="btn secondary" id="cancelBtn">Peruuta</button>
       </div>
     </div>`;
+
+  // Esikatselu: näyttää miltä Markdown-muotoilu näyttää ennen tallennusta.
+  $('#previewToggle').onclick = () => {
+    const ta = $('#contentInput'), box = $('#previewBox'), btn = $('#previewToggle');
+    const showPreview = box.style.display === 'none';
+    if (showPreview) {
+      box.innerHTML = renderMarkdown(ta.value) || '<p class="muted">Ei sisältöä vielä.</p>';
+      box.style.display = ''; ta.style.display = 'none';
+      btn.textContent = '✏️ Muokkaa tekstiä';
+    } else {
+      box.style.display = 'none'; ta.style.display = '';
+      btn.textContent = '👁 Esikatselu';
+    }
+  };
 
   $('#saveBtn').onclick = async () => {
     const body = {
@@ -2054,12 +2246,28 @@ document.addEventListener('click', (e) => {
   }
 });
 
-$('#addCategoryBtn').onclick = async () => {
-  const name = prompt('Uuden kategorian nimi:');
-  if (name && name.trim()) {
-    const c = await Store.categories.create(name);
-    await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Kategoria lisätty');
-  }
+// Kategorian lisäys: siisti pikalomake sivupalkkiin (ei selaimen prompt-ikkunaa).
+$('#addCategoryBtn').onclick = () => {
+  const existing = $('#catForm');
+  if (existing) { existing.remove(); return; }
+  const wrap = document.createElement('div');
+  wrap.id = 'catForm'; wrap.className = 'cat-form';
+  wrap.innerHTML = `${iconSelectHtml('newCatIcon', '📄')}
+    <input id="newCatName" type="text" placeholder="Kategorian nimi" />
+    <button class="btn small" id="newCatSave">OK</button>`;
+  $('#categoryList').before(wrap);
+  const saveCat = async () => {
+    const name = $('#newCatName').value.trim();
+    if (!name) return toast('Anna nimi', true);
+    try {
+      const c = await Store.categories.create({ name, icon: $('#newCatIcon').value });
+      wrap.remove(); await loadCategories();
+      location.hash = '#/kohde/' + c.id; toast('Kategoria lisätty');
+    } catch (err) { toast(err.message, true); }
+  };
+  $('#newCatSave').onclick = saveCat;
+  $('#newCatName').onkeydown = (e) => { if (e.key === 'Enter') saveCat(); };
+  $('#newCatName').focus();
 };
 
 $('#searchForm').onsubmit = (e) => {
@@ -2069,6 +2277,38 @@ $('#searchForm').onsubmit = (e) => {
 };
 
 $('#menuToggle').onclick = () => $('#sidebar').classList.toggle('open');
+
+// Teema: tallennettu valinta > käyttöjärjestelmän asetus.
+function applyTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('tyowiki_theme'); } catch (_) {}
+  const dark = saved ? saved === 'dark'
+    : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const btn = $('#themeToggle');
+  if (btn) { btn.textContent = dark ? '☀️' : '🌙'; btn.title = dark ? 'Vaalea tila' : 'Tumma tila'; }
+}
+const themeToggle = $('#themeToggle');
+if (themeToggle) themeToggle.onclick = () => {
+  const nowDark = document.documentElement.dataset.theme === 'dark';
+  try { localStorage.setItem('tyowiki_theme', nowDark ? 'light' : 'dark'); } catch (_) {}
+  applyTheme();
+};
+applyTheme();
+
+// Pikanäppäin: / vie hakukenttään.
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) {
+    e.preventDefault(); $('#searchInput').focus();
+  }
+});
+
+// Takaisin ylös -nappi pitkillä sivuilla.
+const backTop = document.createElement('button');
+backTop.id = 'backTop'; backTop.title = 'Takaisin ylös'; backTop.textContent = '↑';
+document.body.appendChild(backTop);
+backTop.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+window.addEventListener('scroll', () => backTop.classList.toggle('show', window.scrollY > 600), { passive: true });
 
 // Offline-versio: yksi HTML-tiedosto puhelimeen, toimii ilman verkkoa.
 const offlineBtn = $('#offlineBtn');

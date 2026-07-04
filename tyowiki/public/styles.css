@@ -1,17 +1,53 @@
+/* Teemamuuttujat: vaalea (oletus) ja tumma. JS asettaa <html data-theme="...">. */
 :root {
   --bg: #f4f6f9;
   --panel: #ffffff;
   --border: #e2e6ec;
   --text: #1c2430;
   --muted: #6b7686;
+  --hover: #eef2f7;
   --brand: #ea6a1e;        /* Palmia-oranssi: täytöt, napit, logomerkki */
   --brand-dark: #cf5a12;   /* hover */
   --brand-ink: #b8500e;    /* tekstit/linkit – tummempi kontrastin vuoksi */
   --brand-soft: #fdeadd;   /* pehmeä oranssi taustatäplä */
+  --code-bg: #eef2f7;
+  --pre-bg: #1c2430;
+  --pre-text: #e6edf3;
+  --mark-bg: #fff3a3;
+  --mark-text: inherit;
+  --ok-bg: #e5f4e9;
+  --ok-text: #1d7a34;
   --danger: #d43c3c;
-  --ok: #2ea043;
+  --danger-bg: #fdeaea;
+  --danger-text: #b03030;
+  --pin-border: #f5c9a4;
   --shadow: 0 1px 3px rgba(0,0,0,.08);
   --radius: 8px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #12161d;
+  --panel: #1b212b;
+  --border: #2b3442;
+  --text: #e6ebf3;
+  --muted: #93a0b1;
+  --hover: #242e3b;
+  --brand: #f0762a;
+  --brand-dark: #e2661d;
+  --brand-ink: #f5944f;    /* tummalla pohjalla vaaleampi oranssi lukee paremmin */
+  --brand-soft: #3a2818;
+  --code-bg: #263140;
+  --pre-bg: #0d1117;
+  --pre-text: #e6edf3;
+  --mark-bg: #7a6420;
+  --mark-text: #fff;
+  --ok-bg: #17301f;
+  --ok-text: #62d386;
+  --danger: #e05252;
+  --danger-bg: #3a1d1d;
+  --danger-text: #ff9090;
+  --pin-border: #5a3d22;
+  --shadow: 0 1px 3px rgba(0,0,0,.4);
 }
 
 * { box-sizing: border-box; }
@@ -25,7 +61,7 @@ body {
 
 /* Topbar */
 .topbar {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 14px;
   padding: 10px 18px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
@@ -44,6 +80,7 @@ body {
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-text strong { font-size: 16px; color: var(--text); }
 .brand-text small { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
 .search { flex: 1; max-width: 520px; }
 .search input {
   width: 100%; padding: 9px 14px; border: 1px solid var(--border);
@@ -52,6 +89,8 @@ body {
 .search input:focus { border-color: var(--brand); }
 .user { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .user input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; width: 110px; }
+
+input, textarea, select { background: var(--panel); color: var(--text); }
 
 /* Layout */
 .layout { display: flex; align-items: flex-start; }
@@ -65,7 +104,7 @@ body {
   text-align: left; background: none; border: none; padding: 9px 12px;
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
-.nav-link:hover { background: #eef2f7; }
+.nav-link:hover { background: var(--hover); }
 .nav-link.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
 
 .sidebar-section { border-top: 1px solid var(--border); padding-top: 12px; }
@@ -77,14 +116,28 @@ body {
 .category-list { list-style: none; margin: 0; padding: 0; }
 .category-list li { display: flex; align-items: center; }
 .category-list .cat-btn {
-  flex: 1; text-align: left; background: none; border: none; padding: 8px 12px;
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  text-align: left; background: none; border: none; padding: 8px 12px;
   border-radius: var(--radius); cursor: pointer; font-size: 14px; color: var(--text);
 }
-.category-list .cat-btn:hover { background: #eef2f7; }
+.category-list .cat-btn:hover { background: var(--hover); }
 .category-list .cat-btn.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
+.cat-ico { flex-shrink: 0; }
+.cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.count-badge {
+  background: var(--hover); color: var(--muted); font-size: 11px; font-weight: 700;
+  padding: 1px 7px; border-radius: 9px; flex-shrink: 0;
+}
+.cat-btn.active .count-badge { background: var(--panel); color: var(--brand-ink); }
+
+/* Kategorian lisäyslomake sivupalkissa */
+.cat-form { display: flex; gap: 6px; padding: 4px 8px 10px; align-items: center; }
+.cat-form select { width: 58px; padding: 7px 4px; border: 1px solid var(--border); border-radius: 6px; }
+.cat-form input { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; outline: none; }
+.cat-form input:focus { border-color: var(--brand); }
 
 /* Content */
-.content { flex: 1; padding: 26px 34px; max-width: 900px; }
+.content { flex: 1; padding: 26px 34px; max-width: 960px; min-width: 0; }
 .content h2 { margin-top: 0; }
 .card {
   background: var(--panel); border: 1px solid var(--border);
@@ -92,31 +145,38 @@ body {
   margin-bottom: 16px;
 }
 .muted { color: var(--muted); font-size: 13px; }
+.muted a { color: var(--muted); }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+/* Murupolku */
+.crumbs { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--brand-ink); }
+.crumbs .sep { margin: 0 5px; opacity: .6; }
 
 /* Buttons */
 .btn {
   background: var(--brand); color: #fff; border: none; padding: 9px 16px;
   border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
+  transition: background .12s;
 }
 .btn:hover { background: var(--brand-dark); }
-.btn.secondary { background: #eef2f7; color: var(--text); }
-.btn.secondary:hover { background: #e2e8f0; }
+.btn.secondary { background: var(--hover); color: var(--text); }
+.btn.secondary:hover { background: var(--border); }
 .btn.danger { background: var(--danger); }
 .btn.small { padding: 5px 10px; font-size: 13px; }
 .icon-btn {
   background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted);
   padding: 2px 6px; border-radius: 6px;
 }
-.icon-btn:hover { background: #eef2f7; color: var(--text); }
+.icon-btn:hover { background: var(--hover); color: var(--text); }
 .icon-btn.small { font-size: 15px; }
 #menuToggle { display: none; }
+#themeToggle { font-size: 17px; }
 
 /* Forms */
-input[type=text], input[type=search], textarea, select {
-  font-family: inherit; font-size: 14px;
-}
+input[type=text], input[type=search], textarea, select { font-family: inherit; font-size: 14px; }
 .field { margin-bottom: 12px; }
 .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
 .field input, .field textarea, .field select {
@@ -125,19 +185,26 @@ input[type=text], input[type=search], textarea, select {
 }
 .field textarea { min-height: 260px; resize: vertical; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--brand); }
+.preview-box { border: 1px dashed var(--border); border-radius: 6px; padding: 6px 16px; min-height: 260px; }
 
-/* Page content rendering */
-.doc { line-height: 1.65; }
+/* Artikkelin sisältö: isompi teksti, kapeampi palsta, ilmavampi */
+.doc { line-height: 1.7; font-size: 17px; max-width: 720px; }
 .doc h1, .doc h2, .doc h3 { line-height: 1.3; }
-.doc h1 { font-size: 24px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-.doc h2 { font-size: 20px; }
-.doc h3 { font-size: 17px; }
-.doc code { background: #eef2f7; padding: 1px 5px; border-radius: 4px; font-size: 90%; }
-.doc pre { background: #1c2430; color: #e6edf3; padding: 12px; border-radius: 6px; overflow-x: auto; }
+.doc h1 { font-size: 26px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin: 18px 0 14px; }
+.doc h2 { font-size: 21px; margin: 26px 0 10px; }
+.doc h3 { font-size: 18px; margin: 20px 0 8px; }
+.doc p { margin: 10px 0; }
+.doc code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 88%; }
+.doc pre { background: var(--pre-bg); color: var(--pre-text); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 14px; }
 .doc pre code { background: none; color: inherit; }
-.doc ul, .doc ol { padding-left: 22px; }
+.doc ul, .doc ol { padding-left: 24px; }
+.doc li { margin: 7px 0; }
 .doc a { color: var(--brand-ink); }
-.doc blockquote { border-left: 3px solid var(--brand); margin: 0; padding: 4px 14px; color: var(--muted); }
+.doc blockquote {
+  border-left: 3px solid var(--brand); margin: 14px 0; padding: 8px 16px;
+  color: var(--muted); background: var(--brand-soft); border-radius: 0 6px 6px 0;
+}
+:root[data-theme="dark"] .doc blockquote { color: var(--text); }
 .doc img { max-width: 100%; border-radius: 6px; }
 
 /* Attachments */
@@ -147,12 +214,12 @@ input[type=text], input[type=search], textarea, select {
   border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px;
 }
 .attach-list .att-icon { font-size: 20px; }
-.attach-list .att-name { flex: 1; }
+.attach-list .att-name { flex: 1; min-width: 0; }
 .attach-list .att-name a { color: var(--text); text-decoration: none; font-weight: 600; }
 .attach-list .att-name a:hover { color: var(--brand-ink); }
 .attach-list .att-meta { font-size: 12px; color: var(--muted); }
 .attach-list .snippet { font-size: 13px; color: var(--text); margin-top: 4px; font-style: italic; }
-mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
+mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; border-radius: 2px; }
 
 /* Shift log */
 .note {
@@ -168,7 +235,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
   border: 1px solid var(--border); border-radius: 6px;
   padding: 10px 14px; margin-bottom: 8px; background: var(--panel);
 }
-.ann.pinned { background: var(--brand-soft); border-color: #f5c9a4; }
+.ann.pinned { background: var(--brand-soft); border-color: var(--pin-border); border-left: 4px solid var(--brand); }
 .ann-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .ann-title { font-size: 15px; }
 .ann.pinned .ann-title { color: var(--brand-ink); }
@@ -211,9 +278,9 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 13px; padding: 4px 12px; border-radius: 14px; font-weight: 600;
 }
-.verify-badge.ok { background: #e5f4e9; color: #1d7a34; }
-.verify-badge.stale { background: #fdeaea; color: #b03030; }
-.verify-badge.never { background: #eef2f7; color: var(--muted); }
+.verify-badge.ok { background: var(--ok-bg); color: var(--ok-text); }
+.verify-badge.stale { background: var(--danger-bg); color: var(--danger-text); }
+.verify-badge.never { background: var(--hover); color: var(--muted); }
 
 /* Avainsanat */
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
@@ -221,12 +288,28 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
   background: var(--brand-soft); color: var(--brand-ink); text-decoration: none;
   font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px;
 }
-.tag-chip:hover { background: #fbdcc4; }
+.tag-chip:hover { filter: brightness(.95); }
 
 /* Hakutulosten otteet */
 .page-list .result { align-items: flex-start; }
 .result-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding-right: 10px; }
 .result-main .snippet { font-size: 13px; color: var(--muted); font-style: italic; line-height: 1.4; }
+
+/* Etusivun kategoriakortit */
+.cat-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.cat-card {
+  display: flex; flex-direction: column; gap: 4px; text-decoration: none;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; box-shadow: var(--shadow);
+  transition: transform .1s, border-color .12s;
+}
+.cat-card:hover { border-color: var(--brand); transform: translateY(-2px); }
+.cc-ico { font-size: 26px; line-height: 1; }
+.cc-name { font-weight: 700; color: var(--text); }
+.cc-count { font-size: 12px; color: var(--muted); }
 
 /* Home dashboard layout */
 .home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
@@ -256,6 +339,9 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .contact-phone { color: var(--brand-ink); text-decoration: none; font-size: 15px; }
 .contact-phone:hover { text-decoration: underline; }
 .contact-actions { display: flex; flex-shrink: 0; }
+.contact-form { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 8px; }
+.contact-form input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; outline: none; }
+.contact-form input:focus { border-color: var(--brand); }
 
 /* List of pages */
 .page-list { list-style: none; padding: 0; margin: 0; }
@@ -267,6 +353,15 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 }
 .page-list .page-link:hover { color: var(--brand-ink); }
 .empty { color: var(--muted); padding: 20px; text-align: center; }
+
+/* Takaisin ylös (mobiili/pitkät sivut) */
+#backTop {
+  position: fixed; right: 18px; bottom: 18px; width: 42px; height: 42px;
+  border-radius: 50%; border: none; background: var(--brand); color: #fff;
+  font-size: 20px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 40;
+}
+#backTop.show { opacity: 1; pointer-events: auto; }
 
 /* Toast */
 .toast {
@@ -281,10 +376,11 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 @media (max-width: 780px) {
   #menuToggle { display: inline-block; }
   .sidebar {
-    position: fixed; top: 57px; left: 0; bottom: 0; z-index: 30;
+    position: fixed; top: 57px; left: 0; bottom: 0; z-index: 30; overflow-y: auto;
     transform: translateX(-100%); transition: transform .2s; box-shadow: 2px 0 12px rgba(0,0,0,.15);
   }
   .sidebar.open { transform: translateX(0); }
   .content { padding: 18px; }
   .user { display: none; }
+  .doc { font-size: 16px; }
 }

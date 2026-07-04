@@ -102,12 +102,24 @@ async function loadCategories() {
   renderSidebar();
 }
 
+const CAT_ICONS = ['📄', '🎓', '🏢', '🚨', '⚡', '📘', '🧰', '🧹', '🔧', '🛡️', '🗂️', '🏥'];
+const catIcon = (c) => (c && c.icon) ? c.icon : '📄';
+
 function renderSidebar() {
   const ul = $('#categoryList');
   ul.innerHTML = categories.map((c) => `
     <li>
-      <button class="cat-btn ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">${esc(c.name)}</button>
+      <button class="cat-btn ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">
+        <span class="cat-ico">${esc(catIcon(c))}</span>
+        <span class="cat-name">${esc(c.name)}</span>
+        <span class="count-badge">${c.page_count != null ? c.page_count : ''}</span>
+      </button>
     </li>`).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
+}
+
+function iconSelectHtml(id, selected) {
+  return `<select id="${id}" title="Ikoni">${CAT_ICONS.map((i) =>
+    `<option ${i === selected ? 'selected' : ''}>${i}</option>`).join('')}</select>`;
 }
 
 function setActiveNav(nav) {
@@ -155,7 +167,14 @@ async function viewHome() {
   const homeAnns = anns.filter((a) => a.pinned).concat(anns.filter((a) => !a.pinned)).slice(0, 4);
   content.innerHTML = `
     <h2>Hälytyskeskuksen työohjeet</h2>
-    <p class="muted">Valitse kategoria vasemmalta tai selaa työohjeita ja vuorolokia.</p>
+    <p class="muted">Valitse kategoria tai hae yläpalkista (pikanäppäin <code>/</code>).</p>
+    <div class="cat-grid">
+      ${categories.map((c) => `<a class="cat-card" href="#/kohde/${c.id}">
+        <span class="cc-ico">${esc(catIcon(c))}</span>
+        <span class="cc-name">${esc(c.name)}</span>
+        <span class="cc-count">${c.page_count || 0} ohjetta</span>
+      </a>`).join('')}
+    </div>
     ${anns.length ? `<div class="card">
       <div class="spread"><h3 style="margin:0">📢 Tiedotteet</h3>
         <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
@@ -186,6 +205,7 @@ async function viewHome() {
         <div class="card">
           <div class="spread"><h3 style="margin:0">☎ Tärkeät numerot</h3>
             <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">＋</button></div>
+          <div id="contactFormWrap"></div>
           <ul class="contact-list">
             ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä.</li>'}
           </ul>
@@ -207,18 +227,31 @@ async function viewHome() {
   });
 }
 
-async function editContact(existing) {
-  const label = prompt('Nimi / rooli (esim. IT-tuki, Vuoroesihenkilö):', existing ? existing.label : '');
-  if (label === null || !label.trim()) return;
-  const phone = prompt('Puhelinnumero:', existing ? existing.phone : '');
-  if (phone === null) return;
-  const note = prompt('Lisätieto (valinnainen, esim. aukioloaika tai sähköposti):', existing ? existing.note : '') || '';
-  const data = { label: label.trim(), phone: phone.trim(), note: note.trim() };
-  try {
-    if (existing) await Store.contacts.update(existing.id, data);
-    else await Store.contacts.create(data);
-    toast('Tallennettu'); viewHome();
-  } catch (err) { toast(err.message, true); }
+// Yhteystiedon lisäys/muokkaus: lomake kortin sisään (ei prompt-ikkunoita).
+function editContact(existing) {
+  const wrap = $('#contactFormWrap');
+  if (!wrap) return;
+  if (wrap.innerHTML && !existing) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `<div class="contact-form">
+    <input type="text" id="cfLabel" placeholder="Nimi / rooli (esim. IT-tuki)" value="${existing ? esc(existing.label) : ''}" />
+    <input type="text" id="cfPhone" placeholder="Puhelinnumero" value="${existing ? esc(existing.phone) : ''}" />
+    <input type="text" id="cfNote" placeholder="Lisätieto (valinnainen)" value="${existing ? esc(existing.note) : ''}" />
+    <div class="row">
+      <button class="btn small" id="cfSave">${existing ? 'Tallenna' : 'Lisää'}</button>
+      <button class="btn small secondary" id="cfCancel">Peruuta</button>
+    </div>
+  </div>`;
+  $('#cfSave').onclick = async () => {
+    const data = { label: $('#cfLabel').value.trim(), phone: $('#cfPhone').value.trim(), note: $('#cfNote').value.trim() };
+    if (!data.label) return toast('Anna nimi', true);
+    try {
+      if (existing) await Store.contacts.update(existing.id, data);
+      else await Store.contacts.create(data);
+      toast('Tallennettu'); viewHome();
+    } catch (err) { toast(err.message, true); }
+  };
+  $('#cfCancel').onclick = () => { wrap.innerHTML = ''; };
+  $('#cfLabel').focus();
 }
 
 function categoryName(id) {
@@ -234,27 +267,43 @@ async function viewCategory(id) {
   }
   const pages = await Store.pages.list(id);
   content.innerHTML = `
+    <div class="crumbs"><a href="#/">Etusivu</a><span class="sep">›</span><span>${esc(cat.name)}</span></div>
     <div class="spread">
-      <h2 style="margin:0">${esc(cat ? cat.name : 'Kategoria')}</h2>
+      <h2 style="margin:0">${esc(catIcon(cat))} ${esc(cat.name)}</h2>
       <div class="row">
         <button class="btn small" id="newPageBtn">＋ Uusi ohje</button>
-        <button class="btn small secondary" id="renameCatBtn">Nimeä</button>
+        <button class="btn small secondary" id="renameCatBtn">✏️ Muokkaa</button>
         <button class="btn small danger" id="delCatBtn">Poista kategoria</button>
       </div>
     </div>
+    <div id="catEditRow"></div>
     <div class="card">
       <ul class="page-list">
         ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
           <span>${esc(p.title)}</span>
           <span class="muted">${esc(fmtDate(p.updated_at))}</span></button></li>`).join('')
-          || '<li class="empty">Ei ohjeita tässä kohteessa. Luo ensimmäinen.</li>'}
+          || '<li class="empty">Ei ohjeita tässä kategoriassa. Luo ensimmäinen.</li>'}
       </ul>
     </div>`;
 
   $('#newPageBtn').onclick = () => { location.hash = `#/uusi?kohde=${id}`; };
-  $('#renameCatBtn').onclick = async () => {
-    const name = prompt('Kategorian uusi nimi:', cat.name);
-    if (name && name.trim()) { await Store.categories.rename(id, name); await loadCategories(); viewCategory(id); toast('Nimetty'); }
+  // Kategorian muokkaus: siisti lomake promptin sijaan.
+  $('#renameCatBtn').onclick = () => {
+    const row = $('#catEditRow');
+    if (row.innerHTML) { row.innerHTML = ''; return; }
+    row.innerHTML = `<div class="card"><div class="row">
+      ${iconSelectHtml('editCatIcon', catIcon(cat))}
+      <input type="text" id="editCatName" value="${esc(cat.name)}"
+        style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
+      <button class="btn small" id="editCatSave">Tallenna</button>
+    </div></div>`;
+    $('#editCatSave').onclick = async () => {
+      const name = $('#editCatName').value.trim();
+      if (!name) return toast('Anna nimi', true);
+      await Store.categories.update(id, { name, icon: $('#editCatIcon').value });
+      await loadCategories(); viewCategory(id); toast('Tallennettu');
+    };
+    $('#editCatName').focus();
   };
   $('#delCatBtn').onclick = async () => {
     if (confirm('Poistetaanko kategoria ja KAIKKI sen ohjeet ja liitteet?')) {
@@ -269,9 +318,9 @@ async function viewPage(id) {
   content.innerHTML = `
     <div class="spread">
       <div>
-        <div class="muted">${p.category_id
+        <div class="crumbs"><a href="#/">Etusivu</a><span class="sep">›</span>${p.category_id
           ? `<a href="#/kohde/${p.category_id}">${esc(categoryName(p.category_id))}</a>`
-          : esc(categoryName(p.category_id))}</div>
+          : esc(categoryName(p.category_id))}<span class="sep">›</span><span>${esc(p.title)}</span></div>
         <h2 style="margin:4px 0 0">${esc(p.title)}</h2>
       </div>
       <div class="row">
@@ -348,14 +397,32 @@ async function viewPageEdit(id, presetCat) {
         <input type="text" id="keywordsInput" value="${esc(p.keywords || '')}" placeholder="Esim. ISM, laatu, toimintajärjestelmä" />
       </div>
       <div class="field">
-        <label>Sisältö (Markdown: # otsikko, **lihavointi**, - lista)</label>
+        <div class="spread" style="margin-bottom:4px">
+          <label style="margin-bottom:0">Sisältö (Markdown: # otsikko, **lihavointi**, - lista)</label>
+          <button type="button" class="btn small secondary" id="previewToggle">👁 Esikatselu</button>
+        </div>
         <textarea id="contentInput" placeholder="Kirjoita työohje tähän…">${esc(p.content)}</textarea>
+        <div id="previewBox" class="doc preview-box" style="display:none"></div>
       </div>
       <div class="row">
         <button class="btn" id="saveBtn">Tallenna</button>
         <button class="btn secondary" id="cancelBtn">Peruuta</button>
       </div>
     </div>`;
+
+  // Esikatselu: näyttää miltä Markdown-muotoilu näyttää ennen tallennusta.
+  $('#previewToggle').onclick = () => {
+    const ta = $('#contentInput'), box = $('#previewBox'), btn = $('#previewToggle');
+    const showPreview = box.style.display === 'none';
+    if (showPreview) {
+      box.innerHTML = renderMarkdown(ta.value) || '<p class="muted">Ei sisältöä vielä.</p>';
+      box.style.display = ''; ta.style.display = 'none';
+      btn.textContent = '✏️ Muokkaa tekstiä';
+    } else {
+      box.style.display = 'none'; ta.style.display = '';
+      btn.textContent = '👁 Esikatselu';
+    }
+  };
 
   $('#saveBtn').onclick = async () => {
     const body = {
@@ -791,12 +858,28 @@ document.addEventListener('click', (e) => {
   }
 });
 
-$('#addCategoryBtn').onclick = async () => {
-  const name = prompt('Uuden kategorian nimi:');
-  if (name && name.trim()) {
-    const c = await Store.categories.create(name);
-    await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Kategoria lisätty');
-  }
+// Kategorian lisäys: siisti pikalomake sivupalkkiin (ei selaimen prompt-ikkunaa).
+$('#addCategoryBtn').onclick = () => {
+  const existing = $('#catForm');
+  if (existing) { existing.remove(); return; }
+  const wrap = document.createElement('div');
+  wrap.id = 'catForm'; wrap.className = 'cat-form';
+  wrap.innerHTML = `${iconSelectHtml('newCatIcon', '📄')}
+    <input id="newCatName" type="text" placeholder="Kategorian nimi" />
+    <button class="btn small" id="newCatSave">OK</button>`;
+  $('#categoryList').before(wrap);
+  const saveCat = async () => {
+    const name = $('#newCatName').value.trim();
+    if (!name) return toast('Anna nimi', true);
+    try {
+      const c = await Store.categories.create({ name, icon: $('#newCatIcon').value });
+      wrap.remove(); await loadCategories();
+      location.hash = '#/kohde/' + c.id; toast('Kategoria lisätty');
+    } catch (err) { toast(err.message, true); }
+  };
+  $('#newCatSave').onclick = saveCat;
+  $('#newCatName').onkeydown = (e) => { if (e.key === 'Enter') saveCat(); };
+  $('#newCatName').focus();
 };
 
 $('#searchForm').onsubmit = (e) => {
@@ -806,6 +889,38 @@ $('#searchForm').onsubmit = (e) => {
 };
 
 $('#menuToggle').onclick = () => $('#sidebar').classList.toggle('open');
+
+// Teema: tallennettu valinta > käyttöjärjestelmän asetus.
+function applyTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('tyowiki_theme'); } catch (_) {}
+  const dark = saved ? saved === 'dark'
+    : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const btn = $('#themeToggle');
+  if (btn) { btn.textContent = dark ? '☀️' : '🌙'; btn.title = dark ? 'Vaalea tila' : 'Tumma tila'; }
+}
+const themeToggle = $('#themeToggle');
+if (themeToggle) themeToggle.onclick = () => {
+  const nowDark = document.documentElement.dataset.theme === 'dark';
+  try { localStorage.setItem('tyowiki_theme', nowDark ? 'light' : 'dark'); } catch (_) {}
+  applyTheme();
+};
+applyTheme();
+
+// Pikanäppäin: / vie hakukenttään.
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) {
+    e.preventDefault(); $('#searchInput').focus();
+  }
+});
+
+// Takaisin ylös -nappi pitkillä sivuilla.
+const backTop = document.createElement('button');
+backTop.id = 'backTop'; backTop.title = 'Takaisin ylös'; backTop.textContent = '↑';
+document.body.appendChild(backTop);
+backTop.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+window.addEventListener('scroll', () => backTop.classList.toggle('show', window.scrollY > 600), { passive: true });
 
 // Offline-versio: yksi HTML-tiedosto puhelimeen, toimii ilman verkkoa.
 const offlineBtn = $('#offlineBtn');

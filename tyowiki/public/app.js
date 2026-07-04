@@ -259,6 +259,8 @@ async function viewPage(id) {
       </div>
     </div>
     <p class="muted">Päivitetty ${esc(fmtDate(p.updated_at))}${p.updated_by ? ' · ' + esc(p.updated_by) : ''}</p>
+    ${(p.keywords || '').trim() ? `<div class="tags">${p.keywords.split(',').map((k) => k.trim()).filter(Boolean)
+      .map((k) => `<a class="tag-chip" href="#/haku?q=${encodeURIComponent(k)}">${esc(k)}</a>`).join('')}</div>` : ''}
     <div class="card doc">${p.content.trim() ? renderMarkdown(p.content) : '<p class="muted">Ei sisältöä. Klikkaa Muokkaa.</p>'}</div>
     <div class="card">
       <div class="spread"><h3 style="margin:0">📎 Liitteet (${p.attachments.length})</h3></div>
@@ -311,6 +313,10 @@ async function viewPageEdit(id, presetCat) {
         </select>
       </div>
       <div class="field">
+        <label>Avainsanat (pilkuin eroteltuna – haku löytää artikkelin myös näillä)</label>
+        <input type="text" id="keywordsInput" value="${esc(p.keywords || '')}" placeholder="Esim. ISM, laatu, toimintajärjestelmä" />
+      </div>
+      <div class="field">
         <label>Sisältö (Markdown: # otsikko, **lihavointi**, - lista)</label>
         <textarea id="contentInput" placeholder="Kirjoita työohje tähän…">${esc(p.content)}</textarea>
       </div>
@@ -324,6 +330,7 @@ async function viewPageEdit(id, presetCat) {
     const body = {
       title: $('#titleInput').value,
       content: $('#contentInput').value,
+      keywords: $('#keywordsInput').value,
       category_id: +$('#catSelect').value,
       author: author.get(),
     };
@@ -378,8 +385,12 @@ async function viewSearch(q) {
     <div class="card">
       <h3 style="margin-top:0">Työohjeet (${r.pages.length})</h3>
       <ul class="page-list">
-        ${r.pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
-          <span>${esc(p.title)}</span><span class="muted">${esc(p.category_name || 'Yleinen')}</span></button></li>`).join('')
+        ${r.pages.map((p) => `<li><button class="page-link result" data-page="${p.id}">
+          <span class="result-main">
+            <span>${esc(p.title)}</span>
+            ${p.snippet ? `<span class="snippet">${highlight(p.snippet, q)}</span>` : ''}
+          </span>
+          <span class="muted">${esc(p.category_name || 'Yleinen')}</span></button></li>`).join('')
           || '<li class="empty">Ei osumia ohjeista.</li>'}
       </ul>
     </div>

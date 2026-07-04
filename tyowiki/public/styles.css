@@ -163,6 +163,19 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .note .note-body { white-space: pre-wrap; line-height: 1.5; }
 .note .tag { background: var(--brand-soft); color: var(--brand-ink); padding: 1px 8px; border-radius: 10px; font-weight: 600; }
 
+/* Avainsanat */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
+.tag-chip {
+  background: var(--brand-soft); color: var(--brand-ink); text-decoration: none;
+  font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 12px;
+}
+.tag-chip:hover { background: #fbdcc4; }
+
+/* Hakutulosten otteet */
+.page-list .result { align-items: flex-start; }
+.result-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding-right: 10px; }
+.result-main .snippet { font-size: 13px; color: var(--muted); font-style: italic; line-height: 1.4; }
+
 /* Home dashboard layout */
 .home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
 .home-main, .home-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }

@@ -78,9 +78,14 @@ Portin voi vaihtaa: `PORT=8080 npm start`
   (`# otsikko`, `**lihavointi**`, `- lista`, `` `koodi` ``, `> lainaus`, linkit).
 - **📝 Vuoroloki** – kirjaa huomiot; uusin näkyy ylimpänä, voi kohdistaa kohteeseen.
 - Ohjesivulla voi ladata liitteitä (max 50 Mt / tiedosto).
-- **Haku** löytää osumat sivujen tekstistä, vuorohuomioista sekä liitetiedostojen
-  (PDF, Word, Excel) sisällöstä. Tulossivu näyttää tiedostosta lyhyen otteen ja
-  linkin sekä tiedostoon että sen ohjesivuun.
+- **Haku** löytää osumat sivujen otsikosta, tekstistä ja **avainsanoista**,
+  vuorohuomioista sekä liitetiedostojen (PDF, Word, Excel) sisällöstä.
+  Tulossivu näyttää otteen osumakohdasta korostettuna ja linkit suoraan
+  artikkeliin/tiedostoon.
+- **Avainsanat:** artikkelille voi antaa muokkausnäkymässä pilkuin erotellut
+  avainsanat (esim. "ISM, laatu"). Haku löytää artikkelin niillä, vaikka sanaa
+  ei olisi leipätekstissä. Avainsanat näkyvät artikkelisivulla klikattavina
+  merkkeinä – klikkaus hakee samalla sanalla.
 
 ### Haku tiedostojen sisällöstä – huomiot
 

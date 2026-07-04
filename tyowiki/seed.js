@@ -10,7 +10,7 @@ if (existing > 0) {
 }
 
 const insCat = db.prepare('INSERT INTO categories (name, sort_order) VALUES (?, ?)');
-const insPage = db.prepare('INSERT INTO pages (category_id, title, content, updated_at, updated_by, views) VALUES (?, ?, ?, ?, ?, ?)');
+const insPage = db.prepare('INSERT INTO pages (category_id, title, content, keywords, updated_at, updated_by, views) VALUES (?, ?, ?, ?, ?, ?, ?)');
 const insNote = db.prepare('INSERT INTO shift_notes (category_id, author, content, created_at) VALUES (?, ?, ?, ?)');
 const insContact = db.prepare('INSERT INTO contacts (label, phone, note, sort_order) VALUES (?, ?, ?, ?)');
 
@@ -31,7 +31,7 @@ insPage.run(kipa, 'Kipa – kohteen yleisohje', `# Kipa – kohteen yleisohje
 2. Kirjaa havainnot ja poikkeamat järjestelmään
 3. Ilmoita kiireelliset viat välittömästi päivystykseen
 
-> Päivitä tämä ohje kohteen todellisilla tiedoilla.`, now(), 'Anna', 34);
+> Päivitä tämä ohje kohteen todellisilla tiedoilla.`, 'Kipa, kiinteistöhoito, kohdekortti', now(), 'Anna', 34);
 
 insPage.run(halytyskeskus, 'Hälytyksen vastaanotto ja luokittelu', `# Hälytyksen vastaanotto ja luokittelu
 
@@ -45,7 +45,7 @@ insPage.run(halytyskeskus, 'Hälytyksen vastaanotto ja luokittelu', `# Hälytyks
 - **B – kiireellinen tekninen:** murtoilmaisu, laiterikko
 - **C – ei-kiireellinen:** tekninen ilmoitus, huoltotarve
 
-> Kirjaa kaikki toimenpiteet järjestelmään reaaliaikaisesti.`, now(), 'Anna', 58);
+> Kirjaa kaikki toimenpiteet järjestelmään reaaliaikaisesti.`, 'hälytys, luokittelu, vastaanotto', now(), 'Anna', 58);
 
 insPage.run(halytyskeskus, 'Paloilmoitinhälytyksen toimintaohje', `# Paloilmoitinhälytys
 
@@ -55,7 +55,7 @@ insPage.run(halytyskeskus, 'Paloilmoitinhälytyksen toimintaohje', `# Paloilmoit
 4. Ilmoita vartijalle / kohteen edustajalle
 5. Kirjaa tapahtuma ja toimenpiteet lokiin
 
-> Älä koskaan kuittaa paloilmoitusta vääräksi ilman kohteen varmistusta.`, now(), 'Anna', 41);
+> Älä koskaan kuittaa paloilmoitusta vääräksi ilman kohteen varmistusta.`, 'paloilmoitin, palohälytys, 112', now(), 'Anna', 41);
 
 insPage.run(hairiot, 'Järjestelmäkatkos – varamenettely', `# Järjestelmäkatkos
 
@@ -64,14 +64,14 @@ Jos hälytystenkäsittelyjärjestelmä ei ole käytettävissä:
 1. Siirry **manuaaliseen lokiin** (paperilomake / varakone)
 2. Ilmoita katkoksesta tekniselle tuelle ja vuoroesihenkilölle
 3. Kirjaa kaikki hälytykset käsin aikaleimoineen
-4. Kun järjestelmä palautuu, vie manuaaliset kirjaukset järjestelmään`, now(), 'Jukka', 29);
+4. Kun järjestelmä palautuu, vie manuaaliset kirjaukset järjestelmään`, 'katkos, varamenettely, manuaalinen loki', now(), 'Jukka', 29);
 
 insPage.run(hairiot, 'Sähkökatko kohteessa', `# Sähkökatko kohteessa
 
 1. Varmista laajuus: yksi kohde vai laajempi alue (sähköyhtiön häiriökartta)
 2. Tarkista varavoiman/UPS:ien toiminta kriittisissä kohteissa
 3. Ilmoita kohteen yhteyshenkilölle ja kirjaa tapahtuma
-4. Sähköjen palauduttua varmista järjestelmien normaali tila`, now(), 'Jukka', 18);
+4. Sähköjen palauduttua varmista järjestelmien normaali tila`, 'sähkökatko, varavoima, UPS', now(), 'Jukka', 18);
 
 insPage.run(ism, 'ISM – toimintakäsikirjan periaatteet', `# ISM-ohjeet
 
@@ -83,7 +83,7 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
 - Poikkeamat kirjataan ja käsitellään sovitun menettelyn mukaan
 - Ohjeiden muutosehdotukset esihenkilölle
 
-> Lisää tähän kategoriaan viralliset ISM-dokumentit liitteinä.`, now(), 'Anna', 22);
+> Lisää tähän kategoriaan viralliset ISM-dokumentit liitteinä.`, 'ISM, toimintajärjestelmä, laatu, käsikirja', now(), 'Anna', 22);
 
 insNote.run(halytyskeskus, 'Anna', 'Aamuvuoro rauhallinen. Kohteessa 4021 toistuva tekninen ilmoitus – huolto tilattu.', now());
 insNote.run(kipa, 'Jukka', 'Kipa: kohteen 5510 ulko-oven lukitus temppuili, huoltopyyntö tehty.', now());

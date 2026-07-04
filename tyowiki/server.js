@@ -143,10 +143,11 @@ app.post('/api/pages', (req, res) => {
   const category_id = req.body.category_id || null;
   const content = req.body.content || '';
   const author = (req.body.author || '').trim();
+  const keywords = (req.body.keywords || '').trim();
   if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
   const info = db.prepare(
-    'INSERT INTO pages (category_id, title, content, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)'
-  ).run(category_id, title, content, now(), author);
+    'INSERT INTO pages (category_id, title, content, keywords, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(category_id, title, content, keywords, now(), author);
   res.json(db.prepare('SELECT * FROM pages WHERE id = ?').get(info.lastInsertRowid));
 });
 
@@ -155,10 +156,11 @@ app.put('/api/pages/:id', (req, res) => {
   const content = req.body.content || '';
   const author = (req.body.author || '').trim();
   const category_id = req.body.category_id || null;
+  const keywords = (req.body.keywords || '').trim();
   if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
   db.prepare(
-    'UPDATE pages SET title = ?, content = ?, category_id = ?, updated_at = ?, updated_by = ? WHERE id = ?'
-  ).run(title, content, category_id, now(), author, req.params.id);
+    'UPDATE pages SET title = ?, content = ?, keywords = ?, category_id = ?, updated_at = ?, updated_by = ? WHERE id = ?'
+  ).run(title, content, keywords, category_id, now(), author, req.params.id);
   res.json(db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id));
 });
 
@@ -251,11 +253,18 @@ app.get('/api/search', (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json({ pages: [], notes: [], files: [] });
   const like = '%' + q + '%';
-  const pages = db.prepare(
-    `SELECT p.id, p.title, p.category_id, c.name AS category_name
+  // Artikkelit: osuma otsikossa, sisällössä tai avainsanoissa. Mukaan ote.
+  const pageRows = db.prepare(
+    `SELECT p.id, p.title, p.content, p.keywords, p.category_id, c.name AS category_name
      FROM pages p LEFT JOIN categories c ON c.id = p.category_id
-     WHERE p.title LIKE ? OR p.content LIKE ? ORDER BY p.title LIMIT 50`
-  ).all(like, like);
+     WHERE p.title LIKE ? OR p.content LIKE ? OR p.keywords LIKE ?
+     ORDER BY p.title LIMIT 50`
+  ).all(like, like, like);
+  const pages = pageRows.map((p) => ({
+    id: p.id, title: p.title, category_id: p.category_id, category_name: p.category_name,
+    snippet: makeSnippet(p.content, q)
+      || (p.keywords.toLowerCase().includes(q.toLowerCase()) ? 'Avainsanat: ' + p.keywords : ''),
+  }));
   const notes = db.prepare(
     `SELECT n.id, n.content, n.author, n.created_at, n.category_id, c.name AS category_name
      FROM shift_notes n LEFT JOIN categories c ON c.id = n.category_id
@@ -281,14 +290,15 @@ app.get('/api/search', (req, res) => {
   res.json({ pages, notes, files });
 });
 
-// Muodostaa lyhyen otteen hakusanan ympäriltä liitteen tekstistä.
+// Muodostaa lyhyen otteen hakusanan ympäriltä (Markdown-merkit siivottuna).
 function makeSnippet(text, q) {
   if (!text) return '';
-  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  const plain = text.replace(/[#*`>]/g, '').replace(/\s+/g, ' ').trim();
+  const idx = plain.toLowerCase().indexOf(q.toLowerCase());
   if (idx === -1) return '';
   const start = Math.max(0, idx - 40);
-  const end = Math.min(text.length, idx + q.length + 60);
-  return (start > 0 ? '…' : '') + text.slice(start, end).trim() + (end < text.length ? '…' : '');
+  const end = Math.min(plain.length, idx + q.length + 60);
+  return (start > 0 ? '…' : '') + plain.slice(start, end).trim() + (end < plain.length ? '…' : '');
 }
 
 // ---------- Apurit ----------

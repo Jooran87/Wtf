@@ -6,7 +6,7 @@
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v3';
+const LS_KEY = 'tyowiki_sandbox_v4';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -89,7 +89,7 @@ async function ensureSeeded() {
 2. Kirjaa havainnot ja poikkeamat järjestelmään
 3. Ilmoita kiireelliset viat välittömästi päivystykseen
 
-> Päivitä tämä ohje kohteen todellisilla tiedoilla.`, 'Anna');
+> Päivitä tämä ohje kohteen todellisilla tiedoilla.`, 'Anna', 'Kipa, kiinteistöhoito, kohdekortti');
 
   const p1 = mkPage(halytyskeskus.id, 'Hälytyksen vastaanotto ja luokittelu', `# Hälytyksen vastaanotto ja luokittelu
 
@@ -103,7 +103,7 @@ async function ensureSeeded() {
 - **B – kiireellinen tekninen:** murtoilmaisu, laiterikko
 - **C – ei-kiireellinen:** tekninen ilmoitus, huoltotarve
 
-> Kirjaa kaikki toimenpiteet järjestelmään reaaliaikaisesti.`, 'Anna');
+> Kirjaa kaikki toimenpiteet järjestelmään reaaliaikaisesti.`, 'Anna', 'hälytys, luokittelu, vastaanotto');
 
   mkPage(halytyskeskus.id, 'Paloilmoitinhälytyksen toimintaohje', `# Paloilmoitinhälytys
 
@@ -113,7 +113,7 @@ async function ensureSeeded() {
 4. Ilmoita vartijalle / kohteen edustajalle
 5. Kirjaa tapahtuma ja toimenpiteet lokiin
 
-> Älä koskaan kuittaa paloilmoitusta vääräksi ilman kohteen varmistusta.`, 'Anna');
+> Älä koskaan kuittaa paloilmoitusta vääräksi ilman kohteen varmistusta.`, 'Anna', 'paloilmoitin, palohälytys, 112');
 
   mkPage(hairiot.id, 'Järjestelmäkatkos – varamenettely', `# Järjestelmäkatkos
 
@@ -122,16 +122,16 @@ Jos hälytystenkäsittelyjärjestelmä ei ole käytettävissä:
 1. Siirry **manuaaliseen lokiin** (paperilomake / varakone)
 2. Ilmoita katkoksesta tekniselle tuelle ja vuoroesihenkilölle
 3. Kirjaa kaikki hälytykset käsin aikaleimoineen
-4. Kun järjestelmä palautuu, vie manuaaliset kirjaukset järjestelmään`, 'Jukka');
+4. Kun järjestelmä palautuu, vie manuaaliset kirjaukset järjestelmään`, 'Jukka', 'katkos, varamenettely, manuaalinen loki');
 
   mkPage(hairiot.id, 'Sähkökatko kohteessa', `# Sähkökatko kohteessa
 
 1. Varmista laajuus: yksi kohde vai laajempi alue (sähköyhtiön häiriökartta)
 2. Tarkista varavoiman/UPS:ien toiminta kriittisissä kohteissa
 3. Ilmoita kohteen yhteyshenkilölle ja kirjaa tapahtuma
-4. Sähköjen palauduttua varmista järjestelmien normaali tila`, 'Jukka');
+4. Sähköjen palauduttua varmista järjestelmien normaali tila`, 'Jukka', 'sähkökatko, varavoima, UPS');
 
-  mkPage(ism.id, 'ISM – toimintakäsikirjan periaatteet', `# ISM-ohjeet
+  const pIsm = mkPage(ism.id, 'ISM – toimintakäsikirjan periaatteet', `# ISM-ohjeet
 
 ## Tarkoitus
 ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
@@ -141,7 +141,7 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
 - Poikkeamat kirjataan ja käsitellään sovitun menettelyn mukaan
 - Ohjeiden muutosehdotukset esihenkilölle
 
-> Lisää tähän kategoriaan viralliset ISM-dokumentit liitteinä.`, 'Anna');
+> Lisää tähän kategoriaan viralliset ISM-dokumentit liitteinä.`, 'Anna', 'ISM, toimintajärjestelmä, laatu, käsikirja');
 
   // Esimerkkiliite, jonka sisällöstä haku löytää osumia (snippet).
   const sampleText = 'Toimintaohje: paloilmoitinhälytyksessä varmista aina kohteen '
@@ -154,6 +154,18 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
   };
   DB.attachments.push(att);
   await putBlob(att.id, new Blob([sampleText], { type: 'application/pdf' }));
+
+  // Toinen esimerkkiliite ISM-sivulle: haku "ISM" löytää myös tiedoston sisällöstä.
+  const ismText = 'ISM-toimintakäsikirja, luku 4: poikkeamien käsittely. '
+    + 'Kaikki ISM-ohjeiden vastaiset poikkeamat kirjataan ja raportoidaan '
+    + 'laatuvastaavalle kuukausittain.';
+  const att2 = {
+    id: nextId(), page_id: pIsm.id, original_name: 'ISM_toimintakasikirja_luku4.pdf',
+    mimetype: 'application/pdf', size: ismText.length,
+    uploaded_at: nowISO(), uploaded_by: 'Anna', text_content: ismText,
+  };
+  DB.attachments.push(att2);
+  await putBlob(att2.id, new Blob([ismText], { type: 'application/pdf' }));
 
   mkNote(halytyskeskus.id, 'Anna', 'Aamuvuoro rauhallinen. Kohteessa 4021 toistuva tekninen ilmoitus – huolto tilattu.');
   mkNote(kipa.id, 'Jukka', 'Kipa: kohteen 5510 ulko-oven lukitus temppuili, huoltopyyntö tehty.');
@@ -181,12 +193,15 @@ function defaultContacts() {
 function migrateExisting() {
   let changed = false;
   if (!DB.contacts) { DB.contacts = defaultContacts(); changed = true; }
-  DB.pages.forEach((p) => { if (typeof p.views !== 'number') { p.views = 0; changed = true; } });
+  DB.pages.forEach((p) => {
+    if (typeof p.views !== 'number') { p.views = 0; changed = true; }
+    if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
+  });
   if (changed) save(DB);
 }
 
-function mkPage(catId, title, content, by) {
-  const p = { id: nextId(), category_id: catId, title, content, updated_at: nowISO(), updated_by: by || '', views: 0 };
+function mkPage(catId, title, content, by, keywords) {
+  const p = { id: nextId(), category_id: catId, title, content, keywords: keywords || '', updated_at: nowISO(), updated_by: by || '', views: 0 };
   DB.pages.push(p); return p;
 }
 function mkNote(catId, author, content) {
@@ -197,11 +212,12 @@ function mkNote(catId, author, content) {
 function includesCI(hay, q) { return (hay || '').toLowerCase().includes(q.toLowerCase()); }
 function makeSnippet(text, q) {
   if (!text) return '';
-  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  const plain = text.replace(/[#*`>]/g, '').replace(/\s+/g, ' ').trim();
+  const idx = plain.toLowerCase().indexOf(q.toLowerCase());
   if (idx === -1) return '';
   const start = Math.max(0, idx - 40);
-  const end = Math.min(text.length, idx + q.length + 60);
-  return (start > 0 ? '…' : '') + text.slice(start, end).trim() + (end < text.length ? '…' : '');
+  const end = Math.min(plain.length, idx + q.length + 60);
+  return (start > 0 ? '…' : '') + plain.slice(start, end).trim() + (end < plain.length ? '…' : '');
 }
 
 // ---------- Store-rajapinta ----------
@@ -261,7 +277,7 @@ const Store = {
     },
     async create(data) {
       await ready;
-      const p = mkPage(data.category_id ? Number(data.category_id) : null, (data.title || '').trim(), data.content || '', (data.author || '').trim());
+      const p = mkPage(data.category_id ? Number(data.category_id) : null, (data.title || '').trim(), data.content || '', (data.author || '').trim(), (data.keywords || '').trim());
       save(DB); return clone(p);
     },
     async update(id, data) {
@@ -270,6 +286,7 @@ const Store = {
       if (!p) throw new Error('Sivua ei löydy');
       p.title = (data.title || '').trim();
       p.content = data.content || '';
+      p.keywords = (data.keywords || '').trim();
       p.category_id = data.category_id ? Number(data.category_id) : null;
       p.updated_at = nowISO(); p.updated_by = (data.author || '').trim();
       save(DB); return clone(p);
@@ -349,9 +366,13 @@ const Store = {
     await ready;
     q = (q || '').trim();
     if (!q) return { pages: [], notes: [], files: [] };
-    const pages = DB.pages.filter((p) => includesCI(p.title, q) || includesCI(p.content, q))
+    const pages = DB.pages.filter((p) => includesCI(p.title, q) || includesCI(p.content, q) || includesCI(p.keywords, q))
       .sort((a, b) => a.title.localeCompare(b.title))
-      .map((p) => ({ id: p.id, title: p.title, category_id: p.category_id, category_name: catName(p.category_id) }));
+      .map((p) => ({
+        id: p.id, title: p.title, category_id: p.category_id, category_name: catName(p.category_id),
+        snippet: makeSnippet(p.content, q)
+          || (includesCI(p.keywords, q) ? 'Avainsanat: ' + p.keywords : ''),
+      }));
     const notes = DB.notes.filter((n) => includesCI(n.content, q))
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .map((n) => ({ ...clone(n), category_name: catName(n.category_id) }));

@@ -71,4 +71,9 @@ if (!pageCols.includes('views')) {
   db.exec('ALTER TABLE pages ADD COLUMN views INTEGER NOT NULL DEFAULT 0');
 }
 
+// Migraatio: sivun avainsanat hakua varten (pilkuin eroteltu lista).
+if (!pageCols.includes('keywords')) {
+  db.exec("ALTER TABLE pages ADD COLUMN keywords TEXT NOT NULL DEFAULT ''");
+}
+
 module.exports = db;

@@ -6,7 +6,7 @@
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v5';
+const LS_KEY = 'tyowiki_sandbox_v6';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -71,12 +71,63 @@ const ready = ensureSeeded();
 
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
-  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [] };
+  DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [] };
+  const pereh = { id: nextId(), name: 'Perehdytys', sort_order: 0 };
+  DB.categories.push(pereh);
   const kipa = { id: nextId(), name: 'Kipa', sort_order: 1 };
   const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', sort_order: 2 };
   const hairiot = { id: nextId(), name: 'Häiriötilanteet', sort_order: 3 };
   const ism = { id: nextId(), name: 'ISM-ohjeet', sort_order: 4 };
   DB.categories.push(kipa, halytyskeskus, hairiot, ism);
+
+  const pTervetuloa = mkPage(pereh.id, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
+
+## Päivä 1
+- Esittäytyminen ja tilat: työpisteet, tauko- ja sosiaalitilat
+- Avaimet, kulkutunnisteet ja pysäköinti
+- Tunnukset järjestelmiin (esihenkilö tilaa etukäteen)
+- Tämä wiki: etusivu, haku, vuoroloki ja termipankki
+
+## Viikko 1
+- Vuorojen käytännöt: vuoronvaihdon rutiinit ja vuorolokin käyttö
+- Hälytysten käsittelyn perusteet kokeneen työntekijän vierellä
+- Tärkeimmät työohjeet: katso 🔥 Suosituimmat ohjeet etusivulta
+- Kohteiden erityispiirteet oman vastuualueen osalta
+
+## Muista
+- **Termipankista** löydät talon lyhenteet ja käsitteet
+- Kysy rohkeasti – jokainen on ollut uusi joskus
+
+> Pohja: täydennä talon omilla tiedoilla.`, 'Anna', 'perehdytys, uusi työntekijä, ensimmäinen päivä');
+
+  mkPage(pereh.id, 'Perehdytyksen tarkistuslista', `# Perehdytyksen tarkistuslista
+
+Käy kohdat läpi perehdyttäjän kanssa ja kuittaa valmiit.
+
+## Käytännön asiat
+- Avaimet ja kulkutunnisteet luovutettu
+- Tunnukset järjestelmiin toimivat
+- Työvaatteet ja varusteet
+- Pysäköinti ja kulkureitit
+
+## Turvallisuus
+- Hätäpoistumistiet ja kokoontumispaikka
+- Ensiapuvälineet ja defibrillaattorin sijainti
+- Toiminta uhkatilanteessa
+- Läheltä piti -ilmoituksen tekeminen
+
+## Työtehtävät
+- Hälytyksen vastaanotto ja luokittelu (ohje wikissä)
+- Paloilmoitinhälytyksen toimintaohje käyty läpi
+- Vuorolokin käyttö
+- Varamenettely järjestelmäkatkoksessa
+
+## Hallinto
+- Sairauspoissaolokäytäntö
+- Vuoronvaihdot ja lomatoiveet
+- Palkanmaksun perusteet
+
+> Kuittaa valmis perehdytys esihenkilölle.`, 'Anna', 'perehdytys, tarkistuslista, checklist');
 
   mkPage(kipa.id, 'Kipa – kohteen yleisohje', `# Kipa – kohteen yleisohje
 
@@ -172,8 +223,26 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
   mkNote(null, 'Anna', 'Yleinen: uudet ISM-ohjeet päivitetty järjestelmään.');
 
   // Esimerkkinä katselukertoja, jotta "Suosituimmat ohjeet" näkyy heti.
-  DB.pages[0].views = 34; DB.pages[1].views = 58; DB.pages[2].views = 41;
-  DB.pages[3].views = 29; DB.pages[4].views = 18; DB.pages[5].views = 22;
+  const seedViews = [12, 9, 34, 58, 41, 29, 18, 22];
+  DB.pages.forEach((p, i) => { p.views = seedViews[i] || 0; });
+
+  // Esimerkit ajantasaisuusvahvistuksesta: tuore, vanhentunut ja vahvistamaton.
+  p1.verified_at = nowISO(); p1.verified_by = 'Anna';
+  pIsm.verified_at = new Date(Date.now() - 210 * 86400000).toISOString(); pIsm.verified_by = 'Jukka';
+
+  // Termipankin esimerkkitermit.
+  const seedTerms = [
+    ['Kipa', 'Asiakkuus, jolle tuotamme kiinteistöhoitoa. Kohdeohjeet omassa kategoriassaan.'],
+    ['ISM', 'Toimintajärjestelmän mukaiset ohjeet ja menettelyt (toimintakäsikirja).'],
+    ['Kohdekortti', 'Kohteen perustiedot: osoite, yhteyshenkilöt, hälytysjärjestelmä, erityispiirteet.'],
+    ['A-luokan hälytys', 'Kiireellinen hälytys: henkilö- tai paloturvallisuus vaarassa – toimi välittömästi.'],
+    ['Varamenettely', 'Toimintatapa kun normaali järjestelmä ei ole käytettävissä (esim. manuaalinen loki).'],
+    ['UPS', 'Akkuvarmennus, joka pitää kriittiset laitteet käynnissä lyhyen sähkökatkon yli.'],
+    ['Vuoroloki', 'Wikin osio, johon kirjataan vuoron aikaiset huomiot ja poikkeamat.'],
+  ];
+  for (const [term, definition] of seedTerms) {
+    DB.terms.push({ id: nextId(), term, definition, updated_at: nowISO(), updated_by: 'Anna' });
+  }
 
   DB.contacts = defaultContacts();
 
@@ -202,15 +271,17 @@ function migrateExisting() {
   if (!DB.contacts) { DB.contacts = defaultContacts(); changed = true; }
   if (!DB.revisions) { DB.revisions = []; changed = true; }
   if (!DB.announcements) { DB.announcements = []; changed = true; }
+  if (!DB.terms) { DB.terms = []; changed = true; }
   DB.pages.forEach((p) => {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
+    if (p.verified_at === undefined) { p.verified_at = null; p.verified_by = ''; changed = true; }
   });
   if (changed) save(DB);
 }
 
 function mkPage(catId, title, content, by, keywords) {
-  const p = { id: nextId(), category_id: catId, title, content, keywords: keywords || '', updated_at: nowISO(), updated_by: by || '', views: 0 };
+  const p = { id: nextId(), category_id: catId, title, content, keywords: keywords || '', updated_at: nowISO(), updated_by: by || '', views: 0, verified_at: null, verified_by: '' };
   DB.pages.push(p); return p;
 }
 function mkNote(catId, author, content) {
@@ -307,6 +378,13 @@ const Store = {
       save(DB); return clone(p);
     },
     async remove(id) { await ready; await removePageInternal(Number(id)); save(DB); return { ok: true }; },
+    async verify(id, byAuthor) {
+      await ready; id = Number(id);
+      const p = DB.pages.find((x) => x.id === id);
+      if (!p) throw new Error('Sivua ei löydy');
+      p.verified_at = nowISO(); p.verified_by = (byAuthor || '').trim();
+      save(DB); return clone(p);
+    },
     async revisions(id) {
       await ready; id = Number(id);
       return clone(DB.revisions.filter((r) => r.page_id === id))
@@ -340,6 +418,34 @@ const Store = {
       await ready; id = Number(id);
       DB.attachments = DB.attachments.filter((a) => a.id !== id);
       await delBlob(id); save(DB); return { ok: true };
+    },
+  },
+
+  terms: {
+    async list() {
+      await ready;
+      return clone(DB.terms).sort((a, b) => a.term.localeCompare(b.term, 'fi'));
+    },
+    async create(data) {
+      await ready;
+      const term = (data.term || '').trim();
+      if (!term) throw new Error('Termi puuttuu');
+      const t = { id: nextId(), term, definition: (data.definition || '').trim(), updated_at: nowISO(), updated_by: (data.author || '').trim() };
+      DB.terms.push(t); save(DB); return clone(t);
+    },
+    async update(id, data) {
+      await ready; id = Number(id);
+      const t = DB.terms.find((x) => x.id === id);
+      if (!t) throw new Error('Termiä ei löydy');
+      const term = (data.term || '').trim();
+      if (!term) throw new Error('Termi puuttuu');
+      t.term = term; t.definition = (data.definition || '').trim();
+      t.updated_at = nowISO(); t.updated_by = (data.author || '').trim();
+      save(DB); return clone(t);
+    },
+    async remove(id) {
+      await ready; id = Number(id);
+      DB.terms = DB.terms.filter((t) => t.id !== id); save(DB); return { ok: true };
     },
   },
 
@@ -433,7 +539,7 @@ const Store = {
   async search(q) {
     await ready;
     q = (q || '').trim();
-    if (!q) return { pages: [], notes: [], files: [], announcements: [] };
+    if (!q) return { pages: [], notes: [], files: [], announcements: [], terms: [] };
     const pages = DB.pages.filter((p) => includesCI(p.title, q) || includesCI(p.content, q) || includesCI(p.keywords, q))
       .sort((a, b) => a.title.localeCompare(b.title))
       .map((p) => ({
@@ -458,7 +564,10 @@ const Store = {
       .filter((a) => includesCI(a.title, q) || includesCI(a.content, q))
       .sort((a, b) => (b.pinned - a.pinned) || b.created_at.localeCompare(a.created_at))
       .map((a) => ({ ...a, snippet: makeSnippet(a.content, q) }));
-    return { pages, notes, files, announcements };
+    const terms = clone(DB.terms)
+      .filter((t) => includesCI(t.term, q) || includesCI(t.definition, q))
+      .sort((a, b) => a.term.localeCompare(b.term, 'fi'));
+    return { pages, notes, files, announcements, terms };
   },
 };
 

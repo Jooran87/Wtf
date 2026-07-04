@@ -8,6 +8,11 @@ Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
   jolloin ne pysyvät listan ja etusivun kärjessä
 - **Versiohistoria** – jokainen muokkaus tallentaa edellisen version talteen;
   vanhoja versioita voi katsella ja palauttaa (🕘 Historia -nappi ohjesivulla)
+- **Termipankki** – talon termit ja lyhenteet aakkosittain; termit löytyvät myös haulla
+- **Perehdytys** – oma kategoria pohja-artikkeleineen (ensimmäinen viikko, tarkistuslista)
+- **Vahvistettu ajantasaiseksi** – ohjeen voi kuitata tarkistetuksi; merkki näyttää
+  vihreää (vahvistettu ≤ 180 pv), punaista (vahvistus vanhentunut) tai harmaata
+  (ei vahvistettu). Vahvistus vaatii nimen yläkulman kenttään.
 - **Tiedostoliitteet** – PDF, kuvat, Word, Excel (PDF ja kuvat näkyvät suoraan selaimessa, muut latautuvat)
 - **Haku** ohjeista, huomioista **ja tiedostojen sisällöstä** (PDF, Word, Excel) – näyttää otteen osumakohdasta
 

@@ -176,6 +176,35 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 .ann-body { white-space: pre-wrap; line-height: 1.5; margin-top: 4px; font-size: 14px; }
 .ann-meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
+/* Termipankki */
+.term-letter {
+  font-size: 13px; font-weight: 800; color: var(--brand-ink);
+  border-bottom: 2px solid var(--brand-soft); padding-bottom: 3px; margin: 14px 0 6px;
+}
+.term-letter:first-child { margin-top: 0; }
+.term-list { margin: 0; }
+.term-row {
+  display: flex; gap: 12px; align-items: baseline; padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.term-row:last-child { border-bottom: none; }
+.term-row dt { font-weight: 700; min-width: 140px; flex-shrink: 0; }
+.term-row dd { margin: 0; flex: 1; color: var(--text); }
+.term-actions { display: flex; flex-shrink: 0; align-self: center; }
+@media (max-width: 640px) {
+  .term-row { flex-wrap: wrap; gap: 2px 12px; }
+  .term-row dt { min-width: 100%; }
+}
+
+/* Ajantasaisuuden vahvistus */
+.verify-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; padding: 4px 12px; border-radius: 14px; font-weight: 600;
+}
+.verify-badge.ok { background: #e5f4e9; color: #1d7a34; }
+.verify-badge.stale { background: #fdeaea; color: #b03030; }
+.verify-badge.never { background: #eef2f7; color: var(--muted); }
+
 /* Avainsanat */
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
 .tag-chip {

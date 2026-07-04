@@ -125,6 +125,7 @@ async function router() {
     if (parts.length === 0) { setActiveNav('home'); return viewHome(); }
     if (parts[0] === 'vuoroloki') { setActiveNav('shiftlog'); return viewShiftLog(); }
     if (parts[0] === 'tiedotteet') { setActiveNav('announcements'); return viewAnnouncements(); }
+    if (parts[0] === 'termipankki') { setActiveNav('terms'); return viewTerms(); }
     if (parts[0] === 'historia') { setActiveNav(''); return viewHistory(+parts[1]); }
     if (parts[0] === 'versio') { setActiveNav(''); return viewRevision(+parts[1]); }
     if (parts[0] === 'kohde') { setActiveNav(''); currentCategoryId = +parts[1]; renderSidebar(); return viewCategory(+parts[1]); }
@@ -271,6 +272,10 @@ async function viewPage(id) {
       </div>
     </div>
     <p class="muted">Päivitetty ${esc(fmtDate(p.updated_at))}${p.updated_by ? ' · ' + esc(p.updated_by) : ''}</p>
+    <div class="row" style="margin-bottom:12px">
+      ${verifyBadge(p)}
+      <button class="btn small secondary" id="verifyBtn">✔ Vahvista ajantasaiseksi</button>
+    </div>
     ${(p.keywords || '').trim() ? `<div class="tags">${p.keywords.split(',').map((k) => k.trim()).filter(Boolean)
       .map((k) => `<a class="tag-chip" href="#/haku?q=${encodeURIComponent(k)}">${esc(k)}</a>`).join('')}</div>` : ''}
     <div class="card doc">${p.content.trim() ? renderMarkdown(p.content) : '<p class="muted">Ei sisältöä. Klikkaa Muokkaa.</p>'}</div>
@@ -287,6 +292,11 @@ async function viewPage(id) {
       </form>
     </div>`;
 
+  $('#verifyBtn').onclick = async () => {
+    if (!author.get()) return toast('Kirjoita ensin nimesi oikeaan yläkulmaan', true);
+    await Store.pages.verify(id, author.get());
+    toast('Vahvistettu ajantasaiseksi'); viewPage(id);
+  };
   $('#editBtn').onclick = () => { location.hash = '#/muokkaa/' + id; };
   $('#delBtn').onclick = async () => {
     if (confirm('Poistetaanko ohje ja sen liitteet?')) {
@@ -491,6 +501,67 @@ function bindAnnouncementActions(refresh) {
   });
 }
 
+async function viewTerms(editId) {
+  const terms = await Store.terms.list();
+  const editing = editId ? terms.find((t) => t.id === editId) : null;
+  // Ryhmittely alkukirjaimen mukaan
+  const groups = {};
+  for (const t of terms) {
+    const letter = (t.term[0] || '?').toUpperCase();
+    (groups[letter] = groups[letter] || []).push(t);
+  }
+  content.innerHTML = `
+    <h2>📖 Termipankki</h2>
+    <p class="muted">Talon termit, lyhenteet ja käsitteet selkokielellä – erityisesti uusille työntekijöille. Haku löytää myös termit.</p>
+    <div class="card">
+      <h3 style="margin-top:0">${editing ? 'Muokkaa termiä' : 'Lisää termi'}</h3>
+      <div class="row" style="align-items:flex-start">
+        <div class="field" style="flex:1; min-width:180px; margin-bottom:0">
+          <label>Termi / lyhenne</label>
+          <input type="text" id="termInput" value="${editing ? esc(editing.term) : ''}" placeholder="Esim. Kipa" />
+        </div>
+        <div class="field" style="flex:3; min-width:260px; margin-bottom:0">
+          <label>Selitys</label>
+          <input type="text" id="defInput" value="${editing ? esc(editing.definition) : ''}" placeholder="Mitä termi tarkoittaa meillä" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="termSaveBtn">${editing ? 'Tallenna' : 'Lisää'}</button>
+        ${editing ? '<button class="btn secondary" id="termCancelBtn">Peruuta</button>' : ''}
+      </div>
+    </div>
+    <div class="card">
+      ${Object.keys(groups).map((letter) => `
+        <div class="term-letter">${esc(letter)}</div>
+        <dl class="term-list">
+          ${groups[letter].map((t) => `
+            <div class="term-row">
+              <dt>${esc(t.term)}</dt>
+              <dd>${esc(t.definition)}</dd>
+              <span class="term-actions">
+                <button class="icon-btn small" data-editterm="${t.id}" title="Muokkaa">✏️</button>
+                <button class="icon-btn small" data-delterm="${t.id}" title="Poista">🗑</button>
+              </span>
+            </div>`).join('')}
+        </dl>`).join('') || '<p class="empty">Ei termejä vielä. Lisää ensimmäinen yllä.</p>'}
+    </div>`;
+
+  $('#termSaveBtn').onclick = async () => {
+    const body = { term: $('#termInput').value, definition: $('#defInput').value, author: author.get() };
+    if (!body.term.trim()) return toast('Anna termi', true);
+    try {
+      if (editing) await Store.terms.update(editing.id, body);
+      else await Store.terms.create(body);
+      toast('Tallennettu'); viewTerms();
+    } catch (err) { toast(err.message, true); }
+  };
+  if (editing) $('#termCancelBtn').onclick = () => viewTerms();
+  document.querySelectorAll('[data-editterm]').forEach((b) => b.onclick = () => viewTerms(+b.dataset.editterm));
+  document.querySelectorAll('[data-delterm]').forEach((b) => b.onclick = async () => {
+    if (confirm('Poistetaanko termi?')) { await Store.terms.remove(b.dataset.delterm); viewTerms(); }
+  });
+}
+
 async function viewSearch(q) {
   $('#searchInput').value = q;
   const r = await Store.search(q);
@@ -522,6 +593,16 @@ async function viewSearch(q) {
         </li>`).join('') || '<li class="muted" style="border:none">Ei osumia tiedostoista.</li>'}
       </ul>
     </div>
+    ${(r.terms || []).length ? `<div class="card">
+      <h3 style="margin-top:0">📖 Termit (${r.terms.length})</h3>
+      <dl class="term-list">
+        ${r.terms.map((t) => `<div class="term-row">
+          <dt>${highlight(t.term, q)}</dt>
+          <dd>${highlight(t.definition, q)}</dd>
+          <span class="term-actions"><a class="btn small secondary" href="#/termipankki">Termipankki</a></span>
+        </div>`).join('')}
+      </dl>
+    </div>` : ''}
     <div class="card">
       <h3 style="margin-top:0">📢 Tiedotteet (${(r.announcements || []).length})</h3>
       ${(r.announcements || []).map((a) => announcementHtml(a, { compact: true })).join('')
@@ -535,6 +616,21 @@ async function viewSearch(q) {
 }
 
 // ---------- Osittaiset HTML-palaset ----------
+// Ajantasaisuusmerkki: vihreä jos vahvistettu ≤ 180 pv sitten, punainen jos
+// vahvistus on sitä vanhempi, harmaa jos ei koskaan vahvistettu.
+const VERIFY_MAX_DAYS = 180;
+function verifyBadge(p) {
+  if (!p.verified_at) {
+    return '<span class="verify-badge never">Ei vahvistettu ajantasaiseksi</span>';
+  }
+  const days = Math.floor((Date.now() - new Date(p.verified_at).getTime()) / 86400000);
+  const meta = esc(fmtDate(p.verified_at)) + (p.verified_by ? ' · ' + esc(p.verified_by) : '');
+  if (days > VERIFY_MAX_DAYS) {
+    return `<span class="verify-badge stale">⚠️ Vahvistus vanhentunut (${meta})</span>`;
+  }
+  return `<span class="verify-badge ok">✔ Vahvistettu ajantasaiseksi ${meta}</span>`;
+}
+
 function announcementHtml(a, { compact } = {}) {
   return `<div class="ann ${a.pinned ? 'pinned' : ''}">
     <div class="ann-head">
@@ -604,7 +700,7 @@ document.addEventListener('click', (e) => {
   if (cat) { location.hash = '#/kohde/' + cat.dataset.cat; return; }
   const nav = e.target.closest('[data-nav]');
   if (nav) {
-    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet' };
+    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet', terms: '#/termipankki' };
     location.hash = routes[nav.dataset.nav] || '#/';
     return;
   }

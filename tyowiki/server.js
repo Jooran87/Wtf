@@ -171,6 +171,15 @@ app.put('/api/pages/:id', (req, res) => {
   res.json(db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id));
 });
 
+// Vahvista ohje ajantasaiseksi (leima: kuka ja milloin).
+app.post('/api/pages/:id/verify', (req, res) => {
+  const page = db.prepare('SELECT id FROM pages WHERE id = ?').get(req.params.id);
+  if (!page) return res.status(404).json({ error: 'Sivua ei löydy' });
+  db.prepare('UPDATE pages SET verified_at = ?, verified_by = ? WHERE id = ?')
+    .run(now(), (req.body.author || '').trim(), req.params.id);
+  res.json(db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id));
+});
+
 // ---------- Versiohistoria ----------
 app.get('/api/pages/:id/revisions', (req, res) => {
   const rows = db.prepare(
@@ -266,6 +275,34 @@ app.delete('/api/announcements/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Termipankki ----------
+app.get('/api/terms', (req, res) => {
+  const rows = db.prepare('SELECT * FROM terms').all();
+  rows.sort((a, b) => a.term.localeCompare(b.term, 'fi'));
+  res.json(rows);
+});
+
+app.post('/api/terms', (req, res) => {
+  const term = (req.body.term || '').trim();
+  if (!term) return res.status(400).json({ error: 'Termi puuttuu' });
+  const info = db.prepare('INSERT INTO terms (term, definition, updated_at, updated_by) VALUES (?, ?, ?, ?)')
+    .run(term, (req.body.definition || '').trim(), now(), (req.body.author || '').trim());
+  res.json(db.prepare('SELECT * FROM terms WHERE id = ?').get(info.lastInsertRowid));
+});
+
+app.put('/api/terms/:id', (req, res) => {
+  const term = (req.body.term || '').trim();
+  if (!term) return res.status(400).json({ error: 'Termi puuttuu' });
+  db.prepare('UPDATE terms SET term = ?, definition = ?, updated_at = ?, updated_by = ? WHERE id = ?')
+    .run(term, (req.body.definition || '').trim(), now(), (req.body.author || '').trim(), req.params.id);
+  res.json(db.prepare('SELECT * FROM terms WHERE id = ?').get(req.params.id));
+});
+
+app.delete('/api/terms/:id', (req, res) => {
+  db.prepare('DELETE FROM terms WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 // ---------- Vuoroloki ----------
 app.get('/api/shift-notes', (req, res) => {
   const { category_id, limit } = req.query;
@@ -306,7 +343,7 @@ app.delete('/api/shift-notes/:id', (req, res) => {
 // ---------- Haku ----------
 app.get('/api/search', (req, res) => {
   const q = (req.query.q || '').trim();
-  if (!q) return res.json({ pages: [], notes: [], files: [], announcements: [] });
+  if (!q) return res.json({ pages: [], notes: [], files: [], announcements: [], terms: [] });
   const like = '%' + q + '%';
   // Artikkelit: osuma otsikossa, sisällössä tai avainsanoissa. Mukaan ote.
   const pageRows = db.prepare(
@@ -346,7 +383,11 @@ app.get('/api/search', (req, res) => {
     `SELECT id, title, content, pinned, created_at, created_by FROM announcements
      WHERE title LIKE ? OR content LIKE ? ORDER BY pinned DESC, created_at DESC LIMIT 20`
   ).all(like, like).map((a) => ({ ...a, snippet: makeSnippet(a.content, q) }));
-  res.json({ pages, notes, files, announcements });
+  const terms = db.prepare(
+    'SELECT id, term, definition FROM terms WHERE term LIKE ? OR definition LIKE ? LIMIT 20'
+  ).all(like, like);
+  terms.sort((a, b) => a.term.localeCompare(b.term, 'fi'));
+  res.json({ pages, notes, files, announcements, terms });
 });
 
 // Muodostaa lyhyen otteen hakusanan ympäriltä (Markdown-merkit siivottuna).

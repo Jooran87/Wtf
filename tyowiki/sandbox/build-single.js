@@ -42,6 +42,7 @@ ${css}
         <button class="nav-link" data-nav="home">🏠 Etusivu</button>
         <button class="nav-link" data-nav="announcements">📢 Tiedotteet</button>
         <button class="nav-link" data-nav="shiftlog">📝 Vuoroloki</button>
+        <button class="nav-link" data-nav="terms">📖 Termipankki</button>
       </nav>
       <div class="sidebar-section">
         <div class="sidebar-title"><span>Ohjeet</span>

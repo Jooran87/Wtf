@@ -75,6 +75,14 @@ db.exec(`
     updated_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS terms (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    term       TEXT NOT NULL,
+    definition TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL,
+    updated_by TEXT NOT NULL DEFAULT ''
+  );
+
   CREATE INDEX IF NOT EXISTS idx_revisions_page ON page_revisions(page_id);
   CREATE INDEX IF NOT EXISTS idx_pages_category ON pages(category_id);
   CREATE INDEX IF NOT EXISTS idx_attachments_page ON attachments(page_id);
@@ -96,6 +104,12 @@ if (!pageCols.includes('views')) {
 // Migraatio: sivun avainsanat hakua varten (pilkuin eroteltu lista).
 if (!pageCols.includes('keywords')) {
   db.exec("ALTER TABLE pages ADD COLUMN keywords TEXT NOT NULL DEFAULT ''");
+}
+
+// Migraatio: "vahvistettu ajantasaiseksi" -leima.
+if (!pageCols.includes('verified_at')) {
+  db.exec('ALTER TABLE pages ADD COLUMN verified_at TEXT');
+  db.exec("ALTER TABLE pages ADD COLUMN verified_by TEXT NOT NULL DEFAULT ''");
 }
 
 module.exports = db;

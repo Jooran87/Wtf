@@ -15,11 +15,63 @@ const insNote = db.prepare('INSERT INTO shift_notes (category_id, author, conten
 const insContact = db.prepare('INSERT INTO contacts (label, phone, note, sort_order) VALUES (?, ?, ?, ?)');
 const insAnn = db.prepare('INSERT INTO announcements (title, content, pinned, created_at, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
 
+const insTerm = db.prepare('INSERT INTO terms (term, definition, updated_at, updated_by) VALUES (?, ?, ?, ?)');
+
 // Kategoriat asiakkuuksittain / aihealueittain (Palmia – kiinteistöhoito)
+const pereh = insCat.run('Perehdytys', 0).lastInsertRowid;
 const kipa = insCat.run('Kipa', 1).lastInsertRowid;
 const halytyskeskus = insCat.run('Hälytyskeskus', 2).lastInsertRowid;
 const hairiot = insCat.run('Häiriötilanteet', 3).lastInsertRowid;
 const ism = insCat.run('ISM-ohjeet', 4).lastInsertRowid;
+
+insPage.run(pereh, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
+
+## Päivä 1
+- Esittäytyminen ja tilat: työpisteet, tauko- ja sosiaalitilat
+- Avaimet, kulkutunnisteet ja pysäköinti
+- Tunnukset järjestelmiin (esihenkilö tilaa etukäteen)
+- Tämä wiki: etusivu, haku, vuoroloki ja termipankki
+
+## Viikko 1
+- Vuorojen käytännöt: vuoronvaihdon rutiinit ja vuorolokin käyttö
+- Hälytysten käsittelyn perusteet kokeneen työntekijän vierellä
+- Tärkeimmät työohjeet: katso 🔥 Suosituimmat ohjeet etusivulta
+- Kohteiden erityispiirteet oman vastuualueen osalta
+
+## Muista
+- **Termipankista** löydät talon lyhenteet ja käsitteet
+- Kysy rohkeasti – jokainen on ollut uusi joskus
+
+> Pohja: täydennä talon omilla tiedoilla.`, 'perehdytys, uusi työntekijä, ensimmäinen päivä', now(), 'Anna', 12);
+
+insPage.run(pereh, 'Perehdytyksen tarkistuslista', `# Perehdytyksen tarkistuslista
+
+Käy kohdat läpi perehdyttäjän kanssa ja kuittaa valmiit.
+
+## Käytännön asiat
+- Avaimet ja kulkutunnisteet luovutettu
+- Tunnukset järjestelmiin toimivat
+- Työvaatteet ja varusteet
+- Pysäköinti ja kulkureitit
+
+## Turvallisuus
+- Hätäpoistumistiet ja kokoontumispaikka
+- Ensiapuvälineet ja defibrillaattorin sijainti
+- Toiminta uhkatilanteessa
+- Läheltä piti -ilmoituksen tekeminen
+
+## Työtehtävät
+- Hälytyksen vastaanotto ja luokittelu (ohje wikissä)
+- Paloilmoitinhälytyksen toimintaohje käyty läpi
+- Vuorolokin käyttö
+- Varamenettely järjestelmäkatkoksessa
+
+## Hallinto
+- Sairauspoissaolokäytäntö
+- Vuoronvaihdot ja lomatoiveet
+- Palkanmaksun perusteet
+
+> Kuittaa valmis perehdytys esihenkilölle.`, 'perehdytys, tarkistuslista, checklist', now(), 'Anna', 9);
 
 insPage.run(kipa, 'Kipa – kohteen yleisohje', `# Kipa – kohteen yleisohje
 
@@ -94,6 +146,21 @@ insContact.run('Tekninen tuki (24/7)', '040 123 4567', 'järjestelmä- ja laiteh
 insContact.run('Vuoroesihenkilö', '040 234 5678', 'ympäri vuorokauden', 2);
 insContact.run('Kiinteistöpäivystys', '040 345 6789', 'kiinteistöjen viat ja huolto', 3);
 insContact.run('Hätäkeskus', '112', 'henkeä uhkaavat tilanteet', 4);
+
+// Termipankin esimerkkitermit
+insTerm.run('Kipa', 'Asiakkuus, jolle tuotamme kiinteistöhoitoa. Kohdeohjeet omassa kategoriassaan.', now(), 'Anna');
+insTerm.run('ISM', 'Toimintajärjestelmän mukaiset ohjeet ja menettelyt (toimintakäsikirja).', now(), 'Anna');
+insTerm.run('Kohdekortti', 'Kohteen perustiedot: osoite, yhteyshenkilöt, hälytysjärjestelmä, erityispiirteet.', now(), 'Anna');
+insTerm.run('A-luokan hälytys', 'Kiireellinen hälytys: henkilö- tai paloturvallisuus vaarassa – toimi välittömästi.', now(), 'Anna');
+insTerm.run('Varamenettely', 'Toimintatapa kun normaali järjestelmä ei ole käytettävissä (esim. manuaalinen loki).', now(), 'Anna');
+insTerm.run('UPS', 'Akkuvarmennus, joka pitää kriittiset laitteet käynnissä lyhyen sähkökatkon yli.', now(), 'Anna');
+insTerm.run('Vuoroloki', 'Wikin osio, johon kirjataan vuoron aikaiset huomiot ja poikkeamat.', now(), 'Anna');
+
+// Ajantasaisuusvahvistuksen esimerkit: yksi tuore, yksi vanhentunut
+db.prepare('UPDATE pages SET verified_at = ?, verified_by = ? WHERE title = ?')
+  .run(now(), 'Anna', 'Hälytyksen vastaanotto ja luokittelu');
+db.prepare('UPDATE pages SET verified_at = ?, verified_by = ? WHERE title = ?')
+  .run(new Date(Date.now() - 210 * 86400000).toISOString(), 'Jukka', 'ISM – toimintakäsikirjan periaatteet');
 
 insAnn.run('Uusi työohje-wiki käytössä', 'Tervetuloa! Ohjeet, tiedotteet ja vuoroloki löytyvät jatkossa täältä. Palaute esihenkilölle.', 1, now(), 'Anna', now());
 insAnn.run('Kohteen 4021 huoltokatko 12.7.', 'Paloilmoitinjärjestelmä huollossa klo 8–14. Hälytykset kohteesta ohjautuvat varajärjestelmään.', 0, now(), 'Jukka', now());

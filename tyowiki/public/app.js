@@ -121,21 +121,23 @@ async function router() {
   const parts = pathPart.split('/').filter(Boolean);
   closeSidebarMobile();
 
+  // Huom: await on pakollinen, jotta catch nappaa myös async-näkymien virheet
+  // (esim. poistetun sivun avaaminen).
   try {
-    if (parts.length === 0) { setActiveNav('home'); return viewHome(); }
-    if (parts[0] === 'vuoroloki') { setActiveNav('shiftlog'); return viewShiftLog(); }
-    if (parts[0] === 'tiedotteet') { setActiveNav('announcements'); return viewAnnouncements(); }
-    if (parts[0] === 'termipankki') { setActiveNav('terms'); return viewTerms(); }
-    if (parts[0] === 'linkit') { setActiveNav('links'); return viewLinks(); }
-    if (parts[0] === 'historia') { setActiveNav(''); return viewHistory(+parts[1]); }
-    if (parts[0] === 'versio') { setActiveNav(''); return viewRevision(+parts[1]); }
-    if (parts[0] === 'kohde') { setActiveNav(''); currentCategoryId = +parts[1]; renderSidebar(); return viewCategory(+parts[1]); }
-    if (parts[0] === 'sivu') { setActiveNav(''); return viewPage(+parts[1]); }
-    if (parts[0] === 'muokkaa') { setActiveNav(''); return viewPageEdit(+parts[1]); }
-    if (parts[0] === 'uusi') { setActiveNav(''); const q = new URLSearchParams(queryPart); return viewPageEdit(null, q.get('kohde')); }
-    if (parts[0] === 'haku') { setActiveNav(''); const q = new URLSearchParams(queryPart); return viewSearch(q.get('q') || ''); }
+    if (parts.length === 0) { setActiveNav('home'); return await viewHome(); }
+    if (parts[0] === 'vuoroloki') { setActiveNav('shiftlog'); return await viewShiftLog(); }
+    if (parts[0] === 'tiedotteet') { setActiveNav('announcements'); return await viewAnnouncements(); }
+    if (parts[0] === 'termipankki') { setActiveNav('terms'); return await viewTerms(); }
+    if (parts[0] === 'linkit') { setActiveNav('links'); return await viewLinks(); }
+    if (parts[0] === 'historia') { setActiveNav(''); return await viewHistory(+parts[1]); }
+    if (parts[0] === 'versio') { setActiveNav(''); return await viewRevision(+parts[1]); }
+    if (parts[0] === 'kohde') { setActiveNav(''); currentCategoryId = +parts[1]; renderSidebar(); return await viewCategory(+parts[1]); }
+    if (parts[0] === 'sivu') { setActiveNav(''); return await viewPage(+parts[1]); }
+    if (parts[0] === 'muokkaa') { setActiveNav(''); return await viewPageEdit(+parts[1]); }
+    if (parts[0] === 'uusi') { setActiveNav(''); const q = new URLSearchParams(queryPart); return await viewPageEdit(null, q.get('kohde')); }
+    if (parts[0] === 'haku') { setActiveNav(''); const q = new URLSearchParams(queryPart); return await viewSearch(q.get('q') || ''); }
   } catch (e) {
-    content.innerHTML = `<div class="card empty">Virhe: ${esc(e.message)}</div>`;
+    content.innerHTML = `<div class="card empty">Virhe: ${esc(e.message)} · <a href="#/">Palaa etusivulle</a></div>`;
   }
 }
 
@@ -226,6 +228,10 @@ function categoryName(id) {
 
 async function viewCategory(id) {
   const cat = categories.find((c) => c.id === id);
+  if (!cat) {
+    content.innerHTML = '<div class="card empty">Kategoriaa ei löydy (se on ehkä poistettu). <a href="#/">Palaa etusivulle</a></div>';
+    return;
+  }
   const pages = await Store.pages.list(id);
   content.innerHTML = `
     <div class="spread">
@@ -263,7 +269,9 @@ async function viewPage(id) {
   content.innerHTML = `
     <div class="spread">
       <div>
-        <div class="muted"><a href="#/kohde/${p.category_id}">${esc(categoryName(p.category_id))}</a></div>
+        <div class="muted">${p.category_id
+          ? `<a href="#/kohde/${p.category_id}">${esc(categoryName(p.category_id))}</a>`
+          : esc(categoryName(p.category_id))}</div>
         <h2 style="margin:4px 0 0">${esc(p.title)}</h2>
       </div>
       <div class="row">

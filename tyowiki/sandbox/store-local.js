@@ -47,7 +47,11 @@ async function putBlob(id, blob) {
     });
   } catch (e) { console.warn('Liitteen tallennus ei onnistu tässä selaimessa:', e); }
 }
+// Muistin säästö: object-URL luodaan vain kerran per liite ja käytetään
+// uudelleen (ilman välimuistia jokainen sivun avaus vuotaisi uuden URL:n).
+const blobUrlCache = new Map();
 async function getBlobUrl(id) {
+  if (blobUrlCache.has(id)) return blobUrlCache.get(id);
   try {
     const db = await idb();
     const blob = await new Promise((res, rej) => {
@@ -55,10 +59,15 @@ async function getBlobUrl(id) {
       const rq = tx.objectStore('files').get(id);
       rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
     });
-    return blob ? URL.createObjectURL(blob) : '#';
+    const url = blob ? URL.createObjectURL(blob) : '#';
+    blobUrlCache.set(id, url);
+    return url;
   } catch (e) { return '#'; }
 }
 async function delBlob(id) {
+  const cached = blobUrlCache.get(id);
+  if (cached && cached !== '#') URL.revokeObjectURL(cached);
+  blobUrlCache.delete(id);
   try {
     const db = await idb();
     return await new Promise((res) => {
@@ -421,6 +430,12 @@ const Store = {
         keywords: p.keywords || '', category_id: p.category_id,
         saved_at: p.updated_at, saved_by: p.updated_by,
       });
+      // Tilankäytön rajaus (localStorage ~5 Mt): enintään 10 versiota per sivu.
+      const mine = DB.revisions.filter((r) => r.page_id === p.id).sort((a, b) => b.id - a.id);
+      if (mine.length > 10) {
+        const keep = new Set(mine.slice(0, 10).map((r) => r.id));
+        DB.revisions = DB.revisions.filter((r) => r.page_id !== p.id || keep.has(r.id));
+      }
       p.title = (data.title || '').trim();
       p.content = data.content || '';
       p.keywords = (data.keywords || '').trim();
@@ -455,8 +470,11 @@ const Store = {
       for (const f of files) {
         const id = nextId();
         // Selaimessa ei louhita PDF/Office-tekstiä; text-tyypeistä luetaan sisältö.
+        // Katto 200 kt merkkejä, ettei localStorage täyty.
         let text = '';
-        if (f.type.startsWith('text/')) { try { text = await f.text(); } catch (_) {} }
+        if (f.type.startsWith('text/')) {
+          try { text = (await f.text()).slice(0, 200000); } catch (_) {}
+        }
         DB.attachments.push({
           id, page_id: pageId, original_name: f.name, mimetype: f.type,
           size: f.size, uploaded_at: nowISO(), uploaded_by: author || '', text_content: text,

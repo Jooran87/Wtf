@@ -166,6 +166,11 @@ app.put('/api/pages/:id', (req, res) => {
   db.prepare(
     'INSERT INTO page_revisions (page_id, title, content, keywords, category_id, saved_at, saved_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).run(old.id, old.title, old.content, old.keywords, old.category_id, old.updated_at, old.updated_by);
+  // Tilankäytön rajaus: säilytä enintään 30 viimeisintä versiota per sivu.
+  db.prepare(
+    `DELETE FROM page_revisions WHERE page_id = ? AND id NOT IN
+     (SELECT id FROM page_revisions WHERE page_id = ? ORDER BY id DESC LIMIT 30)`
+  ).run(old.id, old.id);
   db.prepare(
     'UPDATE pages SET title = ?, content = ?, keywords = ?, category_id = ?, updated_at = ?, updated_by = ? WHERE id = ?'
   ).run(title, content, keywords, category_id, now(), author, req.params.id);
@@ -383,7 +388,7 @@ app.delete('/api/shift-notes/:id', (req, res) => {
 // ---------- Haku ----------
 app.get('/api/search', (req, res) => {
   const q = (req.query.q || '').trim();
-  if (!q) return res.json({ pages: [], notes: [], files: [], announcements: [], terms: [] });
+  if (!q) return res.json({ pages: [], notes: [], files: [], announcements: [], terms: [], links: [] });
   const like = '%' + q + '%';
   // Artikkelit: osuma otsikossa, sisällössä tai avainsanoissa. Mukaan ote.
   const pageRows = db.prepare(

@@ -272,7 +272,7 @@ mark { background: #fff3a3; padding: 0 2px; border-radius: 2px; }
 // TARKOITUS: ulkoasun hiominen ja demo ilman asennusta. Data on vain tässä
 // selaimessa; tyhjennä selaimen tallennustila nollataksesi.
 
-const LS_KEY = 'tyowiki_sandbox_v2';
+const LS_KEY = 'tyowiki_sandbox_v3';
 
 // ---------- localStorage-malli ----------
 function load() {
@@ -338,13 +338,26 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [] };
-  const halytykset = { id: nextId(), name: 'Hälytysten käsittely', sort_order: 1 };
-  const jarjestelmat = { id: nextId(), name: 'Järjestelmät ja ohjelmistot', sort_order: 2 };
-  const hairio = { id: nextId(), name: 'Häiriö- ja poikkeustilanteet', sort_order: 3 };
-  const yleiset = { id: nextId(), name: 'Yleiset ohjeet', sort_order: 4 };
-  DB.categories.push(halytykset, jarjestelmat, hairio, yleiset);
+  const kipa = { id: nextId(), name: 'Kipa', sort_order: 1 };
+  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', sort_order: 2 };
+  const hairiot = { id: nextId(), name: 'Häiriötilanteet', sort_order: 3 };
+  const ism = { id: nextId(), name: 'ISM-ohjeet', sort_order: 4 };
+  DB.categories.push(kipa, halytyskeskus, hairiot, ism);
 
-  const p1 = mkPage(halytykset.id, 'Hälytyksen vastaanotto ja luokittelu', `# Hälytyksen vastaanotto ja luokittelu
+  mkPage(kipa.id, 'Kipa – kohteen yleisohje', `# Kipa – kohteen yleisohje
+
+## Kohteen perustiedot
+- Tarkista kohdekortti ja yhteyshenkilöt järjestelmästä
+- Huomioi kohteen aukioloajat ja kulkureitit
+
+## Kiinteistöhoidon tehtävät
+1. Kierrokset sovitun ohjelman mukaan
+2. Kirjaa havainnot ja poikkeamat järjestelmään
+3. Ilmoita kiireelliset viat välittömästi päivystykseen
+
+> Päivitä tämä ohje kohteen todellisilla tiedoilla.`, 'Anna');
+
+  const p1 = mkPage(halytyskeskus.id, 'Hälytyksen vastaanotto ja luokittelu', `# Hälytyksen vastaanotto ja luokittelu
 
 ## Vastaanotto
 1. Kuittaa saapuva hälytys järjestelmästä
@@ -358,7 +371,7 @@ async function ensureSeeded() {
 
 > Kirjaa kaikki toimenpiteet järjestelmään reaaliaikaisesti.`, 'Anna');
 
-  mkPage(halytykset.id, 'Paloilmoitinhälytyksen toimintaohje', `# Paloilmoitinhälytys
+  mkPage(halytyskeskus.id, 'Paloilmoitinhälytyksen toimintaohje', `# Paloilmoitinhälytys
 
 1. Vastaanota ja kuittaa hälytys
 2. Soita kohteen yhteyshenkilölle ja varmista tilanne
@@ -368,18 +381,7 @@ async function ensureSeeded() {
 
 > Älä koskaan kuittaa paloilmoitusta vääräksi ilman kohteen varmistusta.`, 'Anna');
 
-  mkPage(jarjestelmat.id, 'Hälytystenkäsittelyjärjestelmään kirjautuminen', `# Kirjautuminen
-
-1. Avaa työaseman hälytystenkäsittelyohjelmisto
-2. Kirjaudu henkilökohtaisilla tunnuksilla
-3. Valitse aktiivinen vuoro / työpiste
-4. Varmista että hälytyskanavat näkyvät vihreinä
-
-## Ongelmatilanteet
-- Jos tunnus ei toimi, ilmoita vuoroesihenkilölle
-- Älä käytä toisen henkilön tunnuksia`, 'Anna');
-
-  mkPage(hairio.id, 'Järjestelmäkatkos – varamenettely', `# Järjestelmäkatkos
+  mkPage(hairiot.id, 'Järjestelmäkatkos – varamenettely', `# Järjestelmäkatkos
 
 Jos hälytystenkäsittelyjärjestelmä ei ole käytettävissä:
 
@@ -387,6 +389,25 @@ Jos hälytystenkäsittelyjärjestelmä ei ole käytettävissä:
 2. Ilmoita katkoksesta tekniselle tuelle ja vuoroesihenkilölle
 3. Kirjaa kaikki hälytykset käsin aikaleimoineen
 4. Kun järjestelmä palautuu, vie manuaaliset kirjaukset järjestelmään`, 'Jukka');
+
+  mkPage(hairiot.id, 'Sähkökatko kohteessa', `# Sähkökatko kohteessa
+
+1. Varmista laajuus: yksi kohde vai laajempi alue (sähköyhtiön häiriökartta)
+2. Tarkista varavoiman/UPS:ien toiminta kriittisissä kohteissa
+3. Ilmoita kohteen yhteyshenkilölle ja kirjaa tapahtuma
+4. Sähköjen palauduttua varmista järjestelmien normaali tila`, 'Jukka');
+
+  mkPage(ism.id, 'ISM – toimintakäsikirjan periaatteet', `# ISM-ohjeet
+
+## Tarkoitus
+ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
+
+## Periaatteet
+- Noudata aina uusinta ohjeversiota – tarkista päivityspäivämäärä
+- Poikkeamat kirjataan ja käsitellään sovitun menettelyn mukaan
+- Ohjeiden muutosehdotukset esihenkilölle
+
+> Lisää tähän kategoriaan viralliset ISM-dokumentit liitteinä.`, 'Anna');
 
   // Esimerkkiliite, jonka sisällöstä haku löytää osumia (snippet).
   const sampleText = 'Toimintaohje: paloilmoitinhälytyksessä varmista aina kohteen '
@@ -400,12 +421,13 @@ Jos hälytystenkäsittelyjärjestelmä ei ole käytettävissä:
   DB.attachments.push(att);
   await putBlob(att.id, new Blob([sampleText], { type: 'application/pdf' }));
 
-  mkNote(halytykset.id, 'Anna', 'Aamuvuoro rauhallinen. Kohteessa 4021 toistuva tekninen ilmoitus – huolto tilattu.');
-  mkNote(jarjestelmat.id, 'Jukka', 'Järjestelmässä lyhyt hidastelu klo 13. Tekninen tuki tietoinen, seurataan.');
-  mkNote(null, 'Anna', 'Yleinen: kohteen 5510 uudet toimintaohjeet päivitetty järjestelmään.');
+  mkNote(halytyskeskus.id, 'Anna', 'Aamuvuoro rauhallinen. Kohteessa 4021 toistuva tekninen ilmoitus – huolto tilattu.');
+  mkNote(kipa.id, 'Jukka', 'Kipa: kohteen 5510 ulko-oven lukitus temppuili, huoltopyyntö tehty.');
+  mkNote(null, 'Anna', 'Yleinen: uudet ISM-ohjeet päivitetty järjestelmään.');
 
   // Esimerkkinä katselukertoja, jotta "Suosituimmat ohjeet" näkyy heti.
-  DB.pages[0].views = 58; DB.pages[1].views = 41; DB.pages[2].views = 47; DB.pages[3].views = 29;
+  DB.pages[0].views = 34; DB.pages[1].views = 58; DB.pages[2].views = 41;
+  DB.pages[3].views = 29; DB.pages[4].views = 18; DB.pages[5].views = 22;
 
   DB.contacts = defaultContacts();
   save(DB);

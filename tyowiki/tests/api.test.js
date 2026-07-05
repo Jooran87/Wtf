@@ -39,6 +39,16 @@ async function main() {
     }
     if (!up) throw new Error('Palvelin ei käynnistynyt');
 
+    // --- Tietoturva ---
+    const home = await fetch(B + '/');
+    ok('CSP-otsake asetettu', (home.headers.get('content-security-policy') || '').includes("default-src 'self'"));
+    ok('nosniff-otsake', home.headers.get('x-content-type-options') === 'nosniff');
+    ok('x-powered-by piilotettu', !home.headers.get('x-powered-by'));
+    const longTitle = 'A'.repeat(1000);
+    const capped = await jsend('POST', '/api/pages', { title: longTitle, content: 'x', category_id: 1 });
+    ok('otsikon pituusraja (300)', capped.title.length === 300, capped.title.length);
+    await fetch(`${B}/api/pages/${capped.id}`, { method: 'DELETE' });
+
     // --- Kategoriat ---
     const cats = await jget('/api/categories');
     ok('seed-kategoriat ikoneineen', cats.length === 5 && cats[0].icon === '🎓', JSON.stringify(cats[0]));

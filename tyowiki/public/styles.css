@@ -425,3 +425,17 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 .page-list li.orderable { display: flex; align-items: center; }
 .page-list li.orderable .page-link { flex: 1; min-width: 0; }
 @media (hover: none) { .row-order { opacity: .7; } } /* kosketusnäytöt: aina näkyvissä */
+
+/* ===== Tulostus: ohje siistinä paperille ===== */
+@media print {
+  body { background: #fff; font-size: 12pt; }
+  .topbar, .sidebar, #backTop, .toast, .row-order, .btn, .icon-btn,
+  form, input, textarea, select, .verify-badge.never { display: none !important; }
+  .layout { display: block; }
+  .content { max-width: 100%; padding: 0; }
+  .card { box-shadow: none; border: 1px solid #bbb; background: #fff;
+    -webkit-backdrop-filter: none; backdrop-filter: none; page-break-inside: avoid; }
+  .doc { max-width: 100%; font-size: 12pt; }
+  .crumbs { display: block; }
+  a { color: #000; text-decoration: none; }
+}

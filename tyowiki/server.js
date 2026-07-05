@@ -12,10 +12,45 @@ const buildOfflineHtml = require('./public/offline-template');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// --- Tietoturvaotsakkeet ---
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  // /offline on itsenäinen dokumentti, jonka haku vaatii inline-skriptin.
+  const csp = req.path === '/offline'
+    ? "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:"
+    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; " +
+      "form-action 'self'; frame-ancestors 'self'; connect-src 'self'";
+  res.setHeader('Content-Security-Policy', csp);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
+// Syötteiden pituusrajat kenttäkohtaisesti: estää kannan paisuttamisen
+// roskadatalla. Sovelletaan kaikkiin JSON-pyyntöihin keskitetysti.
+const FIELD_LIMITS = {
+  title: 300, content: 500000, keywords: 500, author: 100, name: 200,
+  label: 200, note: 500, phone: 60, url: 2000, term: 150, definition: 2000,
+  icon: 8,
+};
+
 const UPLOAD_DIR = path.join(process.env.TYOWIKI_DATA_DIR || path.join(__dirname, 'data'), 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 app.use(express.json({ limit: '2mb' }));
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    for (const [field, max] of Object.entries(FIELD_LIMITS)) {
+      if (typeof req.body[field] === 'string' && req.body[field].length > max) {
+        req.body[field] = req.body[field].slice(0, max);
+      }
+    }
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Tiedostolataukset (multer) ---

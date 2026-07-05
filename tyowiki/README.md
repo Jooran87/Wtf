@@ -185,12 +185,19 @@ mitään ei tuhota.
   `LIKE`-pohjainen; toimii hyvin muutamalle sadalle ohjeelle/liitteelle).
 - **OCR** skannatuille PDF:ille ja kuville (esim. Tesseract), jos tarve.
 
-## Tunnetut riippuvuushuomiot
+## Tietoturva
 
-- `exceljs` käyttää transitiivisesti `uuid`-kirjastoa, jossa on *moderate*-tason
-  varoitus (puskurin rajatarkistus). Se koskee vain tapausta jossa uuid:lle
-  annetaan valmis puskuri – exceljs ei tee niin, joten se ei ole tässä
-  hyödynnettävissä. Downgrade olisi rikkova muutos, joten versio on pidetty.
+- **`npm audit`: 0 haavoittuvuutta** (uuid pakotettu korjattuun versioon
+  package.jsonin `overrides`-kentällä)
+- **HTTP-turvaotsakkeet**: Content-Security-Policy (ei inline-skriptejä
+  sovelluksessa), X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+  Permissions-Policy; `X-Powered-By` piilotettu
+- **Syötteet**: kaikki käyttäjäsyöte escapetaan renderöinnissä (XSS-testattu),
+  SQL parametrisoitu, kenttäkohtaiset pituusrajat palvelimella,
+  tiedostotyyppien sallittulista ja 50 Mt koko/tiedosto -raja latauksissa
+- **Puuttuu vielä (vaatii ICT-linjauksen): kirjautuminen ja käyttöoikeudet.**
+  Ennen tuotantokäyttöä wiki on tarkoitettu vain sisäverkkoon; älä julkaise
+  internetiin ilman kirjautumista.
 
 > Ennen tuotantokäyttöä sovi ICT-osaston kanssa palvelimesta, varmuuskopioinnista
 > ja kirjautumistavasta.

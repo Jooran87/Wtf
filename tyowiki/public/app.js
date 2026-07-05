@@ -7,6 +7,11 @@ const content = $('#content');
 // Datakerros (`Store`) tulee erillisestä tiedostosta: palvelinversiossa
 // store-api.js (REST), sandbox-versiossa store-local.js (selaimen tallennus).
 
+// Varoitus selaimen sulkemisesta/uudelleenlatauksesta, jos muokkaus on kesken.
+function setUnsavedGuard(on) {
+  window.onbeforeunload = on ? () => true : null;
+}
+
 function toast(msg, isError = false) {
   const el = $('#toast');
   el.textContent = msg;
@@ -164,6 +169,7 @@ async function router() {
   closeSidebarMobile();
   const openCatForm = $('#catForm');
   if (openCatForm) openCatForm.remove();
+  setUnsavedGuard(false);
 
   // Huom: await on pakollinen, jotta catch nappaa myös async-näkymien virheet
   // (esim. poistetun sivun avaaminen).
@@ -463,6 +469,13 @@ async function viewPageEdit(id, presetCat) {
         <button class="btn secondary" id="cancelBtn">Peruuta</button>
       </div>
     </div>`;
+
+  // Jos jotain on muutettu, varoita selaimen sulkemisesta/uudelleenlatauksesta.
+  ['titleInput', 'keywordsInput', 'contentInput'].forEach((fid) => {
+    const el = $('#' + fid);
+    if (el) el.addEventListener('input', () => setUnsavedGuard(true));
+  });
+  $('#catSelect').addEventListener('change', () => setUnsavedGuard(true));
 
   // Kuvien lisäys: lataa liitteeksi ja lisää viittaus tekstiin kursorin kohdalle.
   async function insertImages(files) {

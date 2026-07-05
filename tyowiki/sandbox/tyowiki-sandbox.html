@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Palmia Hälytyskeskus – Työohjeet (Sandbox)</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNlYTZhMWUiLz48dGV4dCB4PSIzMiIgeT0iNDUiIGZvbnQtZmFtaWx5PSJBcmlhbCxIZWx2ZXRpY2Esc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzOCIgZm9udC13ZWlnaHQ9IjgwMCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UDwvdGV4dD48L3N2Zz4=" />
   <script>
     /* Teema ennen renderöintiä, ettei sivu välähdä väärällä värillä */
     (function(){try{var t=localStorage.getItem('tyowiki_theme');
@@ -439,6 +440,20 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 .page-list li.orderable .page-link { flex: 1; min-width: 0; }
 @media (hover: none) { .row-order { opacity: .7; } } /* kosketusnäytöt: aina näkyvissä */
 
+/* ===== Tulostus: ohje siistinä paperille ===== */
+@media print {
+  body { background: #fff; font-size: 12pt; }
+  .topbar, .sidebar, #backTop, .toast, .row-order, .btn, .icon-btn,
+  form, input, textarea, select, .verify-badge.never { display: none !important; }
+  .layout { display: block; }
+  .content { max-width: 100%; padding: 0; }
+  .card { box-shadow: none; border: 1px solid #bbb; background: #fff;
+    -webkit-backdrop-filter: none; backdrop-filter: none; page-break-inside: avoid; }
+  .doc { max-width: 100%; font-size: 12pt; }
+  .crumbs { display: block; }
+  a { color: #000; text-decoration: none; }
+}
+
     .sandbox-badge { background:#1c2430; color:#fff; font-size:11px; font-weight:700;
       padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
   </style>
@@ -576,7 +591,7 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Työohjeet – offline</title>
+<title>Työohjeet – offline</title>\n<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNlYTZhMWUiLz48dGV4dCB4PSIzMiIgeT0iNDUiIGZvbnQtZmFtaWx5PSJBcmlhbCxIZWx2ZXRpY2Esc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzOCIgZm9udC13ZWlnaHQ9IjgwMCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UDwvdGV4dD48L3N2Zz4=" />
 <style>
   :root { --brand:#ea6a1e; --ink:#b8500e; --soft:#fdeadd; --border:#e2e6ec; --muted:#6b7686; --text:#1c2430; }
   * { box-sizing: border-box; }
@@ -1461,6 +1476,11 @@ const content = $('#content');
 // Datakerros (`Store`) tulee erillisestä tiedostosta: palvelinversiossa
 // store-api.js (REST), sandbox-versiossa store-local.js (selaimen tallennus).
 
+// Varoitus selaimen sulkemisesta/uudelleenlatauksesta, jos muokkaus on kesken.
+function setUnsavedGuard(on) {
+  window.onbeforeunload = on ? () => true : null;
+}
+
 function toast(msg, isError = false) {
   const el = $('#toast');
   el.textContent = msg;
@@ -1618,6 +1638,7 @@ async function router() {
   closeSidebarMobile();
   const openCatForm = $('#catForm');
   if (openCatForm) openCatForm.remove();
+  setUnsavedGuard(false);
 
   // Huom: await on pakollinen, jotta catch nappaa myös async-näkymien virheet
   // (esim. poistetun sivun avaaminen).
@@ -1917,6 +1938,13 @@ async function viewPageEdit(id, presetCat) {
         <button class="btn secondary" id="cancelBtn">Peruuta</button>
       </div>
     </div>`;
+
+  // Jos jotain on muutettu, varoita selaimen sulkemisesta/uudelleenlatauksesta.
+  ['titleInput', 'keywordsInput', 'contentInput'].forEach((fid) => {
+    const el = $('#' + fid);
+    if (el) el.addEventListener('input', () => setUnsavedGuard(true));
+  });
+  $('#catSelect').addEventListener('change', () => setUnsavedGuard(true));
 
   // Kuvien lisäys: lataa liitteeksi ja lisää viittaus tekstiin kursorin kohdalle.
   async function insertImages(files) {

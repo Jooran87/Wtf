@@ -30,6 +30,7 @@ const Store = {
     create: (data) => api('/api/categories', jsonBody('POST', data)),
     update: (id, data) => api('/api/categories/' + id, jsonBody('PUT', data)),
     remove: (id) => api('/api/categories/' + id, { method: 'DELETE' }),
+    reorder: (ids) => api('/api/categories/reorder', jsonBody('POST', { ids })),
   },
 
   contacts: {
@@ -37,6 +38,7 @@ const Store = {
     create: (data) => api('/api/contacts', jsonBody('POST', data)),
     update: (id, data) => api('/api/contacts/' + id, jsonBody('PUT', data)),
     remove: (id) => api('/api/contacts/' + id, { method: 'DELETE' }),
+    reorder: (ids) => api('/api/contacts/reorder', jsonBody('POST', { ids })),
   },
 
   pages: {
@@ -48,6 +50,7 @@ const Store = {
     remove: (id) => api('/api/pages/' + id, { method: 'DELETE' }),
     revisions: (id) => api('/api/pages/' + id + '/revisions'),
     verify: (id, author) => api('/api/pages/' + id + '/verify', jsonBody('POST', { author })),
+    reorder: (ids) => api('/api/pages/reorder', jsonBody('POST', { ids })),
   },
 
   revisions: {
@@ -59,6 +62,7 @@ const Store = {
     create: (data) => api('/api/links', jsonBody('POST', data)),
     update: (id, data) => api('/api/links/' + id, jsonBody('PUT', data)),
     remove: (id) => api('/api/links/' + id, { method: 'DELETE' }),
+    reorder: (ids) => api('/api/links/reorder', jsonBody('POST', { ids })),
   },
 
   terms: {

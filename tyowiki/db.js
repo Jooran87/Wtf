@@ -121,6 +121,11 @@ if (!catCols.includes('icon')) {
   db.exec("ALTER TABLE categories ADD COLUMN icon TEXT NOT NULL DEFAULT ''");
 }
 
+// Migraatio: ohjeiden käsin asetettava järjestys kategorian sisällä.
+if (!pageCols.includes('sort_order')) {
+  db.exec('ALTER TABLE pages ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
+}
+
 // Migraatio: "vahvistettu ajantasaiseksi" -leima.
 if (!pageCols.includes('verified_at')) {
   db.exec('ALTER TABLE pages ADD COLUMN verified_at TEXT');

@@ -34,8 +34,14 @@
   --danger-bg: #fdeaea;
   --danger-text: #b03030;
   --pin-border: #f5c9a4;
-  --shadow: 0 1px 3px rgba(0,0,0,.08);
-  --radius: 8px;
+  --shadow: 0 6px 22px rgba(28,36,48,.07);
+  --radius: 12px;
+  /* Liquid glass -pinnat */
+  --glass-bg: rgba(255,255,255,.58);
+  --glass-border: rgba(255,255,255,.75);
+  --glass-edge: rgba(28,36,48,.10);
+  --glass-highlight: rgba(255,255,255,.85);
+  --page-bg: linear-gradient(160deg, #fdf0e4 0%, #f0f3f8 38%, #e9edf4 100%);
 }
 
 :root[data-theme="dark"] {
@@ -60,7 +66,12 @@
   --danger-bg: #3a1d1d;
   --danger-text: #ff9090;
   --pin-border: #5a3d22;
-  --shadow: 0 1px 3px rgba(0,0,0,.4);
+  --shadow: 0 8px 26px rgba(0,0,0,.45);
+  --glass-bg: rgba(27,33,43,.55);
+  --glass-border: rgba(255,255,255,.10);
+  --glass-edge: rgba(0,0,0,.35);
+  --glass-highlight: rgba(255,255,255,.07);
+  --page-bg: linear-gradient(160deg, #221710 0%, #12161d 42%, #10141c 100%);
 }
 
 * { box-sizing: border-box; }
@@ -68,9 +79,10 @@ html, body { margin: 0; height: 100%; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
-  background: var(--bg);
+  background: var(--page-bg) fixed, var(--bg);
   font-size: 15px;
 }
+
 
 /* Topbar */
 .topbar {
@@ -397,6 +409,35 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
   .user { display: none; }
   .doc { font-size: 16px; }
 }
+
+/* ===== Liquid glass -pinnat (määritelty lopussa, jotta voittavat perustyylit) ===== */
+.topbar, .sidebar, .card, .cat-card {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  border-color: var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 1px var(--glass-edge), var(--shadow);
+}
+.topbar { border-bottom: 1px solid var(--glass-border); box-shadow: 0 0 0 1px var(--glass-edge), var(--shadow); }
+.sidebar { border-right: 1px solid var(--glass-border); box-shadow: none; }
+.cat-card:hover { border-color: var(--brand); }
+/* Tiedote- ja huomiokortit lasikortin päällä: kevyt läpikuultava kerros */
+.ann, .note { background: var(--glass-highlight); }
+.ann.pinned { background: var(--brand-soft); }
+/* Vanhat selaimet ilman backdrop-filteriä: kiinteät paneelit */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .topbar, .sidebar, .card, .cat-card { background: var(--panel); }
+  .ann, .note { background: var(--panel); }
+}
+
+/* ===== Järjestysnapit (↑/↓) ===== */
+.row-order { display: inline-flex; flex-shrink: 0; opacity: 0; transition: opacity .12s; }
+li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
+.category-list li:hover .row-order { opacity: 1; }
+.row-order .icon-btn { font-size: 13px; padding: 2px 4px; }
+.page-list li.orderable { display: flex; align-items: center; }
+.page-list li.orderable .page-link { flex: 1; min-width: 0; }
+@media (hover: none) { .row-order { opacity: .7; } } /* kosketusnäytöt: aina näkyvissä */
 
     .sandbox-badge { background:#1c2430; color:#fff; font-size:11px; font-weight:700;
       padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
@@ -1018,6 +1059,7 @@ function migrateExisting() {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
     if (p.verified_at === undefined) { p.verified_at = null; p.verified_by = ''; changed = true; }
+    if (typeof p.sort_order !== 'number') { p.sort_order = 0; changed = true; }
   });
   if (changed) save(DB);
 }
@@ -1032,6 +1074,14 @@ function mkNote(catId, author, content) {
 
 // ---------- Hakuapurit (samat kuin palvelimen logiikka) ----------
 function includesCI(hay, q) { return (hay || '').toLowerCase().includes(q.toLowerCase()); }
+// Järjestyksen tallennus: sort_order asetetaan annetun id-listan mukaan.
+function applyReorder(arr, ids) {
+  ids.forEach((id, i) => {
+    const item = arr.find((x) => x.id === Number(id));
+    if (item) item.sort_order = i + 1;
+  });
+}
+
 function normalizeUrl(u) {
   u = (u || '').trim();
   if (!u) return '';
@@ -1084,13 +1134,20 @@ const Store = {
       DB.categories = DB.categories.filter((c) => c.id !== id);
       save(DB); return { ok: true };
     },
+    async reorder(ids) { await ready; applyReorder(DB.categories, ids); save(DB); return { ok: true }; },
   },
 
   pages: {
     async list(categoryId) {
       await ready;
       let rows = DB.pages;
-      if (categoryId) { categoryId = Number(categoryId); rows = rows.filter((p) => p.category_id === categoryId); }
+      if (categoryId) {
+        categoryId = Number(categoryId);
+        rows = rows.filter((p) => p.category_id === categoryId);
+        return clone(rows)
+          .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.title.localeCompare(b.title))
+          .map(({ id, category_id, title, updated_at, updated_by }) => ({ id, category_id, title, updated_at, updated_by }));
+      }
       return clone(rows).sort((a, b) => a.title.localeCompare(b.title))
         .map(({ id, category_id, title, updated_at, updated_by }) => ({ id, category_id, title, updated_at, updated_by }));
     },
@@ -1145,6 +1202,7 @@ const Store = {
       save(DB); return clone(p);
     },
     async remove(id) { await ready; await removePageInternal(Number(id)); save(DB); return { ok: true }; },
+    async reorder(ids) { await ready; applyReorder(DB.pages, ids); save(DB); return { ok: true }; },
     async verify(id, byAuthor) {
       await ready; id = Number(id);
       const p = DB.pages.find((x) => x.id === id);
@@ -1221,6 +1279,7 @@ const Store = {
       await ready; id = Number(id);
       DB.links = DB.links.filter((l) => l.id !== id); save(DB); return { ok: true };
     },
+    async reorder(ids) { await ready; applyReorder(DB.links, ids); save(DB); return { ok: true }; },
   },
 
   terms: {
@@ -1316,6 +1375,7 @@ const Store = {
       await ready; id = Number(id);
       DB.contacts = DB.contacts.filter((c) => c.id !== id); save(DB); return { ok: true };
     },
+    async reorder(ids) { await ready; applyReorder(DB.contacts, ids); save(DB); return { ok: true }; },
   },
 
   notes: {
@@ -1495,14 +1555,27 @@ const catIcon = (c) => (c && c.icon) ? c.icon : '📄';
 
 function renderSidebar() {
   const ul = $('#categoryList');
-  ul.innerHTML = categories.map((c) => `
+  ul.innerHTML = categories.map((c, i) => `
     <li>
       <button class="cat-btn ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">
         <span class="cat-ico">${esc(catIcon(c))}</span>
         <span class="cat-name">${esc(c.name)}</span>
         <span class="count-badge">${c.page_count != null ? c.page_count : ''}</span>
       </button>
+      <span class="row-order">
+        ${i > 0 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="-1" title="Siirrä ylös">▲</button>` : ''}
+        ${i < categories.length - 1 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="1" title="Siirrä alas">▼</button>` : ''}
+      </span>
     </li>`).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
+}
+
+// Siirtää id:n annettuun suuntaan id-listassa; palauttaa uuden listan tai null.
+function moveInList(ids, id, dir) {
+  const i = ids.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return null;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  return ids;
 }
 
 function iconSelectHtml(id, selected) {
@@ -1615,6 +1688,10 @@ async function viewHome() {
   document.querySelectorAll('[data-delcontact]').forEach((b) => b.onclick = async () => {
     if (confirm('Poistetaanko yhteystieto?')) { await Store.contacts.remove(b.dataset.delcontact); viewHome(); }
   });
+  document.querySelectorAll('[data-cmove]').forEach((b) => b.onclick = async () => {
+    const ids = moveInList(contacts.map((c) => c.id), +b.dataset.cmove, +b.dataset.dir);
+    if (ids) { await Store.contacts.reorder(ids); viewHome(); }
+  });
 }
 
 // Yhteystiedon lisäys/muokkaus: lomake kortin sisään (ei prompt-ikkunoita).
@@ -1669,12 +1746,24 @@ async function viewCategory(id) {
     <div id="catEditRow"></div>
     <div class="card">
       <ul class="page-list">
-        ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
-          <span>${esc(p.title)}</span>
-          <span class="muted">${esc(fmtDate(p.updated_at))}</span></button></li>`).join('')
+        ${pages.map((p, i) => `<li class="orderable">
+          <button class="page-link" data-page="${p.id}">
+            <span>${esc(p.title)}</span>
+            <span class="muted">${esc(fmtDate(p.updated_at))}</span>
+          </button>
+          <span class="row-order">
+            ${i > 0 ? `<button class="icon-btn" data-pmove="${p.id}" data-dir="-1" title="Siirrä ylös">▲</button>` : ''}
+            ${i < pages.length - 1 ? `<button class="icon-btn" data-pmove="${p.id}" data-dir="1" title="Siirrä alas">▼</button>` : ''}
+          </span>
+        </li>`).join('')
           || '<li class="empty">Ei ohjeita tässä kategoriassa. Luo ensimmäinen.</li>'}
       </ul>
     </div>`;
+
+  document.querySelectorAll('[data-pmove]').forEach((b) => b.onclick = async () => {
+    const ids = moveInList(pages.map((p) => p.id), +b.dataset.pmove, +b.dataset.dir);
+    if (ids) { await Store.pages.reorder(ids); viewCategory(id); }
+  });
 
   $('#newPageBtn').onclick = () => { location.hash = `#/uusi?kohde=${id}`; };
   // Kategorian muokkaus: siisti lomake promptin sijaan.
@@ -2076,6 +2165,10 @@ async function viewLinks(editId) {
   document.querySelectorAll('[data-dellink]').forEach((b) => b.onclick = async () => {
     if (confirm('Poistetaanko linkki?')) { await Store.links.remove(b.dataset.dellink); viewLinks(); }
   });
+  document.querySelectorAll('[data-lmove]').forEach((b) => b.onclick = async () => {
+    const ids = moveInList(links.map((l) => l.id), +b.dataset.lmove, +b.dataset.dir);
+    if (ids) { await Store.links.reorder(ids); viewLinks(); }
+  });
 }
 
 function linkHtml(l) {
@@ -2086,6 +2179,10 @@ function linkHtml(l) {
       <div class="att-meta">${esc(l.url)}${l.note ? ' · ' + esc(l.note) : ''}</div>
     </span>
     <span class="contact-actions">
+      <span class="row-order">
+        <button class="icon-btn" data-lmove="${l.id}" data-dir="-1" title="Siirrä ylös">▲</button>
+        <button class="icon-btn" data-lmove="${l.id}" data-dir="1" title="Siirrä alas">▼</button>
+      </span>
       <button class="icon-btn small" data-editlink="${l.id}" title="Muokkaa">✏️</button>
       <button class="icon-btn small" data-dellink="${l.id}" title="Poista">🗑</button>
     </span>
@@ -2209,6 +2306,10 @@ function contactHtml(c) {
       ${c.note ? `<div class="att-meta">${esc(c.note)}</div>` : ''}
     </div>
     <div class="contact-actions">
+      <span class="row-order">
+        <button class="icon-btn" data-cmove="${c.id}" data-dir="-1" title="Siirrä ylös">▲</button>
+        <button class="icon-btn" data-cmove="${c.id}" data-dir="1" title="Siirrä alas">▼</button>
+      </span>
       <button class="icon-btn small" data-editcontact="${c.id}" title="Muokkaa">✏️</button>
       <button class="icon-btn small" data-delcontact="${c.id}" title="Poista">🗑</button>
     </div>
@@ -2235,7 +2336,13 @@ function bindNoteDelete(refresh) {
 // ---------- Globaalit tapahtumat ----------
 function closeSidebarMobile() { $('#sidebar').classList.remove('open'); }
 
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
+  const catMove = e.target.closest('[data-catmove]');
+  if (catMove) {
+    const ids = moveInList(categories.map((c) => c.id), +catMove.dataset.catmove, +catMove.dataset.dir);
+    if (ids) { await Store.categories.reorder(ids); await loadCategories(); }
+    return;
+  }
   const page = e.target.closest('[data-page]');
   if (page) { location.hash = '#/sivu/' + page.dataset.page; return; }
   const cat = e.target.closest('[data-cat]');

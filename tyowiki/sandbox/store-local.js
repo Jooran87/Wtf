@@ -330,6 +330,7 @@ function migrateExisting() {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
     if (p.verified_at === undefined) { p.verified_at = null; p.verified_by = ''; changed = true; }
+    if (typeof p.sort_order !== 'number') { p.sort_order = 0; changed = true; }
   });
   if (changed) save(DB);
 }
@@ -344,6 +345,14 @@ function mkNote(catId, author, content) {
 
 // ---------- Hakuapurit (samat kuin palvelimen logiikka) ----------
 function includesCI(hay, q) { return (hay || '').toLowerCase().includes(q.toLowerCase()); }
+// Järjestyksen tallennus: sort_order asetetaan annetun id-listan mukaan.
+function applyReorder(arr, ids) {
+  ids.forEach((id, i) => {
+    const item = arr.find((x) => x.id === Number(id));
+    if (item) item.sort_order = i + 1;
+  });
+}
+
 function normalizeUrl(u) {
   u = (u || '').trim();
   if (!u) return '';
@@ -396,13 +405,20 @@ const Store = {
       DB.categories = DB.categories.filter((c) => c.id !== id);
       save(DB); return { ok: true };
     },
+    async reorder(ids) { await ready; applyReorder(DB.categories, ids); save(DB); return { ok: true }; },
   },
 
   pages: {
     async list(categoryId) {
       await ready;
       let rows = DB.pages;
-      if (categoryId) { categoryId = Number(categoryId); rows = rows.filter((p) => p.category_id === categoryId); }
+      if (categoryId) {
+        categoryId = Number(categoryId);
+        rows = rows.filter((p) => p.category_id === categoryId);
+        return clone(rows)
+          .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.title.localeCompare(b.title))
+          .map(({ id, category_id, title, updated_at, updated_by }) => ({ id, category_id, title, updated_at, updated_by }));
+      }
       return clone(rows).sort((a, b) => a.title.localeCompare(b.title))
         .map(({ id, category_id, title, updated_at, updated_by }) => ({ id, category_id, title, updated_at, updated_by }));
     },
@@ -457,6 +473,7 @@ const Store = {
       save(DB); return clone(p);
     },
     async remove(id) { await ready; await removePageInternal(Number(id)); save(DB); return { ok: true }; },
+    async reorder(ids) { await ready; applyReorder(DB.pages, ids); save(DB); return { ok: true }; },
     async verify(id, byAuthor) {
       await ready; id = Number(id);
       const p = DB.pages.find((x) => x.id === id);
@@ -533,6 +550,7 @@ const Store = {
       await ready; id = Number(id);
       DB.links = DB.links.filter((l) => l.id !== id); save(DB); return { ok: true };
     },
+    async reorder(ids) { await ready; applyReorder(DB.links, ids); save(DB); return { ok: true }; },
   },
 
   terms: {
@@ -628,6 +646,7 @@ const Store = {
       await ready; id = Number(id);
       DB.contacts = DB.contacts.filter((c) => c.id !== id); save(DB); return { ok: true };
     },
+    async reorder(ids) { await ready; applyReorder(DB.contacts, ids); save(DB); return { ok: true }; },
   },
 
   notes: {

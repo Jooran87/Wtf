@@ -107,14 +107,27 @@ const catIcon = (c) => (c && c.icon) ? c.icon : '📄';
 
 function renderSidebar() {
   const ul = $('#categoryList');
-  ul.innerHTML = categories.map((c) => `
+  ul.innerHTML = categories.map((c, i) => `
     <li>
       <button class="cat-btn ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">
         <span class="cat-ico">${esc(catIcon(c))}</span>
         <span class="cat-name">${esc(c.name)}</span>
         <span class="count-badge">${c.page_count != null ? c.page_count : ''}</span>
       </button>
+      <span class="row-order">
+        ${i > 0 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="-1" title="Siirrä ylös">▲</button>` : ''}
+        ${i < categories.length - 1 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="1" title="Siirrä alas">▼</button>` : ''}
+      </span>
     </li>`).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
+}
+
+// Siirtää id:n annettuun suuntaan id-listassa; palauttaa uuden listan tai null.
+function moveInList(ids, id, dir) {
+  const i = ids.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return null;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  return ids;
 }
 
 function iconSelectHtml(id, selected) {
@@ -227,6 +240,10 @@ async function viewHome() {
   document.querySelectorAll('[data-delcontact]').forEach((b) => b.onclick = async () => {
     if (confirm('Poistetaanko yhteystieto?')) { await Store.contacts.remove(b.dataset.delcontact); viewHome(); }
   });
+  document.querySelectorAll('[data-cmove]').forEach((b) => b.onclick = async () => {
+    const ids = moveInList(contacts.map((c) => c.id), +b.dataset.cmove, +b.dataset.dir);
+    if (ids) { await Store.contacts.reorder(ids); viewHome(); }
+  });
 }
 
 // Yhteystiedon lisäys/muokkaus: lomake kortin sisään (ei prompt-ikkunoita).
@@ -281,12 +298,24 @@ async function viewCategory(id) {
     <div id="catEditRow"></div>
     <div class="card">
       <ul class="page-list">
-        ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
-          <span>${esc(p.title)}</span>
-          <span class="muted">${esc(fmtDate(p.updated_at))}</span></button></li>`).join('')
+        ${pages.map((p, i) => `<li class="orderable">
+          <button class="page-link" data-page="${p.id}">
+            <span>${esc(p.title)}</span>
+            <span class="muted">${esc(fmtDate(p.updated_at))}</span>
+          </button>
+          <span class="row-order">
+            ${i > 0 ? `<button class="icon-btn" data-pmove="${p.id}" data-dir="-1" title="Siirrä ylös">▲</button>` : ''}
+            ${i < pages.length - 1 ? `<button class="icon-btn" data-pmove="${p.id}" data-dir="1" title="Siirrä alas">▼</button>` : ''}
+          </span>
+        </li>`).join('')
           || '<li class="empty">Ei ohjeita tässä kategoriassa. Luo ensimmäinen.</li>'}
       </ul>
     </div>`;
+
+  document.querySelectorAll('[data-pmove]').forEach((b) => b.onclick = async () => {
+    const ids = moveInList(pages.map((p) => p.id), +b.dataset.pmove, +b.dataset.dir);
+    if (ids) { await Store.pages.reorder(ids); viewCategory(id); }
+  });
 
   $('#newPageBtn').onclick = () => { location.hash = `#/uusi?kohde=${id}`; };
   // Kategorian muokkaus: siisti lomake promptin sijaan.
@@ -688,6 +717,10 @@ async function viewLinks(editId) {
   document.querySelectorAll('[data-dellink]').forEach((b) => b.onclick = async () => {
     if (confirm('Poistetaanko linkki?')) { await Store.links.remove(b.dataset.dellink); viewLinks(); }
   });
+  document.querySelectorAll('[data-lmove]').forEach((b) => b.onclick = async () => {
+    const ids = moveInList(links.map((l) => l.id), +b.dataset.lmove, +b.dataset.dir);
+    if (ids) { await Store.links.reorder(ids); viewLinks(); }
+  });
 }
 
 function linkHtml(l) {
@@ -698,6 +731,10 @@ function linkHtml(l) {
       <div class="att-meta">${esc(l.url)}${l.note ? ' · ' + esc(l.note) : ''}</div>
     </span>
     <span class="contact-actions">
+      <span class="row-order">
+        <button class="icon-btn" data-lmove="${l.id}" data-dir="-1" title="Siirrä ylös">▲</button>
+        <button class="icon-btn" data-lmove="${l.id}" data-dir="1" title="Siirrä alas">▼</button>
+      </span>
       <button class="icon-btn small" data-editlink="${l.id}" title="Muokkaa">✏️</button>
       <button class="icon-btn small" data-dellink="${l.id}" title="Poista">🗑</button>
     </span>
@@ -821,6 +858,10 @@ function contactHtml(c) {
       ${c.note ? `<div class="att-meta">${esc(c.note)}</div>` : ''}
     </div>
     <div class="contact-actions">
+      <span class="row-order">
+        <button class="icon-btn" data-cmove="${c.id}" data-dir="-1" title="Siirrä ylös">▲</button>
+        <button class="icon-btn" data-cmove="${c.id}" data-dir="1" title="Siirrä alas">▼</button>
+      </span>
       <button class="icon-btn small" data-editcontact="${c.id}" title="Muokkaa">✏️</button>
       <button class="icon-btn small" data-delcontact="${c.id}" title="Poista">🗑</button>
     </div>
@@ -847,7 +888,13 @@ function bindNoteDelete(refresh) {
 // ---------- Globaalit tapahtumat ----------
 function closeSidebarMobile() { $('#sidebar').classList.remove('open'); }
 
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
+  const catMove = e.target.closest('[data-catmove]');
+  if (catMove) {
+    const ids = moveInList(categories.map((c) => c.id), +catMove.dataset.catmove, +catMove.dataset.dir);
+    if (ids) { await Store.categories.reorder(ids); await loadCategories(); }
+    return;
+  }
   const page = e.target.closest('[data-page]');
   if (page) { location.hash = '#/sivu/' + page.dataset.page; return; }
   const cat = e.target.closest('[data-cat]');

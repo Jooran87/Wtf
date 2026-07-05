@@ -49,6 +49,19 @@ async function main() {
     ok('kategorian muokkaus', renamed.name === 'Testi2' && renamed.icon === '🔧');
     ok('tyhjä nimi hylätään (400)', await status('POST', '/api/categories', { name: '' }) === 400);
 
+    // --- Järjestyksen muokkaus ---
+    const catsOrig = await jget('/api/categories');
+    const revIds = catsOrig.map((c) => c.id).reverse();
+    await jsend('POST', '/api/categories/reorder', { ids: revIds });
+    const afterReorder = await jget('/api/categories');
+    ok('kategorioiden uudelleenjärjestys', afterReorder[0].id === revIds[0]);
+    await jsend('POST', '/api/categories/reorder', { ids: catsOrig.map((c) => c.id) }); // palautus
+    ok('reorder ilman ids-listaa (400)', await status('POST', '/api/pages/reorder', {}) === 400);
+    const perehPages = await jget('/api/pages?category_id=1');
+    await jsend('POST', '/api/pages/reorder', { ids: perehPages.map((p) => p.id).reverse() });
+    const perehAfter = await jget('/api/pages?category_id=1');
+    ok('ohjeiden järjestys kategorian sisällä', perehAfter[0].id === perehPages[perehPages.length - 1].id);
+
     // --- Sivut ---
     const page = await jsend('POST', '/api/pages', {
       title: '<script>alert(1)</script>', content: 'Testi **sisältö** erikoissanaXYZ',

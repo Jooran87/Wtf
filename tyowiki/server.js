@@ -109,12 +109,29 @@ app.delete('/api/contacts/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Järjestyksen tallennus (↑/↓-napit käyttöliittymässä) ----------
+// Body: { ids: [...] } – sort_order asetetaan taulukon järjestyksen mukaan.
+function makeReorder(table) {
+  return (req, res) => {
+    const ids = req.body.ids;
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids puuttuu' });
+    const st = db.prepare(`UPDATE ${table} SET sort_order = ? WHERE id = ?`);
+    db.transaction(() => ids.forEach((id, i) => st.run(i + 1, id)))();
+    res.json({ ok: true });
+  };
+}
+app.post('/api/categories/reorder', makeReorder('categories'));
+app.post('/api/contacts/reorder', makeReorder('contacts'));
+app.post('/api/links/reorder', makeReorder('links'));
+app.post('/api/pages/reorder', makeReorder('pages'));
+
 // ---------- Sivut (työohjeet) ----------
 app.get('/api/pages', (req, res) => {
   const { category_id } = req.query;
   let rows;
   if (category_id) {
-    rows = db.prepare('SELECT id, category_id, title, updated_at, updated_by FROM pages WHERE category_id = ? ORDER BY title').all(category_id);
+    // Kategorian sisällä käsin asetettu järjestys, uudet (0) aakkosissa alussa.
+    rows = db.prepare('SELECT id, category_id, title, updated_at, updated_by FROM pages WHERE category_id = ? ORDER BY sort_order, title').all(category_id);
   } else {
     rows = db.prepare('SELECT id, category_id, title, updated_at, updated_by FROM pages ORDER BY title').all();
   }

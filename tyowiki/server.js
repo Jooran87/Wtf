@@ -236,14 +236,14 @@ app.post('/api/pages/:id/attachments', upload.array('files', 10), async (req, re
   const stmt = db.prepare(
     'INSERT INTO attachments (page_id, stored_name, original_name, mimetype, size, uploaded_at, uploaded_by, text_content) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
-  let count = 0;
+  const ids = [];
   for (const f of req.files || []) {
     // Louhitaan tekstisisältö hakua varten (epäonnistuminen ei estä latausta).
     const text = await extractText(path.join(UPLOAD_DIR, f.filename), f.mimetype);
-    stmt.run(page.id, f.filename, f.originalname, f.mimetype, f.size, now(), author, text);
-    count++;
+    const info = stmt.run(page.id, f.filename, f.originalname, f.mimetype, f.size, now(), author, text);
+    ids.push(info.lastInsertRowid);
   }
-  res.json({ ok: true, count });
+  res.json({ ok: true, count: ids.length, ids });
 });
 
 app.get('/api/attachments/:id', (req, res) => {

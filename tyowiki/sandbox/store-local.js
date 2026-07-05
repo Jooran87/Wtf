@@ -490,6 +490,7 @@ const Store = {
   },
 
   attachments: {
+    async url(id) { await ready; return getBlobUrl(Number(id)); },
     async upload(pageId, files, author) {
       await ready; pageId = Number(pageId);
       if (!DB.pages.find((p) => p.id === pageId)) throw new Error('Sivua ei löydy');
@@ -497,8 +498,10 @@ const Store = {
         if (!ALLOWED.has(f.type)) throw new Error('Tiedostotyyppiä ei sallita: ' + (f.type || 'tuntematon'));
         if (f.size > MAX_SIZE) throw new Error('Tiedosto on liian suuri (max 50 Mt)');
       }
+      const newIds = [];
       for (const f of files) {
         const id = nextId();
+        newIds.push(id);
         // Selaimessa ei louhita PDF/Office-tekstiä; text-tyypeistä luetaan sisältö.
         // Katto 200 kt merkkejä, ettei localStorage täyty.
         let text = '';
@@ -511,7 +514,7 @@ const Store = {
         });
         await putBlob(id, f);
       }
-      save(DB); return { ok: true, count: files.length };
+      save(DB); return { ok: true, count: newIds.length, ids: newIds };
     },
     async remove(id) {
       await ready; id = Number(id);

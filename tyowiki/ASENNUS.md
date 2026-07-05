@@ -55,6 +55,15 @@ Ota kopio komennolla `npm run backup` → syntyy `backups/<aikaleima>/`.
 
 Artikkelisi, kategoriat, termit ja liitteet siirtyvät sellaisenaan.
 
+## Päivitys uuteen versioon (kirjoittamasi sisältö säilyy)
+
+1. Sammuta wiki (`Ctrl + C` Päätteessä)
+2. Nimeä vanha kansio uudelleen, esim. `tyowiki-vanha`
+3. Pura uusi paketti → syntyy uusi `tyowiki`-kansio
+4. **Kopioi `data`-kansio** vanhasta uuteen: `tyowiki-vanha/data` → `tyowiki/data`
+5. Uudessa kansiossa: `npm install` ja `npm start`
+6. Kun kaikki toimii, vanhan kansion voi poistaa
+
 ## Ongelmia?
 
 - **"npm ei tunnistettu" / "command not found: npm"** → Node.js ei asentunut;

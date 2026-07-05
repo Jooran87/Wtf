@@ -100,6 +100,7 @@ async function main() {
     fd.append('author', 'Testaaja');
     const up1 = await fetch(`${B}/api/pages/${page.id}/attachments`, { method: 'POST', body: fd }).then((r) => r.json());
     ok('PDF-liitteen lataus', up1.ok === true && up1.count === 1);
+    ok('lataus palauttaa liitteiden id:t', Array.isArray(up1.ids) && up1.ids.length === 1);
     const fd2 = new FormData();
     fd2.append('files', new Blob(['pelkkää tekstiä'], { type: 'text/plain' }), 'kielletty.txt');
     const up2 = await fetch(`${B}/api/pages/${page.id}/attachments`, { method: 'POST', body: fd2 }).then((r) => r.json());

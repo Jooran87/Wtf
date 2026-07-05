@@ -24,6 +24,9 @@
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`(.+?)`/g, '<code>$1</code>')
+      // Liitekuvat eivät sisälly offline-versioon – näytetään merkintä.
+      .replace(/!\[([^\]]*)\]\(liite:\d+\)/g, '<em style="color:#93a0b1">[kuva: ei sisälly offline-versioon]</em>')
+      .replace(/!\[([^\]]*)\]\((https?:[^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:6px" />')
       .replace(/\[(.+?)\]\((https?:[^)]+)\)/g, '<a href="$2">$1</a>');
     for (const raw of lines) {
       if (raw.trim().startsWith('```')) {

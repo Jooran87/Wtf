@@ -217,7 +217,7 @@ input[type=text], input[type=search], textarea, select { font-family: inherit; f
   color: var(--muted); background: var(--brand-soft); border-radius: 0 6px 6px 0;
 }
 :root[data-theme="dark"] .doc blockquote { color: var(--text); }
-.doc img { max-width: 100%; border-radius: 6px; }
+.doc img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); margin: 8px 0; display: block; }
 
 /* Attachments */
 .attach-list { list-style: none; padding: 0; margin: 8px 0 0; }

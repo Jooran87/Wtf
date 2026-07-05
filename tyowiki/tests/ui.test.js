@@ -117,6 +117,21 @@ async function main() {
     await page.click('#previewToggle'); await page.waitForTimeout(200);
     ok('Markdown-esikatselu renderöi', (await page.$eval('#previewBox h1', (e) => e.textContent)).includes('Sähkökatko'));
 
+    // Kuvan lisäys artikkeliin: 📷-nappi -> liite:ID tekstiin -> renderöityy img-elementiksi
+    await page.goto(base + '#/'); await page.waitForTimeout(400);
+    await page.click('text=Kipa'); await page.waitForTimeout(300);
+    await page.click('text=Kipa – kohteen yleisohje'); await page.waitForTimeout(400);
+    await page.click('#editBtn'); await page.waitForTimeout(300);
+    const pngBuf = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    await page.setInputFiles('#imgFileInput', { name: 'ruutukaappaus.png', mimeType: 'image/png', buffer: pngBuf });
+    await page.waitForTimeout(600);
+    const taValue = await page.$eval('#contentInput', (e) => e.value);
+    ok('kuvaviittaus lisättiin tekstiin', taValue.includes('![kuva](liite:'));
+    await page.click('#saveBtn'); await page.waitForTimeout(600);
+    const imgSrc = await page.$eval('.doc img.doc-img', (e) => e.getAttribute('src')).catch(() => null);
+    ok('kuva renderöityy artikkelissa', !!imgSrc && imgSrc.indexOf('blob:') === 0, imgSrc);
+
     ok('ei JS-virheitä koko ajossa', errors.length === 0, errors.join(','));
   } finally {
     await browser.close();

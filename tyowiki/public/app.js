@@ -60,6 +60,11 @@ function renderMarkdown(md) {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code>$1</code>')
+    // Kuvat ennen linkkejä: liite:ID viittaa wikin omaan liitteeseen,
+    // src täytetään jälkikäteen (hydrateDocImages), koska sandboxissa
+    // osoite on istuntokohtainen blob-URL.
+    .replace(/!\[([^\]]*)\]\(liite:(\d+)\)/g, '<img class="doc-img" alt="$1" data-liite="$2">')
+    .replace(/!\[([^\]]*)\]\((https?:[^)]+)\)/g, '<img class="doc-img" alt="$1" src="$2">')
     .replace(/\[(.+?)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 
   for (let raw of lines) {
@@ -91,6 +96,18 @@ function renderMarkdown(md) {
   if (inList) html += '</ul>';
   if (inCode) html += '</code></pre>';
   return html;
+}
+
+// Täyttää liite-kuvaviittausten (data-liite) osoitteet renderöinnin jälkeen.
+async function hydrateDocImages(root) {
+  for (const img of root.querySelectorAll('img[data-liite]')) {
+    img.onerror = () => {
+      const s = document.createElement('span');
+      s.className = 'muted'; s.textContent = '[kuva puuttuu]';
+      img.replaceWith(s);
+    };
+    img.src = await Store.attachments.url(+img.dataset.liite);
+  }
 }
 
 // ---------- Tila + reititys ----------
@@ -381,6 +398,8 @@ async function viewPage(id) {
       </form>
     </div>`;
 
+  hydrateDocImages($('#content'));
+
   $('#verifyBtn').onclick = async () => {
     if (!author.get()) return toast('Kirjoita ensin nimesi oikeaan yläkulmaan', true);
     await Store.pages.verify(id, author.get());
@@ -430,8 +449,12 @@ async function viewPageEdit(id, presetCat) {
       <div class="field">
         <div class="spread" style="margin-bottom:4px">
           <label style="margin-bottom:0">Sisältö (Markdown: # otsikko, **lihavointi**, - lista)</label>
-          <button type="button" class="btn small secondary" id="previewToggle">👁 Esikatselu</button>
+          <span class="row">
+            <button type="button" class="btn small secondary" id="insertImgBtn" title="Lisää kuva tiedostosta – tai liitä kuvakaappaus suoraan tekstikenttään (Ctrl/Cmd+V)">📷 Lisää kuva</button>
+            <button type="button" class="btn small secondary" id="previewToggle">👁 Esikatselu</button>
+          </span>
         </div>
+        <input type="file" id="imgFileInput" accept="image/*" multiple style="display:none" />
         <textarea id="contentInput" placeholder="Kirjoita työohje tähän…">${esc(p.content)}</textarea>
         <div id="previewBox" class="doc preview-box" style="display:none"></div>
       </div>
@@ -441,12 +464,42 @@ async function viewPageEdit(id, presetCat) {
       </div>
     </div>`;
 
+  // Kuvien lisäys: lataa liitteeksi ja lisää viittaus tekstiin kursorin kohdalle.
+  async function insertImages(files) {
+    if (!id) return toast('Tallenna ohje ensin – kuvat voi lisätä heti sen jälkeen Muokkaa-näkymässä', true);
+    const imgs = Array.from(files).filter((f) => f.type.indexOf('image/') === 0);
+    if (!imgs.length) return;
+    try {
+      const res = await Store.attachments.upload(id, imgs, author.get());
+      const ta = $('#contentInput');
+      const pos = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
+      const md = (res.ids || []).map((aid) => `\n![kuva](liite:${aid})\n`).join('');
+      ta.value = ta.value.slice(0, pos) + md + ta.value.slice(pos);
+      toast(imgs.length > 1 ? 'Kuvat lisätty' : 'Kuva lisätty');
+    } catch (err) { toast(err.message, true); }
+  }
+  $('#insertImgBtn').onclick = () => $('#imgFileInput').click();
+  $('#imgFileInput').onchange = (e) => { insertImages(e.target.files); e.target.value = ''; };
+  // Kuvakaappauksen liittäminen suoraan tekstikenttään (Ctrl/Cmd+V).
+  $('#contentInput').addEventListener('paste', (e) => {
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    const files = [];
+    for (const item of items) {
+      if (item.type && item.type.indexOf('image/') === 0) {
+        const f = item.getAsFile();
+        if (f) files.push(new File([f], 'kuvakaappaus-' + Date.now() + '.png', { type: f.type }));
+      }
+    }
+    if (files.length) { e.preventDefault(); insertImages(files); }
+  });
+
   // Esikatselu: näyttää miltä Markdown-muotoilu näyttää ennen tallennusta.
   $('#previewToggle').onclick = () => {
     const ta = $('#contentInput'), box = $('#previewBox'), btn = $('#previewToggle');
     const showPreview = box.style.display === 'none';
     if (showPreview) {
       box.innerHTML = renderMarkdown(ta.value) || '<p class="muted">Ei sisältöä vielä.</p>';
+      hydrateDocImages(box);
       box.style.display = ''; ta.style.display = 'none';
       btn.textContent = '✏️ Muokkaa tekstiä';
     } else {
@@ -539,6 +592,7 @@ async function viewRevision(revId) {
     </div>
     <p class="muted">Vanha versio · tallennettu ${esc(fmtDate(rev.saved_at))}${rev.saved_by ? ' · ' + esc(rev.saved_by) : ''}</p>
     <div class="card doc">${rev.content.trim() ? renderMarkdown(rev.content) : '<p class="muted">Tyhjä sisältö.</p>'}</div>`;
+  hydrateDocImages($('#content'));
 
   $('#restoreBtn').onclick = async () => {
     if (!confirm('Palautetaanko tämä versio? Nykyinen versio tallentuu historiaan.')) return;

@@ -80,6 +80,8 @@ const Store = {
   },
 
   attachments: {
+    // Vakaa osoite kuvaviittauksille artikkelin sisällä (liite:ID).
+    url: (id) => Promise.resolve('/api/attachments/' + id),
     upload: (pageId, files, author) => {
       const fd = new FormData();
       for (const f of files) fd.append('files', f);

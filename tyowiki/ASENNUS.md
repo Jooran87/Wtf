@@ -16,7 +16,9 @@ siirtää ne myöhemmin palvelimelle (ohje alempana).
 2. Avaa komentorivi purettuun kansioon:
    - **Windows:** avaa kansio Resurssienhallinnassa, kirjoita osoitepalkkiin
      `cmd` ja paina Enter
-   - **Mac:** Pääte (Terminal) ja `cd polku/tyowiki`
+   - **Mac:** avaa Pääte (⌘ + välilyönti → kirjoita "Pääte" tai "Terminal").
+     Kirjoita `cd ` (välilyönti perään) ja **vedä tyowiki-kansio Finderista
+     Pääte-ikkunaan** → polku täydentyy → paina Enter
 3. Aja komennot:
 
 ```
@@ -55,8 +57,13 @@ Artikkelisi, kategoriat, termit ja liitteet siirtyvät sellaisenaan.
 
 ## Ongelmia?
 
-- **"npm ei tunnistettu"** → Node.js ei asentunut / kone käynnistettävä
-  uudelleen asennuksen jälkeen
+- **"npm ei tunnistettu" / "command not found: npm"** → Node.js ei asentunut;
+  sulje ja avaa Pääte/komentorivi uudelleen asennuksen jälkeen
+- **Mac: `npm install` valittaa kääntämisestä (gyp/xcode)** → aja kerran
+  `xcode-select --install` (asentaa Applen komentorivityökalut) ja aja
+  `npm install` uudelleen
+- **Mac: hyvin vanha macOS** → jos uusin Node LTS ei asennu, lataa
+  nodejs.org:sta edellinen LTS-versio (20)
 - **Portti varattu** → käynnistä toiseen porttiin: Windows
   `set PORT=3001 && npm start`, Mac/Linux `PORT=3001 npm start`
 - **Tarkempi dokumentaatio** → katso `README.md`

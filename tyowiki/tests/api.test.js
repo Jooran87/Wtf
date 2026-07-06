@@ -18,12 +18,17 @@ function ok(name, cond, extra) {
 }
 
 const J = { 'Content-Type': 'application/json' };
-const jget = (url) => fetch(B + url).then((r) => r.json());
+let COOKIE = ''; // istuntoeväste asetetaan setup-vaiheessa
+const H = (extra) => ({ ...(extra || {}), Cookie: COOKIE });
+const jget = (url) => fetch(B + url, { headers: H() }).then((r) => r.json());
 const jsend = (method, url, body) =>
-  fetch(B + url, { method, headers: J, body: JSON.stringify(body) }).then((r) => r.json());
-const status = (method, url, body) =>
-  fetch(B + url, { method, headers: body ? J : undefined, body: body ? JSON.stringify(body) : undefined })
-    .then((r) => r.status);
+  fetch(B + url, { method, headers: H(J), body: JSON.stringify(body) }).then((r) => r.json());
+const status = (method, url, body, cookie) =>
+  fetch(B + url, {
+    method,
+    headers: body ? { ...J, Cookie: cookie === undefined ? COOKIE : cookie } : { Cookie: cookie === undefined ? COOKIE : cookie },
+    body: body ? JSON.stringify(body) : undefined,
+  }).then((r) => r.status);
 
 async function main() {
   // Siemen + palvelin eristettyyn hakemistoon
@@ -39,6 +44,38 @@ async function main() {
     }
     if (!up) throw new Error('Palvelin ei käynnistynyt');
 
+    // --- Kirjautuminen ---
+    ok('ilman kirjautumista API vastaa 401', await status('GET', '/api/categories', null, '') === 401);
+    const su = await fetch(B + '/api/setup', {
+      method: 'POST', headers: J,
+      body: JSON.stringify({ name: 'Testi Admin', username: 'admin', password: 'salasana123' }),
+    });
+    COOKIE = (su.headers.get('set-cookie') || '').split(';')[0];
+    ok('ensikäynnistys luo pääkäyttäjän', su.status === 200 && COOKIE.startsWith('tyowiki_session='));
+    ok('toinen setup estetään (403)', await status('POST', '/api/setup',
+      { name: 'X', username: 'toinen', password: 'salasana123' }, '') === 403);
+    ok('väärä salasana hylätään (401)', await status('POST', '/api/login',
+      { username: 'admin', password: 'vaara-salasana' }, '') === 401);
+    const me = await jget('/api/auth-status');
+    ok('istunto voimassa', me.user && me.user.role === 'admin' && me.user.name === 'Testi Admin');
+
+    // Roolit: luodaan lukija ja testataan rajat
+    await jsend('POST', '/api/users', { name: 'Lukija Liisa', username: 'liisa', password: 'salasana123', role: 'viewer' });
+    const vLogin = await fetch(B + '/api/login', {
+      method: 'POST', headers: J, body: JSON.stringify({ username: 'liisa', password: 'salasana123' }),
+    });
+    const V_COOKIE = (vLogin.headers.get('set-cookie') || '').split(';')[0];
+    ok('lukija voi kirjautua', vLogin.status === 200);
+    ok('lukija voi lukea', await status('GET', '/api/pages', null, V_COOKIE) === 200);
+    ok('lukija ei voi kirjoittaa (403)', await status('POST', '/api/shift-notes', { content: 'x' }, V_COOKIE) === 403);
+    ok('lukija ei näe käyttäjähallintaa (403)', await status('GET', '/api/users', null, V_COOKIE) === 403);
+    ok('omaa tunnusta ei voi poistaa (400)', await status('DELETE', '/api/users/1') === 400);
+
+    // Tekijä tulee istunnosta, ei selaimen kentästä
+    const authored = await jsend('POST', '/api/pages', { title: 'Tekijätesti', content: 'x', category_id: 1, author: 'Huijaus' });
+    ok('tekijä tulee istunnosta', authored.updated_by === 'Testi Admin', authored.updated_by);
+    await fetch(`${B}/api/pages/${authored.id}`, { method: 'DELETE', headers: H() });
+
     // --- Tietoturva ---
     const home = await fetch(B + '/');
     ok('CSP-otsake asetettu', (home.headers.get('content-security-policy') || '').includes("default-src 'self'"));
@@ -47,7 +84,7 @@ async function main() {
     const longTitle = 'A'.repeat(1000);
     const capped = await jsend('POST', '/api/pages', { title: longTitle, content: 'x', category_id: 1 });
     ok('otsikon pituusraja (300)', capped.title.length === 300, capped.title.length);
-    await fetch(`${B}/api/pages/${capped.id}`, { method: 'DELETE' });
+    await fetch(`${B}/api/pages/${capped.id}`, { method: 'DELETE', headers: H() });
 
     // --- Kategoriat ---
     const cats = await jget('/api/categories');
@@ -90,7 +127,7 @@ async function main() {
 
     // Vahvistus
     const verified = await jsend('POST', `/api/pages/${page.id}/verify`, { author: 'Testaaja' });
-    ok('ajantasaisuusvahvistus', !!verified.verified_at && verified.verified_by === 'Testaaja');
+    ok('ajantasaisuusvahvistus (tekijä istunnosta)', !!verified.verified_at && verified.verified_by === 'Testi Admin');
 
     // Versiokatto: 35 muokkausta -> 30 versiota, sisältö säilyy
     for (let i = 1; i <= 35; i++) {
@@ -108,15 +145,15 @@ async function main() {
     const fd = new FormData();
     fd.append('files', new Blob(['%PDF-1.4 testidata'], { type: 'application/pdf' }), 'testi.pdf');
     fd.append('author', 'Testaaja');
-    const up1 = await fetch(`${B}/api/pages/${page.id}/attachments`, { method: 'POST', body: fd }).then((r) => r.json());
+    const up1 = await fetch(`${B}/api/pages/${page.id}/attachments`, { method: 'POST', body: fd, headers: H() }).then((r) => r.json());
     ok('PDF-liitteen lataus', up1.ok === true && up1.count === 1);
     ok('lataus palauttaa liitteiden id:t', Array.isArray(up1.ids) && up1.ids.length === 1);
     const fd2 = new FormData();
     fd2.append('files', new Blob(['pelkkää tekstiä'], { type: 'text/plain' }), 'kielletty.txt');
-    const up2 = await fetch(`${B}/api/pages/${page.id}/attachments`, { method: 'POST', body: fd2 }).then((r) => r.json());
+    const up2 = await fetch(`${B}/api/pages/${page.id}/attachments`, { method: 'POST', body: fd2, headers: H() }).then((r) => r.json());
     ok('kielletty tiedostotyyppi torjutaan', !!up2.error);
     ok('liite levyllä', fs.readdirSync(path.join(TMP, 'uploads')).length === 1);
-    await fetch(`${B}/api/pages/${page.id}`, { method: 'DELETE' });
+    await fetch(`${B}/api/pages/${page.id}`, { method: 'DELETE', headers: H() });
     ok('sivun poisto siivoaa liitteet levyltä', fs.readdirSync(path.join(TMP, 'uploads')).length === 0);
     ok('sivun poisto siivoaa versiot', (await jget(`/api/pages/${page.id}/revisions`)).length === 0);
 
@@ -126,24 +163,24 @@ async function main() {
     const anns = await jget('/api/announcements');
     ok('kiinnitetty tiedote nousee kärkeen', anns[0].title === 'Testitiedote' && anns[0].pinned === 1);
     ok('osittainen päivitys säilyttää otsikon', anns[0].content === 'Sisältö');
-    await fetch(`${B}/api/announcements/${ann.id}`, { method: 'DELETE' });
+    await fetch(`${B}/api/announcements/${ann.id}`, { method: 'DELETE', headers: H() });
 
     // --- Termit ---
     const term = await jsend('POST', '/api/terms', { term: 'Öljytesti', definition: 'aakkostustesti', author: 'T' });
     const terms = await jget('/api/terms');
     ok('termi aakkostuu suomeksi (Ö viimeisenä)', terms[terms.length - 1].term === 'Öljytesti');
-    await fetch(`${B}/api/terms/${term.id}`, { method: 'DELETE' });
+    await fetch(`${B}/api/terms/${term.id}`, { method: 'DELETE', headers: H() });
 
     // --- Linkit ---
     const link = await jsend('POST', '/api/links', { label: 'Testilinkki', url: 'testi.fi/sivu' });
     ok('URL-normalisointi lisää https://', link.url === 'https://testi.fi/sivu');
-    await fetch(`${B}/api/links/${link.id}`, { method: 'DELETE' });
+    await fetch(`${B}/api/links/${link.id}`, { method: 'DELETE', headers: H() });
 
     // --- Vuoroloki ---
     const note = await jsend('POST', '/api/shift-notes', { content: 'Testihuomio', author: 'T', category_id: 1 });
     ok('vuorohuomion luonti', note.id > 0);
     ok('limit-parametri kestää roskan', await status('GET', '/api/shift-notes?limit=99999') === 200);
-    await fetch(`${B}/api/shift-notes/${note.id}`, { method: 'DELETE' });
+    await fetch(`${B}/api/shift-notes/${note.id}`, { method: 'DELETE', headers: H() });
 
     // --- Haku ---
     const s1 = await jget('/api/search?q=' + encodeURIComponent('erikoissanaXYZ'));
@@ -157,10 +194,10 @@ async function main() {
     ok('tyhjä haku palauttaa tyhjät osiot', Object.keys(empty).length === 6 && empty.pages.length === 0);
 
     // --- Offline ---
-    const offRes = await fetch(B + '/offline');
+    const offRes = await fetch(B + '/offline', { headers: H() });
     const off = await offRes.text();
     ok('offline sisältää ohjeet ja numerot', off.includes('Vikailmoitus IT-tukeen') && off.includes('tel:0401234567'));
-    const dl = await fetch(B + '/offline?download=1');
+    const dl = await fetch(B + '/offline?download=1', { headers: H() });
     ok('offline-lataus attachmenttina', (dl.headers.get('content-disposition') || '').includes('tyowiki-offline.html'));
   } finally {
     server.kill();

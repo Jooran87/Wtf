@@ -3,6 +3,7 @@
 // Käynnistys: node server.js  (portti oletuksena 3000, säädettävissä PORT-muuttujalla)
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const express = require('express');
 const multer = require('multer');
 const db = require('./db');
@@ -52,6 +53,189 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ================= Kirjautuminen ja käyttöoikeudet =================
+// Roolit: admin (ylläpitäjä) > editor (muokkaaja) > viewer (lukija).
+// Salasanat scrypt-tiivisteinä, istunnot SQLitessa httpOnly-evästeellä.
+
+const SESSION_COOKIE = 'tyowiki_session';
+const SESSION_DAYS = 30;
+
+const hashPassword = (pw, salt) => crypto.scryptSync(String(pw), salt, 64).toString('hex');
+
+function verifyPassword(pw, salt, expectedHex) {
+  const got = Buffer.from(hashPassword(pw, salt), 'hex');
+  const exp = Buffer.from(expectedHex, 'hex');
+  return got.length === exp.length && crypto.timingSafeEqual(got, exp);
+}
+
+function getCookie(req, name) {
+  const raw = req.headers.cookie || '';
+  for (const part of raw.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === name) return v.join('=');
+  }
+  return null;
+}
+
+function createSession(res, userId) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString();
+  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(now()); // laiska siivous
+  db.prepare('INSERT INTO sessions (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)')
+    .run(token, userId, expires, now());
+  res.setHeader('Set-Cookie',
+    `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_DAYS * 86400}`);
+}
+
+function currentUser(req) {
+  const token = getCookie(req, SESSION_COOKIE);
+  if (!token) return null;
+  const row = db.prepare(
+    `SELECT u.id, u.username, u.name, u.role FROM sessions s
+     JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires_at > ?`
+  ).get(token, now());
+  return row || null;
+}
+
+const usersCount = () => db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+
+// Kirjautumisyritysten rajoitus: 5 epäonnistumista -> 60 s odotus per IP.
+const loginFails = new Map();
+function loginBlocked(ip) {
+  const e = loginFails.get(ip);
+  return e && e.count >= 5 && Date.now() < e.until;
+}
+function noteLoginFail(ip) {
+  const e = loginFails.get(ip) || { count: 0, until: 0 };
+  e.count += 1;
+  e.until = Date.now() + 60000;
+  loginFails.set(ip, e);
+}
+
+function validCredentials(username, password) {
+  return typeof username === 'string' && username.trim().length >= 3 &&
+    typeof password === 'string' && password.length >= 8;
+}
+
+function createUser({ username, name, password, role }) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const info = db.prepare(
+    'INSERT INTO users (username, name, role, pass_salt, pass_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(username.trim().toLowerCase(), name.trim(), role, salt, hashPassword(password, salt), now());
+  return info.lastInsertRowid;
+}
+
+// --- Avoimet reitit ---
+app.get('/api/auth-status', (req, res) => {
+  const user = currentUser(req);
+  res.json({ setupRequired: usersCount() === 0, user });
+});
+
+// Ensikäynnistys: luo pääkäyttäjä. Sallittu VAIN kun yhtään käyttäjää ei ole.
+app.post('/api/setup', (req, res) => {
+  if (usersCount() > 0) return res.status(403).json({ error: 'Pääkäyttäjä on jo luotu' });
+  const { username, password } = req.body;
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Nimi puuttuu' });
+  if (!validCredentials(username, password)) {
+    return res.status(400).json({ error: 'Tunnus vähintään 3 ja salasana vähintään 8 merkkiä' });
+  }
+  const id = createUser({ username, name, password, role: 'admin' });
+  createSession(res, id);
+  res.json({ ok: true, user: { id, username: username.trim().toLowerCase(), name, role: 'admin' } });
+});
+
+app.post('/api/login', (req, res) => {
+  const ip = req.socket.remoteAddress || '?';
+  if (loginBlocked(ip)) return res.status(429).json({ error: 'Liian monta yritystä – odota hetki' });
+  const username = String(req.body.username || '').trim().toLowerCase();
+  const u = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  if (!u || !verifyPassword(String(req.body.password || ''), u.pass_salt, u.pass_hash)) {
+    noteLoginFail(ip);
+    return res.status(401).json({ error: 'Väärä tunnus tai salasana' });
+  }
+  loginFails.delete(ip);
+  createSession(res, u.id);
+  res.json({ ok: true, user: { id: u.id, username: u.username, name: u.name, role: u.role } });
+});
+
+app.post('/api/logout', (req, res) => {
+  const token = getCookie(req, SESSION_COOKIE);
+  if (token) db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
+  res.json({ ok: true });
+});
+
+// --- Portti: kaikki muu API ja /offline vaativat kirjautumisen ---
+app.use((req, res, next) => {
+  const guarded = req.path.startsWith('/api/') || req.path === '/offline';
+  if (!guarded) return next();
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ error: 'Kirjautuminen vaaditaan' });
+  req.user = user;
+  // Käyttäjähallinta vain ylläpitäjälle; muut kirjoitukset muokkaajalle+.
+  if (req.path.startsWith('/api/users') && user.role !== 'admin') {
+    return res.status(403).json({ error: 'Vain ylläpitäjä voi hallita käyttäjiä' });
+  }
+  if (req.method !== 'GET' && !req.path.startsWith('/api/users') &&
+      user.role !== 'admin' && user.role !== 'editor') {
+    return res.status(403).json({ error: 'Lukijan tunnuksella ei voi muokata' });
+  }
+  next();
+});
+
+// --- Käyttäjähallinta (vain admin, portti yllä) ---
+app.get('/api/users', (req, res) => {
+  res.json(db.prepare('SELECT id, username, name, role, created_at FROM users ORDER BY name').all());
+});
+
+app.post('/api/users', (req, res) => {
+  const { username, password } = req.body;
+  const name = (req.body.name || '').trim();
+  const role = ['admin', 'editor', 'viewer'].includes(req.body.role) ? req.body.role : 'viewer';
+  if (!name) return res.status(400).json({ error: 'Nimi puuttuu' });
+  if (!validCredentials(username, password)) {
+    return res.status(400).json({ error: 'Tunnus vähintään 3 ja salasana vähintään 8 merkkiä' });
+  }
+  try {
+    const id = createUser({ username, name, password, role });
+    res.json(db.prepare('SELECT id, username, name, role, created_at FROM users WHERE id = ?').get(id));
+  } catch (e) {
+    res.status(400).json({ error: 'Tunnus on jo käytössä' });
+  }
+});
+
+app.put('/api/users/:id', (req, res) => {
+  const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+  if (!u) return res.status(404).json({ error: 'Käyttäjää ei löydy' });
+  const name = req.body.name !== undefined ? (req.body.name || '').trim() || u.name : u.name;
+  let role = u.role;
+  if (req.body.role !== undefined && ['admin', 'editor', 'viewer'].includes(req.body.role)) {
+    // Viimeiseltä ylläpitäjältä ei saa viedä ylläpito-oikeutta.
+    const admins = db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'").get().n;
+    if (u.role === 'admin' && req.body.role !== 'admin' && admins <= 1) {
+      return res.status(400).json({ error: 'Viimeistä ylläpitäjää ei voi alentaa' });
+    }
+    role = req.body.role;
+  }
+  db.prepare('UPDATE users SET name = ?, role = ? WHERE id = ?').run(name, role, u.id);
+  if (typeof req.body.password === 'string' && req.body.password.length > 0) {
+    if (req.body.password.length < 8) return res.status(400).json({ error: 'Salasana vähintään 8 merkkiä' });
+    const salt = crypto.randomBytes(16).toString('hex');
+    db.prepare('UPDATE users SET pass_salt = ?, pass_hash = ? WHERE id = ?')
+      .run(salt, hashPassword(req.body.password, salt), u.id);
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id); // vanhat istunnot ulos
+  }
+  res.json(db.prepare('SELECT id, username, name, role, created_at FROM users WHERE id = ?').get(u.id));
+});
+
+app.delete('/api/users/:id', (req, res) => {
+  if (+req.params.id === req.user.id) return res.status(400).json({ error: 'Et voi poistaa omaa tunnustasi' });
+  db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+// ================= /kirjautuminen =================
 
 // --- Tiedostolataukset (multer) ---
 // Sallitut tyypit: PDF, kuvat, Word, Excel. Maksimikoko 50 MB.
@@ -200,7 +384,7 @@ app.post('/api/pages', (req, res) => {
   const title = (req.body.title || '').trim();
   const category_id = req.body.category_id || null;
   const content = req.body.content || '';
-  const author = (req.body.author || '').trim();
+  const author = req.user.name;
   const keywords = (req.body.keywords || '').trim();
   if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
   const info = db.prepare(
@@ -212,7 +396,7 @@ app.post('/api/pages', (req, res) => {
 app.put('/api/pages/:id', (req, res) => {
   const title = (req.body.title || '').trim();
   const content = req.body.content || '';
-  const author = (req.body.author || '').trim();
+  const author = req.user.name;
   const category_id = req.body.category_id || null;
   const keywords = (req.body.keywords || '').trim();
   if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
@@ -239,7 +423,7 @@ app.post('/api/pages/:id/verify', (req, res) => {
   const page = db.prepare('SELECT id FROM pages WHERE id = ?').get(req.params.id);
   if (!page) return res.status(404).json({ error: 'Sivua ei löydy' });
   db.prepare('UPDATE pages SET verified_at = ?, verified_by = ? WHERE id = ?')
-    .run(now(), (req.body.author || '').trim(), req.params.id);
+    .run(now(), req.user.name, req.params.id);
   res.json(db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id));
 });
 
@@ -267,7 +451,7 @@ app.delete('/api/pages/:id', (req, res) => {
 app.post('/api/pages/:id/attachments', upload.array('files', 10), async (req, res) => {
   const page = db.prepare('SELECT id FROM pages WHERE id = ?').get(req.params.id);
   if (!page) return res.status(404).json({ error: 'Sivua ei löydy' });
-  const author = (req.body.author || '').trim();
+  const author = req.user.name;
   const stmt = db.prepare(
     'INSERT INTO attachments (page_id, stored_name, original_name, mimetype, size, uploaded_at, uploaded_by, text_content) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
@@ -317,7 +501,7 @@ app.post('/api/announcements', (req, res) => {
   if (!title) return res.status(400).json({ error: 'Otsikko puuttuu' });
   const info = db.prepare(
     'INSERT INTO announcements (title, content, pinned, created_at, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(title, req.body.content || '', req.body.pinned ? 1 : 0, now(), (req.body.author || '').trim(), now());
+  ).run(title, req.body.content || '', req.body.pinned ? 1 : 0, now(), req.user.name, now());
   res.json(db.prepare('SELECT * FROM announcements WHERE id = ?').get(info.lastInsertRowid));
 });
 
@@ -388,7 +572,7 @@ app.post('/api/terms', (req, res) => {
   const term = (req.body.term || '').trim();
   if (!term) return res.status(400).json({ error: 'Termi puuttuu' });
   const info = db.prepare('INSERT INTO terms (term, definition, updated_at, updated_by) VALUES (?, ?, ?, ?)')
-    .run(term, (req.body.definition || '').trim(), now(), (req.body.author || '').trim());
+    .run(term, (req.body.definition || '').trim(), now(), req.user.name);
   res.json(db.prepare('SELECT * FROM terms WHERE id = ?').get(info.lastInsertRowid));
 });
 
@@ -396,7 +580,7 @@ app.put('/api/terms/:id', (req, res) => {
   const term = (req.body.term || '').trim();
   if (!term) return res.status(400).json({ error: 'Termi puuttuu' });
   db.prepare('UPDATE terms SET term = ?, definition = ?, updated_at = ?, updated_by = ? WHERE id = ?')
-    .run(term, (req.body.definition || '').trim(), now(), (req.body.author || '').trim(), req.params.id);
+    .run(term, (req.body.definition || '').trim(), now(), req.user.name, req.params.id);
   res.json(db.prepare('SELECT * FROM terms WHERE id = ?').get(req.params.id));
 });
 
@@ -428,7 +612,7 @@ app.get('/api/shift-notes', (req, res) => {
 
 app.post('/api/shift-notes', (req, res) => {
   const content = (req.body.content || '').trim();
-  const author = (req.body.author || '').trim();
+  const author = req.user.name;
   const category_id = req.body.category_id || null;
   if (!content) return res.status(400).json({ error: 'Sisältö puuttuu' });
   const info = db.prepare(

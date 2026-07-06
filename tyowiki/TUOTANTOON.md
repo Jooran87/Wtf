@@ -15,7 +15,7 @@ tekijän mukaan: **[Sinä]**, **[ICT]** tai **[Yhdessä]**.
 | Palvelinkone + verkko-osoite | ICT | ⬜ |
 | Asennus palvelimelle + datan siirto | Yhdessä | ⬜ |
 | Palvelu käynnistymään automaattisesti | ICT | ⬜ |
-| Pääsynhallinta / kirjautuminen (luku 5) | Yhdessä | ⬜ |
+| Kirjautuminen ja roolit (luku 5) | – | ✅ Rakennettu |
 | Automaattinen varmuuskopiointi | ICT | ⬜ |
 | Käyttöönotto: linkki porukalle + lyhyt esittely | Sinä | ⬜ |
 
@@ -104,32 +104,25 @@ Kaksi tapaa, kumpi ICT:lle tutumpi:
 
 ---
 
-## 5. Käyttäjät ja kirjautuminen [Yhdessä] – TÄRKEIN AVOIN PÄÄTÖS
+## 5. Käyttäjät ja kirjautuminen [Sinä] – ✅ RAKENNETTU WIKIIN
 
-**Nykytila rehellisesti:** wikissä ei ole käyttäjätilejä. "Nimesi"-kenttä on
-vapaa teksti, joka leimautuu muokkauksiin ja vuorolokiin – hyvä jäljitettävyys
-arjessa, mutta ei estä ketään verkossa olevaa käyttämästä wikiä. Siksi wiki
-saa olla vain sisäverkossa, kunnes jokin alla olevista on tehty.
+Wikissä on nyt **oma kirjautuminen**:
 
-### Vaihtoehto A – ICT hoitaa pääsyn verkkotasolla (nopein, ei koodimuutoksia)
+- **Ensikäynnistys:** kun wiki avataan ensimmäistä kertaa (tyhjä käyttäjälista),
+  se pyytää luomaan **pääkäyttäjätilin** – luo omasi tässä
+- **Käyttäjien luonti:** ylläpitäjä luo tunnukset sivupalkin
+  **👥 Käyttäjät** -sivulta: nimi, tunnus, salasana ja rooli
+- **Roolit:** Ylläpitäjä (kaikki + käyttäjähallinta) ·
+  Muokkaaja (sisällön muokkaus) · Lukija (vain luku)
+- **Tekniikka:** salasanat scrypt-tiivisteinä, istunnot httpOnly-evästeellä
+  (30 vrk), kirjautumisyritysten rajoitus (5 yritystä → 60 s odotus).
+  Muokkausten tekijä tulee aina istunnosta – nimeä ei voi väärentää selaimesta
+- Salasanan vaihto: ylläpitäjä asettaa uuden Käyttäjät-sivulta
+  (vanhat istunnot kirjataan samalla ulos)
 
-- Palomuurisääntö: wikiin pääsee vain hälytyskeskuksen verkosta/koneilta
-- Haluttaessa lisäksi **käänteisproxy kirjautumisella** wikin eteen
-  (IIS + Windows-autentikointi tai nginx + basic auth / AD):
-  käyttäjä kirjautuu talon tunnuksilla ennen kuin wiki aukeaa
-- **"Käyttäjien luonti"** = ICT lisää henkilön AD-ryhmään tai
-  proxyn käyttäjälistaan – ei mitään tehtävää itse wikissä
-- Sopii hyvin 20 hengen sisäiseen käyttöön; tämä on suositukseni
-  ensimmäiseksi vaiheeksi
-
-### Vaihtoehto B – kirjautuminen rakennetaan wikiin (kun halutaan roolit)
-
-Rakennan tämän kun linjaus on selvä (noin päivän työ):
-- Käyttäjätunnus + salasana, roolit: **lukija / muokkaaja / ylläpitäjä**
-- Ylläpitäjä luo käyttäjät wikin omalta asetussivulta (ei ICT:tä tarvita)
-- Nimi-kenttä korvautuu kirjautuneella käyttäjällä
-
-**Päätettävä ICT:n kanssa:** riittääkö A, vai halutaanko B (tai A + B)?
+**[ICT] lisäksi suositellaan:** palomuurirajaus sisäverkkoon ja HTTPS
+käänteisproxyn kautta, jos wikiä käytetään verkon yli laajemmin. Evästeet
+kulkevat sisäverkossa HTTP:llä – HTTPS parantaa tätä.
 
 ---
 
@@ -186,7 +179,7 @@ huoltoikkunassa; aja `npm install` ja `npm test` sen jälkeen.
 - [ ] [Sinä] Sisältö siirretty backup/restore-polulla
 - [ ] [ICT] Palvelu automaattikäynnistykseen (luku 4)
 - [ ] [ICT] DNS-nimi ja palomuurirajaus sisäverkkoon
-- [ ] [Yhdessä] Pääsynhallintapäätös ja toteutus (luku 5)
+- [ ] [Sinä] Pääkäyttäjätili luotu ensikäynnistyksessä + tunnukset porukalle (luku 5)
 - [ ] [ICT] Yövarmuuskopio ajastettu + palautus testattu (luku 6)
 - [ ] [Sinä] Tiedote porukalle: osoite, lyhyt käyttöohje, offline-version
       lataus puhelimiin (📴-nappi)

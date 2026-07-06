@@ -439,3 +439,27 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
   .crumbs { display: block; }
   a { color: #000; text-decoration: none; }
 }
+
+/* ===== Kirjautuminen ja käyttäjät ===== */
+.auth-wrap { display: flex; justify-content: center; padding: 8vh 16px 0; }
+.auth-card { width: 100%; max-width: 400px; }
+.user-chip { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.user-chip strong { color: var(--text); }
+
+/* Lukijarooli: kirjoitustoiminnot piiloon (palvelin estää joka tapauksessa) */
+:root[data-vrole="viewer"] #addCategoryBtn,
+:root[data-vrole="viewer"] #newPageBtn,
+:root[data-vrole="viewer"] #editBtn,
+:root[data-vrole="viewer"] #delBtn,
+:root[data-vrole="viewer"] #verifyBtn,
+:root[data-vrole="viewer"] #renameCatBtn,
+:root[data-vrole="viewer"] #delCatBtn,
+:root[data-vrole="viewer"] #restoreBtn,
+:root[data-vrole="viewer"] #addContactBtn,
+:root[data-vrole="viewer"] #uploadForm,
+:root[data-vrole="viewer"] .row-order,
+:root[data-vrole="viewer"] .contact-actions,
+:root[data-vrole="viewer"] .ann-actions,
+:root[data-vrole="viewer"] .term-actions,
+:root[data-vrole="viewer"] [data-delnote],
+:root[data-vrole="viewer"] [data-delatt] { display: none !important; }

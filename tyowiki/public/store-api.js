@@ -8,7 +8,9 @@ async function api(url, opts = {}) {
   if (!res.ok) {
     let msg = 'Virhe';
     try { msg = (await res.json()).error || msg; } catch (_) {}
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
   }
   return res.status === 204 ? null : res.json();
 }
@@ -24,6 +26,21 @@ function withAttachmentUrls(page) {
 
 const Store = {
   mode: 'server',
+
+  // Kirjautuminen (vain palvelinversiossa; sandboxissa Store.auth = null).
+  auth: {
+    status: () => api('/api/auth-status'),
+    setup: (data) => api('/api/setup', jsonBody('POST', data)),
+    login: (data) => api('/api/login', jsonBody('POST', data)),
+    logout: () => api('/api/logout', { method: 'POST' }),
+  },
+
+  users: {
+    list: () => api('/api/users'),
+    create: (data) => api('/api/users', jsonBody('POST', data)),
+    update: (id, data) => api('/api/users/' + id, jsonBody('PUT', data)),
+    remove: (id) => api('/api/users/' + id, { method: 'DELETE' }),
+  },
 
   categories: {
     list: () => api('/api/categories'),

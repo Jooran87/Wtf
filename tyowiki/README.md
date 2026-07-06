@@ -195,9 +195,13 @@ mitään ei tuhota.
 - **Syötteet**: kaikki käyttäjäsyöte escapetaan renderöinnissä (XSS-testattu),
   SQL parametrisoitu, kenttäkohtaiset pituusrajat palvelimella,
   tiedostotyyppien sallittulista ja 50 Mt koko/tiedosto -raja latauksissa
-- **Puuttuu vielä (vaatii ICT-linjauksen): kirjautuminen ja käyttöoikeudet.**
-  Ennen tuotantokäyttöä wiki on tarkoitettu vain sisäverkkoon; älä julkaise
-  internetiin ilman kirjautumista.
+- **Kirjautuminen ja roolit**: pakollinen kirjautuminen (ylläpitäjä /
+  muokkaaja / lukija), salasanat scrypt-tiivisteinä, istunnot
+  httpOnly-evästeellä, kirjautumisyritysten rajoitus. Ensikäynnistys luo
+  pääkäyttäjän; muut tunnukset luodaan 👥 Käyttäjät -sivulta. Muokkausten
+  tekijä tulee aina istunnosta.
+- Suositus tuotantoon: palomuurirajaus sisäverkkoon ja HTTPS
+  käänteisproxyllä, jos käyttö laajenee verkon yli.
 
 > Ennen tuotantokäyttöä sovi ICT-osaston kanssa palvelimesta, varmuuskopioinnista
 > ja kirjautumistavasta.

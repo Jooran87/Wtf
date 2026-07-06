@@ -374,6 +374,9 @@ function makeSnippet(text, q) {
 const Store = {
   mode: 'sandbox',
 
+  // Sandboxissa ei ole kirjautumista – app.js ohittaa auth-vaiheen.
+  auth: null,
+
   categories: {
     async list() {
       await ready;

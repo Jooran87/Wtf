@@ -37,7 +37,10 @@ npm start
 
 Avaa selaimessa: **http://localhost:3000**
 
-- Kirjoita nimesi oikeaan yläkulmaan, ja ala lisätä artikkeleita
+- **Ensimmäisellä kerralla** wiki pyytää luomaan pääkäyttäjätilin
+  (nimi, tunnus, salasana) – luo omasi ja kirjaudu
+- Muut käyttäjät luot sivupalkin **👥 Käyttäjät** -sivulta
+  (roolit: Ylläpitäjä / Muokkaaja / Lukija)
 - Wiki pyörii niin kauan kuin komentorivi-ikkuna on auki;
   sammutus: `Ctrl + C` (tai sulje ikkuna)
 - Seuraavilla kerroilla riittää pelkkä `npm start` samassa kansiossa

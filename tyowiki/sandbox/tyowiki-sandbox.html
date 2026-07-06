@@ -454,6 +454,30 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
   a { color: #000; text-decoration: none; }
 }
 
+/* ===== Kirjautuminen ja käyttäjät ===== */
+.auth-wrap { display: flex; justify-content: center; padding: 8vh 16px 0; }
+.auth-card { width: 100%; max-width: 400px; }
+.user-chip { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.user-chip strong { color: var(--text); }
+
+/* Lukijarooli: kirjoitustoiminnot piiloon (palvelin estää joka tapauksessa) */
+:root[data-vrole="viewer"] #addCategoryBtn,
+:root[data-vrole="viewer"] #newPageBtn,
+:root[data-vrole="viewer"] #editBtn,
+:root[data-vrole="viewer"] #delBtn,
+:root[data-vrole="viewer"] #verifyBtn,
+:root[data-vrole="viewer"] #renameCatBtn,
+:root[data-vrole="viewer"] #delCatBtn,
+:root[data-vrole="viewer"] #restoreBtn,
+:root[data-vrole="viewer"] #addContactBtn,
+:root[data-vrole="viewer"] #uploadForm,
+:root[data-vrole="viewer"] .row-order,
+:root[data-vrole="viewer"] .contact-actions,
+:root[data-vrole="viewer"] .ann-actions,
+:root[data-vrole="viewer"] .term-actions,
+:root[data-vrole="viewer"] [data-delnote],
+:root[data-vrole="viewer"] [data-delatt] { display: none !important; }
+
     .sandbox-badge { background:#1c2430; color:#fff; font-size:11px; font-weight:700;
       padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
   </style>
@@ -470,6 +494,8 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
     </form>
     <button id="themeToggle" class="icon-btn" title="Tumma tila">🌙</button>
+    <span id="userChip" class="user-chip" style="display:none"></span>
+    <button id="logoutBtn" class="btn small secondary" style="display:none">Kirjaudu ulos</button>
     <div class="user"><label>Nimesi:</label><input id="authorInput" type="text" placeholder="Etunimi" /></div>
   </header>
   <div class="layout">
@@ -480,6 +506,7 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
         <button class="nav-link" data-nav="shiftlog">📝 Vuoroloki</button>
         <button class="nav-link" data-nav="terms">📖 Termipankki</button>
         <button class="nav-link" data-nav="links">🔗 Linkit</button>
+        <button class="nav-link" data-nav="users" id="usersNav" style="display:none">👥 Käyttäjät</button>
         <button class="nav-link" id="offlineBtn" title="Lataa puhelimeen – toimii ilman verkkoa">📴 Offline-versio</button>
       </nav>
       <div class="sidebar-section">
@@ -1121,6 +1148,9 @@ function makeSnippet(text, q) {
 const Store = {
   mode: 'sandbox',
 
+  // Sandboxissa ei ole kirjautumista – app.js ohittaa auth-vaiheen.
+  auth: null,
+
   categories: {
     async list() {
       await ready;
@@ -1584,6 +1614,158 @@ async function hydrateDocImages(root) {
   }
 }
 
+// ---------- Kirjautuminen (vain palvelinversio; sandboxissa Store.auth=null) ----------
+let currentUser = null;
+const ROLE_LABELS = { admin: 'Ylläpitäjä', editor: 'Muokkaaja', viewer: 'Lukija' };
+
+function authScreen(inner) {
+  content.innerHTML = `<div class="auth-wrap"><div class="card auth-card">
+    <div class="brand" style="justify-content:center; margin-bottom:14px">
+      <span class="brand-mark">P</span>
+      <span class="brand-text"><strong>Palmia</strong><small>Hälytyskeskus · Työohjeet</small></span>
+    </div>${inner}</div></div>`;
+}
+
+function renderLogin(msg) {
+  setActiveNav('');
+  authScreen(`
+    <h2 style="text-align:center; margin:0 0 4px">Kirjaudu sisään</h2>
+    ${msg ? `<p class="muted" style="text-align:center">${esc(msg)}</p>` : ''}
+    <div class="field"><label>Käyttäjätunnus</label>
+      <input type="text" id="loginUser" autocomplete="username" /></div>
+    <div class="field"><label>Salasana</label>
+      <input type="password" id="loginPass" autocomplete="current-password" /></div>
+    <button class="btn" id="loginBtn" style="width:100%">Kirjaudu</button>`);
+  const doLogin = async () => {
+    try {
+      await Store.auth.login({ username: $('#loginUser').value, password: $('#loginPass').value });
+      location.reload();
+    } catch (err) { toast(err.message, true); }
+  };
+  $('#loginBtn').onclick = doLogin;
+  $('#loginPass').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
+  $('#loginUser').focus();
+}
+
+function renderSetup() {
+  setActiveNav('');
+  authScreen(`
+    <h2 style="text-align:center; margin:0 0 4px">Tervetuloa!</h2>
+    <p class="muted" style="text-align:center">Wiki otetaan käyttöön ensimmäistä kertaa.<br/>
+      Luo itsellesi <strong>pääkäyttäjätili</strong>.</p>
+    <div class="field"><label>Koko nimi (näkyy muokkauksissa)</label>
+      <input type="text" id="suName" placeholder="Esim. Miska Fofonoff" /></div>
+    <div class="field"><label>Käyttäjätunnus (vähintään 3 merkkiä)</label>
+      <input type="text" id="suUser" autocomplete="username" /></div>
+    <div class="field"><label>Salasana (vähintään 8 merkkiä)</label>
+      <input type="password" id="suPass" autocomplete="new-password" /></div>
+    <div class="field"><label>Salasana uudelleen</label>
+      <input type="password" id="suPass2" autocomplete="new-password" /></div>
+    <button class="btn" id="setupBtn" style="width:100%">Luo pääkäyttäjä</button>`);
+  $('#setupBtn').onclick = async () => {
+    if ($('#suPass').value !== $('#suPass2').value) return toast('Salasanat eivät täsmää', true);
+    try {
+      await Store.auth.setup({
+        name: $('#suName').value, username: $('#suUser').value, password: $('#suPass').value,
+      });
+      toast('Pääkäyttäjä luotu'); location.reload();
+    } catch (err) { toast(err.message, true); }
+  };
+  $('#suName').focus();
+}
+
+function applyUser(user) {
+  currentUser = user;
+  author.set(user.name);
+  document.documentElement.dataset.vrole = user.role;
+  const chip = $('#userChip');
+  if (chip) {
+    chip.style.display = '';
+    chip.innerHTML = `<strong>${esc(user.name)}</strong> · ${esc(ROLE_LABELS[user.role] || user.role)}`;
+  }
+  const logoutBtn = $('#logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.style.display = '';
+    logoutBtn.onclick = async () => { await Store.auth.logout(); location.reload(); };
+  }
+  const nameBox = document.querySelector('.user');
+  if (nameBox) nameBox.style.display = 'none';
+  const usersNav = $('#usersNav');
+  if (usersNav && user.role === 'admin') usersNav.style.display = '';
+}
+
+async function viewUsers(editId) {
+  if (!Store.auth) { location.hash = '#/'; return; }
+  const users = await Store.users.list();
+  const editing = editId ? users.find((u) => u.id === editId) : null;
+  content.innerHTML = `
+    <h2>👥 Käyttäjät</h2>
+    <p class="muted">Ylläpitäjä hallitsee tunnuksia. Roolit: Ylläpitäjä (kaikki + käyttäjät),
+      Muokkaaja (sisällön muokkaus), Lukija (vain luku).</p>
+    <div class="card">
+      <h3 style="margin-top:0">${editing ? 'Muokkaa: ' + esc(editing.name) : 'Lisää käyttäjä'}</h3>
+      <div class="row" style="align-items:flex-end">
+        <div class="field" style="flex:1; min-width:150px; margin-bottom:0"><label>Koko nimi</label>
+          <input type="text" id="uName" value="${editing ? esc(editing.name) : ''}" /></div>
+        <div class="field" style="flex:1; min-width:130px; margin-bottom:0"><label>Tunnus</label>
+          <input type="text" id="uUser" value="${editing ? esc(editing.username) : ''}" ${editing ? 'disabled' : ''} /></div>
+        <div class="field" style="min-width:130px; margin-bottom:0"><label>Rooli</label>
+          <select id="uRole">
+            ${['viewer', 'editor', 'admin'].map((r) =>
+              `<option value="${r}" ${editing && editing.role === r ? 'selected' : ''}>${ROLE_LABELS[r]}</option>`).join('')}
+          </select></div>
+        <div class="field" style="flex:1; min-width:150px; margin-bottom:0">
+          <label>${editing ? 'Uusi salasana (tyhjä = ei vaihdeta)' : 'Salasana (väh. 8 merkkiä)'}</label>
+          <input type="password" id="uPass" autocomplete="new-password" /></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="uSaveBtn">${editing ? 'Tallenna' : 'Lisää käyttäjä'}</button>
+        ${editing ? '<button class="btn secondary" id="uCancelBtn">Peruuta</button>' : ''}
+      </div>
+    </div>
+    <div class="card">
+      <ul class="link-list">
+        ${users.map((u) => `<li class="link-row">
+          <span class="att-icon">${u.role === 'admin' ? '🛡️' : u.role === 'editor' ? '✏️' : '👁'}</span>
+          <span class="att-name"><strong>${esc(u.name)}</strong>
+            <div class="att-meta">${esc(u.username)} · ${esc(ROLE_LABELS[u.role] || u.role)}${u.id === currentUser.id ? ' · (sinä)' : ''}</div>
+          </span>
+          <span class="contact-actions">
+            <button class="icon-btn small" data-edituser="${u.id}" title="Muokkaa">✏️</button>
+            ${u.id !== currentUser.id ? `<button class="icon-btn small" data-deluser="${u.id}" title="Poista">🗑</button>` : ''}
+          </span>
+        </li>`).join('')}
+      </ul>
+    </div>`;
+
+  $('#uSaveBtn').onclick = async () => {
+    try {
+      if (editing) {
+        await Store.users.update(editing.id, {
+          name: $('#uName').value, role: $('#uRole').value,
+          password: $('#uPass').value || undefined,
+        });
+        toast('Tallennettu');
+      } else {
+        await Store.users.create({
+          name: $('#uName').value, username: $('#uUser').value,
+          role: $('#uRole').value, password: $('#uPass').value,
+        });
+        toast('Käyttäjä lisätty');
+      }
+      viewUsers();
+    } catch (err) { toast(err.message, true); }
+  };
+  if (editing) $('#uCancelBtn').onclick = () => viewUsers();
+  document.querySelectorAll('[data-edituser]').forEach((b) => b.onclick = () => viewUsers(+b.dataset.edituser));
+  document.querySelectorAll('[data-deluser]').forEach((b) => b.onclick = async () => {
+    if (confirm('Poistetaanko käyttäjä?')) {
+      try { await Store.users.remove(b.dataset.deluser); viewUsers(); }
+      catch (err) { toast(err.message, true); }
+    }
+  });
+}
+
 // ---------- Tila + reititys ----------
 let categories = [];
 let currentCategoryId = null;
@@ -1648,6 +1830,7 @@ async function router() {
     if (parts[0] === 'tiedotteet') { setActiveNav('announcements'); return await viewAnnouncements(); }
     if (parts[0] === 'termipankki') { setActiveNav('terms'); return await viewTerms(); }
     if (parts[0] === 'linkit') { setActiveNav('links'); return await viewLinks(); }
+    if (parts[0] === 'kayttajat') { setActiveNav('users'); return await viewUsers(); }
     if (parts[0] === 'historia') { setActiveNav(''); return await viewHistory(+parts[1]); }
     if (parts[0] === 'versio') { setActiveNav(''); return await viewRevision(+parts[1]); }
     if (parts[0] === 'kohde') { setActiveNav(''); currentCategoryId = +parts[1]; renderSidebar(); return await viewCategory(+parts[1]); }
@@ -1656,6 +1839,7 @@ async function router() {
     if (parts[0] === 'uusi') { setActiveNav(''); const q = new URLSearchParams(queryPart); return await viewPageEdit(null, q.get('kohde')); }
     if (parts[0] === 'haku') { setActiveNav(''); const q = new URLSearchParams(queryPart); return await viewSearch(q.get('q') || ''); }
   } catch (e) {
+    if (e && e.status === 401 && Store.auth) return renderLogin('Istunto on vanhentunut – kirjaudu uudelleen.');
     content.innerHTML = `<div class="card empty">Virhe: ${esc(e.message)} · <a href="#/">Palaa etusivulle</a></div>`;
   }
 }
@@ -2437,7 +2621,7 @@ document.addEventListener('click', async (e) => {
   if (cat) { location.hash = '#/kohde/' + cat.dataset.cat; return; }
   const nav = e.target.closest('[data-nav]');
   if (nav) {
-    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet', terms: '#/termipankki', links: '#/linkit' };
+    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet', terms: '#/termipankki', links: '#/linkit', users: '#/kayttajat' };
     location.hash = routes[nav.dataset.nav] || '#/';
     return;
   }
@@ -2551,6 +2735,12 @@ window.addEventListener('hashchange', router);
 // ---------- Käynnistys ----------
 (async function init() {
   try {
+    if (Store.auth) {
+      const st = await Store.auth.status();
+      if (st.setupRequired) return renderSetup();
+      if (!st.user) return renderLogin();
+      applyUser(st.user);
+    }
     await loadCategories();
     router();
   } catch (e) {

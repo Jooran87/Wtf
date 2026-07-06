@@ -33,6 +33,8 @@
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
     </form>
     <button id="themeToggle" class="icon-btn" title="Tumma tila">🌙</button>
+    <span id="userChip" class="user-chip" style="display:none"></span>
+    <button id="logoutBtn" class="btn small secondary" style="display:none">Kirjaudu ulos</button>
     <div class="user">
       <label>Nimesi:</label>
       <input id="authorInput" type="text" placeholder="Etunimi" />
@@ -47,6 +49,7 @@
         <button class="nav-link" data-nav="shiftlog">📝 Vuoroloki</button>
         <button class="nav-link" data-nav="terms">📖 Termipankki</button>
         <button class="nav-link" data-nav="links">🔗 Linkit</button>
+        <button class="nav-link" data-nav="users" id="usersNav" style="display:none">👥 Käyttäjät</button>
         <button class="nav-link" id="offlineBtn" title="Lataa puhelimeen – toimii ilman verkkoa">📴 Offline-versio</button>
       </nav>
       <div class="sidebar-section">

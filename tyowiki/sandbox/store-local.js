@@ -103,7 +103,7 @@ async function ensureSeeded() {
   const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', sort_order: 4 };
   DB.categories.push(kipa, halytyskeskus, hairiot, ism);
 
-  const pTervetuloa = mkPage(pereh.id, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
+  mkPage(pereh.id, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
 
 ## Päivä 1
 - Esittäytyminen ja tilat: työpisteet, tauko- ja sosiaalitilat

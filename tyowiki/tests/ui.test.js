@@ -175,6 +175,13 @@ async function main() {
     ok('live-haun pudotus näkyy', await page.isVisible('#searchDrop'));
     const sdItems = await page.$$eval('#searchDrop .sd-item .sd-label', (els) => els.map((e) => e.textContent));
     ok('live-haku löytää ohjeita', sdItems.some((t) => /palo/i.test(t)), JSON.stringify(sdItems));
+    // Saavutettavuus: combobox-roolit ja aria-activedescendant nuolinäppäimellä
+    ok('haku on combobox ja auki', await page.getAttribute('#searchInput', 'role') === 'combobox'
+      && await page.getAttribute('#searchInput', 'aria-expanded') === 'true');
+    ok('pudotus on listbox ja rivit optioita', await page.getAttribute('#searchDrop', 'role') === 'listbox'
+      && (await page.$$('#searchDrop .sd-item[role="option"]')).length >= 1);
+    await page.focus('#searchInput'); await page.keyboard.press('ArrowDown'); await page.waitForTimeout(100);
+    ok('aria-activedescendant seuraa valintaa', /sd-opt-\d+/.test(await page.getAttribute('#searchInput', 'aria-activedescendant') || ''));
     await page.click('#searchDrop .sd-item'); await page.waitForTimeout(400);
     ok('live-haun osumasta avautuu sivu', /#\/sivu\//.test(page.url()), page.url());
 

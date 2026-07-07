@@ -116,6 +116,11 @@ function noteLoginFail(ip) {
   e.count += 1;
   e.until = Date.now() + 60000;
   loginFails.set(ip, e);
+  // Siivotaan vanhentuneet merkinnät, ettei map kasva rajatta.
+  if (loginFails.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of loginFails) if (v.until < now) loginFails.delete(k);
+  }
 }
 
 function validCredentials(username, password) {
@@ -528,6 +533,11 @@ app.get('/api/attachments/:id', (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).send('Tiedostoa ei löydy levyltä');
   // inline = näytä selaimessa (esim. PDF/kuva), muut latautuvat.
   const inline = att.mimetype === 'application/pdf' || att.mimetype.startsWith('image/');
+  // Turvakovennus: käyttäjän lataama tiedosto (erityisesti SVG) voi sisältää
+  // aktiivista sisältöä. Tarjoillaan hiekkalaatikossa ja skriptit estäen,
+  // ettei liitettä voi käyttää XSS-vektorina, vaikka se avattaisiin suoraan.
+  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Type', att.mimetype);
   res.setHeader('Content-Disposition',
     `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(att.original_name)}"`);
@@ -686,12 +696,15 @@ app.delete('/api/shift-notes/:id', (req, res) => {
 app.get('/api/search', (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json({ pages: [], notes: [], files: [], announcements: [], terms: [], links: [] });
-  const like = '%' + q + '%';
+  // Escapetaan LIKE-jokerimerkit (% _ \), jotta haku on kirjaimellinen –
+  // esim. "50%" tai "vika_koodi" osuu vain oikeisiin kohtiin. Jokainen
+  // LIKE-lauseke käyttää ESCAPE '\'.
+  const like = '%' + q.replace(/[\\%_]/g, (c) => '\\' + c) + '%';
   // Artikkelit: osuma otsikossa, sisällössä tai avainsanoissa. Mukaan ote.
   const pageRows = db.prepare(
     `SELECT p.id, p.title, p.content, p.keywords, p.category_id, c.name AS category_name
      FROM pages p LEFT JOIN categories c ON c.id = p.category_id
-     WHERE p.title LIKE ? OR p.content LIKE ? OR p.keywords LIKE ?
+     WHERE p.title LIKE ? ESCAPE '\\' OR p.content LIKE ? ESCAPE '\\' OR p.keywords LIKE ? ESCAPE '\\'
      ORDER BY p.title LIMIT 50`
   ).all(like, like, like);
   const pages = pageRows.map((p) => ({
@@ -702,7 +715,7 @@ app.get('/api/search', (req, res) => {
   const notes = db.prepare(
     `SELECT n.id, n.content, n.author, n.created_at, n.category_id, c.name AS category_name
      FROM shift_notes n LEFT JOIN categories c ON c.id = n.category_id
-     WHERE n.content LIKE ? ORDER BY n.created_at DESC LIMIT 50`
+     WHERE n.content LIKE ? ESCAPE '\\' ORDER BY n.created_at DESC LIMIT 50`
   ).all(like);
   // Liitteet: osuma tiedoston nimessä tai louhitussa sisällössä. Palautetaan
   // myös lyhyt ote (snippet) osumakohdan ympäriltä.
@@ -712,7 +725,7 @@ app.get('/api/search', (req, res) => {
      FROM attachments a
      JOIN pages p ON p.id = a.page_id
      LEFT JOIN categories c ON c.id = p.category_id
-     WHERE a.original_name LIKE ? OR a.text_content LIKE ?
+     WHERE a.original_name LIKE ? ESCAPE '\\' OR a.text_content LIKE ? ESCAPE '\\'
      ORDER BY a.original_name LIMIT 50`
   ).all(like, like);
   const files = fileRows.map((f) => ({
@@ -723,14 +736,14 @@ app.get('/api/search', (req, res) => {
   }));
   const announcements = db.prepare(
     `SELECT id, title, content, pinned, created_at, created_by FROM announcements
-     WHERE title LIKE ? OR content LIKE ? ORDER BY pinned DESC, created_at DESC LIMIT 20`
+     WHERE title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\' ORDER BY pinned DESC, created_at DESC LIMIT 20`
   ).all(like, like).map((a) => ({ ...a, snippet: makeSnippet(a.content, q) }));
   const terms = db.prepare(
-    'SELECT id, term, definition FROM terms WHERE term LIKE ? OR definition LIKE ? LIMIT 20'
+    "SELECT id, term, definition FROM terms WHERE term LIKE ? ESCAPE '\\' OR definition LIKE ? ESCAPE '\\' LIMIT 20"
   ).all(like, like);
   terms.sort((a, b) => a.term.localeCompare(b.term, 'fi'));
   const links = db.prepare(
-    'SELECT * FROM links WHERE label LIKE ? OR url LIKE ? OR note LIKE ? ORDER BY sort_order, label LIMIT 20'
+    "SELECT * FROM links WHERE label LIKE ? ESCAPE '\\' OR url LIKE ? ESCAPE '\\' OR note LIKE ? ESCAPE '\\' ORDER BY sort_order, label LIMIT 20"
   ).all(like, like, like);
   res.json({ pages, notes, files, announcements, terms, links });
 });

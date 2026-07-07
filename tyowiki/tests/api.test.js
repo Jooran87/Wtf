@@ -206,6 +206,15 @@ async function main() {
     const up2 = await fetch(`${B}/api/pages/${page.id}/attachments`, { method: 'POST', body: fd2, headers: H() }).then((r) => r.json());
     ok('kielletty tiedostotyyppi torjutaan', !!up2.error);
     ok('liite levyllä', fs.readdirSync(path.join(TMP, 'uploads')).length === 1);
+    // Turvakovennus: SVG (voi sisältää skriptin) tarjoillaan hiekkalaatikossa.
+    const fdSvg = new FormData();
+    fdSvg.append('files', new Blob(['<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'], { type: 'image/svg+xml' }), 'kuva.svg');
+    const upSvg = await fetch(`${B}/api/pages/${page.id}/attachments`, { method: 'POST', body: fdSvg, headers: H() }).then((r) => r.json());
+    const svgRes = await fetch(`${B}/api/attachments/${upSvg.ids[0]}`, { headers: H() });
+    const svgCsp = svgRes.headers.get('content-security-policy') || '';
+    ok('liite tarjoillaan hiekkalaatikossa', svgCsp.includes('sandbox') && svgCsp.includes("default-src 'none'"), svgCsp);
+    ok('liitteellä nosniff-otsake', svgRes.headers.get('x-content-type-options') === 'nosniff');
+    await svgRes.text();
     await fetch(`${B}/api/pages/${page.id}`, { method: 'DELETE', headers: H() });
     ok('sivun poisto siivoaa liitteet levyltä', fs.readdirSync(path.join(TMP, 'uploads')).length === 0);
     ok('sivun poisto siivoaa versiot', (await jget(`/api/pages/${page.id}/revisions`)).length === 0);
@@ -245,6 +254,16 @@ async function main() {
     ok('avainsanaosuma ilman tekstiosumaa', s3.pages.some((p) => (p.snippet || '').startsWith('Avainsanat:')));
     const empty = await jget('/api/search?q=');
     ok('tyhjä haku palauttaa tyhjät osiot', Object.keys(empty).length === 6 && empty.pages.length === 0);
+    // LIKE-jokerimerkit escapetaan: alaviiva osuu vain kirjaimellisesti.
+    const litA = await jsend('POST', '/api/pages', { title: 'Raportti_2026', content: 'x', category_id: 1 });
+    const litB = await jsend('POST', '/api/pages', { title: 'RaporttiX2026', content: 'y', category_id: 1 });
+    const litHit = await jget('/api/search?q=' + encodeURIComponent('Raportti_2026'));
+    ok('haku ei kohtele _ jokerimerkkinä', litHit.pages.length === 1 && litHit.pages[0].title === 'Raportti_2026',
+      JSON.stringify(litHit.pages.map((p) => p.title)));
+    const pctHit = await jget('/api/search?q=' + encodeURIComponent('Raportti%'));
+    ok('haku ei kohtele % jokerimerkkinä', pctHit.pages.length === 0, JSON.stringify(pctHit.pages.map((p) => p.title)));
+    await fetch(`${B}/api/pages/${litA.id}`, { method: 'DELETE', headers: H() });
+    await fetch(`${B}/api/pages/${litB.id}`, { method: 'DELETE', headers: H() });
 
     // --- Offline ---
     const offRes = await fetch(B + '/offline', { headers: H() });

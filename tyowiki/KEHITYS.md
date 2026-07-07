@@ -44,7 +44,7 @@ jolloin app.js ohittaa kirjautumisen).
    seed-dataan – tee näin vain kun uusi seed-sisältö on demolle tärkeä).
 5. **Ulkoasu-/logiikkamuutoksen jälkeen aina** `node sandbox/build-single.js`
    ja committaa syntynyt tyowiki-sandbox.html.
-6. **`npm test` vihreänä (119 testiä) ennen jokaista committia.** Testit ajavat
+6. **`npm test` vihreänä (126 testiä) ennen jokaista committia.** Testit ajavat
    palvelimen eristetyssä TYOWIKI_DATA_DIR-hakemistossa – eivät koske oikeaa dataa.
 7. **Tekijätieto tulee AINA istunnosta** (`req.user.name`) – älä koskaan luota
    selaimen author-kenttään.
@@ -77,6 +77,11 @@ jolloin app.js ohittaa kirjautumisen).
 - **Live-haku** (`initLiveSearch` app.js:ssä) ja **sisällysluettelo**
   (`buildToc`) ovat puhtaasti client-puolta, käyttävät olemassa olevaa
   `Store.search`ia ja renderöityä `.doc`ia – ei uusia palvelinreittejä.
+- **Liitteet tarjoillaan hiekkalaatikossa**: `/api/attachments/:id` asettaa
+  vastauksen CSP:ksi `default-src 'none'; ...; sandbox`, jottei käyttäjän
+  lataama SVG/HTML voi ajaa skriptiä XSS-vektorina.
+- **Haun LIKE-kyselyt** escapetaan (`% _ \` → `ESCAPE '\'`), jotta haku on
+  kirjaimellinen. Sandbox käyttää substring-hakua, joten se on jo kirjaimellinen.
 
 ## Alakategoriat (yksi taso)
 
@@ -118,7 +123,7 @@ jolloin app.js ohittaa kirjautumisen).
 
 ```bash
 npm start                      # palvelin (PORT=xxxx vaihtaa portin)
-npm test                       # 119 testiä eristetyssä ympäristössä
+npm test                       # 126 testiä eristetyssä ympäristössä
 npm run backup                 # varmuuskopio backups/-kansioon
 node sandbox/build-single.js   # kokoa jaettava sandbox-tiedosto
 node reindex.js                # liitteiden hakuindeksin uudelleenajo

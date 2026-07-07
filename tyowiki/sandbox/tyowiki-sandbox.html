@@ -3148,14 +3148,30 @@ $('#searchForm').onsubmit = (e) => {
   drop.id = 'searchDrop';
   drop.className = 'search-drop';
   drop.style.display = 'none';
+  drop.setAttribute('role', 'listbox');
+  drop.setAttribute('aria-label', 'Hakuehdotukset');
   form.appendChild(drop);
+  // Saavutettavuus: yhdistelmäruutu (combobox) ruudunlukijoita varten.
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('aria-controls', 'searchDrop');
+  input.setAttribute('aria-expanded', 'false');
   let items = [];   // näkyvät rivit järjestyksessä (näppäinnavigointia varten)
   let hi = -1;      // korostettu rivi
   let timer = null;
   let lastQ = '';
 
-  const hide = () => { drop.style.display = 'none'; hi = -1; };
-  const highlight = () => drop.querySelectorAll('.sd-item').forEach((el, i) => el.classList.toggle('hl', i === hi));
+  const hide = () => {
+    drop.style.display = 'none'; hi = -1;
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+  };
+  const highlight = () => drop.querySelectorAll('.sd-item').forEach((el, i) => {
+    const on = i === hi;
+    el.classList.toggle('hl', on);
+    el.setAttribute('aria-selected', on ? 'true' : 'false');
+    if (on) input.setAttribute('aria-activedescendant', el.id);
+  });
   const go = (href) => { hide(); location.hash = href; };
 
   async function run(q) {
@@ -3173,20 +3189,20 @@ $('#searchForm').onsubmit = (e) => {
     items = [];
     if (!groups.length) {
       drop.innerHTML = '<div class="sd-empty">Ei osumia – paina Enter täydelle haulle</div>';
-      drop.style.display = ''; hi = -1; return;
+      drop.style.display = ''; hi = -1; input.setAttribute('aria-expanded', 'true'); return;
     }
     let html = '';
     for (const [name, rows] of groups) {
       html += `<div class="sd-grp">${esc(name)}</div>`;
       for (const row of rows) {
         const idx = items.length; items.push(row);
-        html += `<a class="sd-item" data-i="${idx}" href="${esc(row.href)}">
+        html += `<a class="sd-item" id="sd-opt-${idx}" role="option" aria-selected="false" data-i="${idx}" href="${esc(row.href)}">
           <span class="sd-label">${esc(row.label)}</span><span class="sd-meta">${esc(row.meta)}</span></a>`;
       }
     }
     html += `<button type="button" class="sd-all">Näytä kaikki tulokset “${esc(q)}” →</button>`;
     drop.innerHTML = html;
-    drop.style.display = ''; hi = -1;
+    drop.style.display = ''; hi = -1; input.setAttribute('aria-expanded', 'true');
     // mousedown (ei click), jotta navigointi ehtii ennen kentän blur-piilotusta
     drop.querySelectorAll('.sd-item').forEach((a) =>
       a.onmousedown = (e) => { e.preventDefault(); go(a.getAttribute('href')); });

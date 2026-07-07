@@ -70,6 +70,8 @@
     const pagesByCat = (catId) => pages.filter((p) => p.category_id === catId)
       .sort((a, b) => a.title.localeCompare(b.title, 'fi'));
     const orphans = pages.filter((p) => !cats.some((c) => c.id === p.category_id));
+    const topCats = cats.filter((c) => !c.parent_id);
+    const subCatsOf = (id) => cats.filter((c) => c.parent_id === id);
 
     const artHtml = (p) => `
       <details class="art">
@@ -181,7 +183,9 @@ ${anns.length ? `<section>
 </section>` : ''}
 
 <main>
-  ${cats.map((c) => catSection(c.name, pagesByCat(c.id))).join('')}
+  ${topCats.map((c) => catSection(c.name, pagesByCat(c.id))
+      + subCatsOf(c.id).map((s) => catSection(c.name + ' › ' + s.name, pagesByCat(s.id))).join('')
+    ).join('')}
   ${catSection('Muut', orphans)}
 </main>
 

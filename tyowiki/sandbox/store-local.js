@@ -95,13 +95,17 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [], links: [] };
-  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', sort_order: 0 };
+  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', sort_order: 0, parent_id: null };
   DB.categories.push(pereh);
-  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', sort_order: 1 };
-  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', sort_order: 2 };
-  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', sort_order: 3 };
-  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', sort_order: 4 };
+  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', sort_order: 1, parent_id: null };
+  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', sort_order: 2, parent_id: null };
+  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', sort_order: 3, parent_id: null };
+  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', sort_order: 4, parent_id: null };
   DB.categories.push(kipa, halytyskeskus, hairiot, ism);
+  // Esimerkki alakategorioista: Kipan alle asiakkuuksittain.
+  const kipaAsA = { id: nextId(), name: 'Asiakas A – Toimistotalo', icon: '🏢', sort_order: 1, parent_id: kipa.id };
+  const kipaAsB = { id: nextId(), name: 'Asiakas B – Kauppakeskus', icon: '🏬', sort_order: 2, parent_id: kipa.id };
+  DB.categories.push(kipaAsA, kipaAsB);
 
   mkPage(pereh.id, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
 
@@ -164,6 +168,30 @@ Käy kohdat läpi perehdyttäjän kanssa ja kuittaa valmiit.
 3. Ilmoita kiireelliset viat välittömästi päivystykseen
 
 > Päivitä tämä ohje kohteen todellisilla tiedoilla.`, 'Anna', 'Kipa, kiinteistöhoito, kohdekortti');
+
+  mkPage(kipaAsA.id, 'Asiakas A – kohdekohtaiset ohjeet', `# Asiakas A – Toimistotalo
+
+## Kulku ja avaimet
+- Pääovi avautuu kulkutunnisteella klo 6–20
+- Huoltotila 1. kerroksessa, avain avainkaapista nro 12
+
+## Erityispiirteet
+- Paloilmoitinkeskus aulassa, koodi vartijalla
+- Yöaikaan liiketunnistimet päällä 2.–5. kerroksessa
+
+> Alakategoriaesimerkki: täydennä asiakkaan omilla tiedoilla.`, 'Anna', 'Kipa, asiakas A, toimistotalo');
+
+  mkPage(kipaAsB.id, 'Asiakas B – kohdekohtaiset ohjeet', `# Asiakas B – Kauppakeskus
+
+## Aukiolo ja kierrokset
+- Kauppakeskus auki klo 8–21, huoltokierros klo 22
+- Tavaraliikenne takapihan kautta
+
+## Erityispiirteet
+- Useita paloilmoitinryhmiä – tarkista ryhmänumero hälytyksestä
+- Yhteyshenkilö: keskuksen huoltopäällikkö
+
+> Alakategoriaesimerkki: täydennä asiakkaan omilla tiedoilla.`, 'Jukka', 'Kipa, asiakas B, kauppakeskus');
 
   const p1 = mkPage(halytyskeskus.id, 'Hälytyksen vastaanotto ja luokittelu', `# Hälytyksen vastaanotto ja luokittelu
 
@@ -326,6 +354,7 @@ function migrateExisting() {
   if (!DB.terms) { DB.terms = []; changed = true; }
   if (!DB.links) { DB.links = []; changed = true; }
   DB.categories.forEach((c) => { if (typeof c.icon !== 'string') { c.icon = ''; changed = true; } });
+  DB.categories.forEach((c) => { if (c.parent_id === undefined) { c.parent_id = null; changed = true; } });
   DB.pages.forEach((p) => {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
@@ -382,14 +411,22 @@ const Store = {
       await ready;
       return clone(DB.categories)
         .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
-        .map((c) => ({ ...c, page_count: DB.pages.filter((p) => p.category_id === c.id).length }));
+        .map((c) => ({ ...c, parent_id: c.parent_id != null ? c.parent_id : null,
+          page_count: DB.pages.filter((p) => p.category_id === c.id).length }));
     },
     async create(data) {
       await ready;
       const name = (data.name || '').trim();
       if (!name) throw new Error('Nimi puuttuu');
-      const c = { id: nextId(), name, icon: (data.icon || '').trim(),
-        sort_order: (Math.max(0, ...DB.categories.map((x) => x.sort_order)) + 1) };
+      const parentId = (data.parent_id != null && data.parent_id !== '') ? Number(data.parent_id) : null;
+      if (parentId != null) {
+        const parent = DB.categories.find((x) => x.id === parentId);
+        if (!parent) throw new Error('Yläkategoriaa ei löydy');
+        if (parent.parent_id != null) throw new Error('Alakategorialle ei voi luoda omaa alakategoriaa');
+      }
+      const siblings = DB.categories.filter((x) => (x.parent_id || null) === parentId);
+      const c = { id: nextId(), name, icon: (data.icon || '').trim(), parent_id: parentId,
+        sort_order: (Math.max(0, ...siblings.map((x) => x.sort_order)) + 1) };
       DB.categories.push(c); save(DB); return clone(c);
     },
     async update(id, data) {
@@ -398,14 +435,27 @@ const Store = {
       if (!c) throw new Error('Kategoriaa ei löydy');
       const name = (data.name || '').trim();
       if (!name) throw new Error('Nimi puuttuu');
+      if ('parent_id' in data) {
+        const parentId = (data.parent_id != null && data.parent_id !== '') ? Number(data.parent_id) : null;
+        if (parentId != null) {
+          if (parentId === id) throw new Error('Kategoria ei voi olla oma yläkategoriansa');
+          const parent = DB.categories.find((x) => x.id === parentId);
+          if (!parent) throw new Error('Yläkategoriaa ei löydy');
+          if (parent.parent_id != null) throw new Error('Alakategorialle ei voi luoda omaa alakategoriaa');
+          if (DB.categories.some((x) => x.parent_id === id)) throw new Error('Kategorialla on alakategorioita – siirrä ne ensin');
+        }
+        c.parent_id = parentId;
+      }
       c.name = name; c.icon = (data.icon || '').trim();
       save(DB); return clone(c);
     },
     async remove(id) {
       await ready; id = Number(id);
-      const pageIds = DB.pages.filter((p) => p.category_id === id).map((p) => p.id);
+      const childIds = DB.categories.filter((c) => c.parent_id === id).map((c) => c.id);
+      const allCatIds = [id, ...childIds];
+      const pageIds = DB.pages.filter((p) => allCatIds.includes(p.category_id)).map((p) => p.id);
       for (const pid of pageIds) await removePageInternal(pid);
-      DB.categories = DB.categories.filter((c) => c.id !== id);
+      DB.categories = DB.categories.filter((c) => !allCatIds.includes(c.id));
       save(DB); return { ok: true };
     },
     async reorder(ids) { await ready; applyReorder(DB.categories, ids); save(DB); return { ok: true }; },

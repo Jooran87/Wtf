@@ -10,6 +10,7 @@ if (existing > 0) {
 }
 
 const insCat = db.prepare('INSERT INTO categories (name, icon, sort_order) VALUES (?, ?, ?)');
+const insSubCat = db.prepare('INSERT INTO categories (name, icon, sort_order, parent_id) VALUES (?, ?, ?, ?)');
 const insPage = db.prepare('INSERT INTO pages (category_id, title, content, keywords, updated_at, updated_by, views) VALUES (?, ?, ?, ?, ?, ?, ?)');
 const insNote = db.prepare('INSERT INTO shift_notes (category_id, author, content, created_at) VALUES (?, ?, ?, ?)');
 const insContact = db.prepare('INSERT INTO contacts (label, phone, note, sort_order) VALUES (?, ?, ?, ?)');
@@ -23,6 +24,34 @@ const kipa = insCat.run('Kipa', '🏢', 1).lastInsertRowid;
 const halytyskeskus = insCat.run('Hälytyskeskus', '🚨', 2).lastInsertRowid;
 const hairiot = insCat.run('Häiriötilanteet', '⚡', 3).lastInsertRowid;
 const ism = insCat.run('ISM-ohjeet', '📘', 4).lastInsertRowid;
+
+// Esimerkki alakategorioista: Kipan alle asiakkuuksittain.
+const kipaAsA = insSubCat.run('Asiakas A – Toimistotalo', '🏢', 1, kipa).lastInsertRowid;
+const kipaAsB = insSubCat.run('Asiakas B – Kauppakeskus', '🏬', 2, kipa).lastInsertRowid;
+
+insPage.run(kipaAsA, 'Asiakas A – kohdekohtaiset ohjeet', `# Asiakas A – Toimistotalo
+
+## Kulku ja avaimet
+- Pääovi avautuu kulkutunnisteella klo 6–20
+- Huoltotila 1. kerroksessa, avain avainkaapista nro 12
+
+## Erityispiirteet
+- Paloilmoitinkeskus aulassa, koodi vartijalla
+- Yöaikaan liiketunnistimet päällä 2.–5. kerroksessa
+
+> Alakategoriaesimerkki: täydennä asiakkaan omilla tiedoilla.`, 'Kipa, asiakas A, toimistotalo', now(), 'Anna', 8);
+
+insPage.run(kipaAsB, 'Asiakas B – kohdekohtaiset ohjeet', `# Asiakas B – Kauppakeskus
+
+## Aukiolo ja kierrokset
+- Kauppakeskus auki klo 8–21, huoltokierros klo 22
+- Tavaraliikenne takapihan kautta
+
+## Erityispiirteet
+- Useita paloilmoitinryhmiä – tarkista ryhmänumero hälytyksestä
+- Yhteyshenkilö: keskuksen huoltopäällikkö
+
+> Alakategoriaesimerkki: täydennä asiakkaan omilla tiedoilla.`, 'Kipa, asiakas B, kauppakeskus', now(), 'Jukka', 6);
 
 insPage.run(pereh, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
 

@@ -44,7 +44,7 @@ jolloin app.js ohittaa kirjautumisen).
    seed-dataan – tee näin vain kun uusi seed-sisältö on demolle tärkeä).
 5. **Ulkoasu-/logiikkamuutoksen jälkeen aina** `node sandbox/build-single.js`
    ja committaa syntynyt tyowiki-sandbox.html.
-6. **`npm test` vihreänä (82 testiä) ennen jokaista committia.** Testit ajavat
+6. **`npm test` vihreänä (96 testiä) ennen jokaista committia.** Testit ajavat
    palvelimen eristetyssä TYOWIKI_DATA_DIR-hakemistossa – eivät koske oikeaa dataa.
 7. **Tekijätieto tulee AINA istunnosta** (`req.user.name`) – älä koskaan luota
    selaimen author-kenttään.
@@ -71,6 +71,16 @@ jolloin app.js ohittaa kirjautumisen).
 - Kehitysympäristöhuomio: `pkill` bash-ketjussa palauttaa 144 ja katkaisee
   `&&`-ketjun – aja siivous erillisenä komentona.
 
+## Alakategoriat (yksi taso)
+
+- `categories.parent_id` (NULL = pääkategoria). **Yksi taso:** alakategorialle
+  ei voi luoda omaa alakategoriaa – validointi `validateParent()`:ssa (server.js)
+  ja vastaava sandboxissa. Yläkategorian poisto vie alakategoriat ja kaikkien
+  sivut/liitteet mukanaan.
+- Järjestys (`sort_order`) lasketaan **sisarusten kesken** (sama `parent_id`);
+  reorder-napit siirtävät vain saman tason sisällä (app.js catmove-käsittelijä).
+- Client rakentaa puun litteästä listasta: `topCategories()` / `subCategories()`.
+
 ## Roolit ja oikeudet (server.js:n portti-middleware)
 
 - `admin`: kaikki + /api/users
@@ -96,7 +106,7 @@ jolloin app.js ohittaa kirjautumisen).
 
 ```bash
 npm start                      # palvelin (PORT=xxxx vaihtaa portin)
-npm test                       # 82 testiä eristetyssä ympäristössä
+npm test                       # 96 testiä eristetyssä ympäristössä
 npm run backup                 # varmuuskopio backups/-kansioon
 node sandbox/build-single.js   # kokoa jaettava sandbox-tiedosto
 node reindex.js                # liitteiden hakuindeksin uudelleenajo

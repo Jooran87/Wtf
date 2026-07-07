@@ -3,6 +3,9 @@
 Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
 
 - **Ohjeet ja kategoriat** – Wikipedia-tyylinen sivupalkki ja hakukenttä
+- **Alakategoriat** – kategorian alle voi luoda alakategorioita (yksi taso),
+  esim. Kipa → asiakkuuksittain; alakategoriat näkyvät sivupalkissa sisennettyinä
+  ja kategorian sivulla kortteina
 - **Etusivu tärkeysjärjestyksessä** – kiinnitetty tiedote huomiobannerina ylimpänä,
   tärkeät numerot heti näkyvissä ilman vieritystä, suosituimmat ja viimeksi
   päivitetyt ohjeet; kapealla näytöllä numerot nousevat ensimmäiseksi

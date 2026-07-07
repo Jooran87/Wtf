@@ -65,9 +65,13 @@ async function main() {
     await page.waitForTimeout(900);
 
     // Peruskäynnistys
-    const cats = await page.$$eval('#categoryList .cat-btn .cat-name', (els) => els.map((e) => e.textContent));
-    ok('sovellus käynnistyy, kategoriat näkyvät', cats.length === 5, JSON.stringify(cats));
-    ok('kategoriakortit etusivulla', (await page.$$('.cat-card')).length === 5);
+    const cats = await page.$$eval('#categoryList .cat-btn:not(.subcat) .cat-name', (els) => els.map((e) => e.textContent));
+    ok('sovellus käynnistyy, pääkategoriat näkyvät', cats.length === 5, JSON.stringify(cats));
+    ok('kategoriakortit etusivulla (vain pääkategoriat)', (await page.$$('.cat-card')).length === 5);
+
+    // Alakategoriat: Kipan alla sisennetyt alakategoriat sivupalkissa
+    const subs = await page.$$eval('#categoryList .cat-btn.subcat .cat-name', (els) => els.map((e) => e.textContent.trim()));
+    ok('alakategoriat näkyvät sivupalkissa', subs.length === 2 && subs.some((s) => s.includes('Asiakas A')), JSON.stringify(subs));
 
     // XSS: hyökkäävä otsikko näkyy tekstinä eikä suoritu
     await page.fill('#authorInput', 'Testaaja');
@@ -131,6 +135,25 @@ async function main() {
     await page.click('#saveBtn'); await page.waitForTimeout(600);
     const imgSrc = await page.$eval('.doc img.doc-img', (e) => e.getAttribute('src')).catch(() => null);
     ok('kuva renderöityy artikkelissa', !!imgSrc && imgSrc.indexOf('blob:') === 0, imgSrc);
+
+    // Alakategoriat: Kipa-näkymässä alakategoriakortit, ja alakategorian
+    // murupolku näyttää yläkategorian. Uuden alakategorian luonti UI:sta.
+    await page.goto(base + '#/'); await page.waitForTimeout(400);
+    await page.click('#categoryList >> text=Kipa'); await page.waitForTimeout(400);
+    ok('yläkategoriassa näkyy alakategoriakortteja', (await page.$$('.cat-card')).length >= 2);
+    await page.click('.cat-card >> text=Asiakas A'); await page.waitForTimeout(400);
+    const crumbTxt = await page.$eval('.crumbs', (e) => e.textContent);
+    ok('alakategorian murupolku näyttää yläkategorian', crumbTxt.includes('Kipa') && crumbTxt.includes('Asiakas A'), crumbTxt);
+    // Luo uusi alakategoria Kipan alle napista
+    await page.goto(base + '#/'); await page.waitForTimeout(300);
+    await page.click('#categoryList >> text=Kipa'); await page.waitForTimeout(400);
+    await page.click('#newSubBtn'); await page.waitForTimeout(200);
+    await page.fill('#subCatName', 'Asiakas C – Testi');
+    await page.click('#subCatSave'); await page.waitForTimeout(500);
+    const crumb2 = await page.$eval('.crumbs', (e) => e.textContent);
+    ok('uusi alakategoria luotu ja avattu', crumb2.includes('Kipa') && crumb2.includes('Asiakas C'), crumb2);
+    ok('uusi alakategoria näkyy sivupalkissa',
+      (await page.$$eval('#categoryList .cat-btn.subcat .cat-name', (els) => els.map((e) => e.textContent))).some((t) => t.includes('Asiakas C')));
 
     // Etusivun uusi järjestys: banneri, Viimeksi päivitetyt ja pikahuomio
     await page.goto(base + '#/'); await page.waitForTimeout(500);

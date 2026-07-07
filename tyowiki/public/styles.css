@@ -142,11 +142,26 @@ input, textarea, select { background: var(--panel); color: var(--text); }
 }
 .cat-btn.active .count-badge { background: var(--panel); color: var(--brand-ink); }
 
+/* Alakategoriat: sisennetty lista pääkategorian alla */
+.category-list li.subcat-wrap { display: block; }
+.subcat-list { list-style: none; margin: 0 0 2px; padding: 0; }
+.subcat-list li { display: flex; align-items: center; }
+.category-list .cat-btn.subcat {
+  margin-left: 14px; padding: 6px 12px; font-size: 13px;
+  border-left: 2px solid var(--border); border-radius: 0 var(--radius) var(--radius) 0;
+}
+.category-list .cat-btn.subcat .cat-ico { font-size: 13px; }
+.subcat-list li:hover .row-order { opacity: 1; }
+
 /* Kategorian lisäyslomake sivupalkissa */
-.cat-form { display: flex; gap: 6px; padding: 4px 8px 10px; align-items: center; }
-.cat-form select { width: 58px; padding: 7px 4px; border: 1px solid var(--border); border-radius: 6px; }
-.cat-form input { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; outline: none; }
+.cat-form { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px 10px; align-items: center; }
+.cat-form .row { display: flex; gap: 6px; align-items: center; }
+.cat-form select { padding: 7px 4px; border: 1px solid var(--border); border-radius: 6px; }
+.cat-form #newCatIcon, .cat-form #subCatIcon, .cat-form #editCatIcon { width: 58px; }
+.cat-form .parent-select { width: 100%; }
+.cat-form input { min-width: 0; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; outline: none; }
 .cat-form input:focus { border-color: var(--brand); }
+.parent-select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); }
 
 /* Content */
 .content { flex: 1; padding: 26px 34px; max-width: 1100px; min-width: 0; }

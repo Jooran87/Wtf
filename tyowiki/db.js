@@ -140,6 +140,13 @@ if (!catCols.includes('icon')) {
   db.exec("ALTER TABLE categories ADD COLUMN icon TEXT NOT NULL DEFAULT ''");
 }
 
+// Migraatio: alakategoriat. parent_id viittaa yläkategoriaan (NULL = pääkategoria).
+// Tuetaan yhtä tasoa: pääkategoria voi saada alakategorioita, mutta alakategoria
+// ei voi saada omia alakategorioitaan (validointi palvelinpäässä).
+if (!catCols.includes('parent_id')) {
+  db.exec('ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id) ON DELETE CASCADE');
+}
+
 // Migraatio: ohjeiden käsin asetettava järjestys kategorian sisällä.
 if (!pageCols.includes('sort_order')) {
   db.exec('ALTER TABLE pages ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');

@@ -43,7 +43,7 @@ try {
   const copy = new Database(path.join(bdir, 'tyowiki.db'), { readonly: true });
   const pages = copy.prepare('SELECT COUNT(*) n FROM pages').get().n;
   copy.close();
-  ok('kopiokanta eheä (sivut tallella)', pages === 9, pages);
+  ok('kopiokanta eheä (sivut tallella)', pages === 11, pages);
 
   // 2) Säilytysraja: KEEP=2 -> kolmannen ajon jälkeen vain 2 kansiota
   run('backup.js', [BACKUPS], '2');
@@ -60,7 +60,7 @@ try {
   const r2 = run('restore.js', [path.join(BACKUPS, newest)]);
   ok('restore.js onnistuu', r2.status === 0, r2.stderr);
   const restored = new Database(path.join(DATA, 'tyowiki.db'), { readonly: true });
-  ok('sivut palautuivat', restored.prepare('SELECT COUNT(*) n FROM pages').get().n === 9);
+  ok('sivut palautuivat', restored.prepare('SELECT COUNT(*) n FROM pages').get().n === 11);
   restored.close();
   ok('liite palautui', fs.existsSync(path.join(DATA, 'uploads', 'liite.pdf')));
   ok('vanha data talteen ennen palautusta',

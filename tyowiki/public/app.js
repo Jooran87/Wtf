@@ -276,23 +276,44 @@ async function loadCategories() {
   renderSidebar();
 }
 
-const CAT_ICONS = ['📄', '🎓', '🏢', '🚨', '⚡', '📘', '🧰', '🧹', '🔧', '🛡️', '🗂️', '🏥'];
+const CAT_ICONS = ['📄', '🎓', '🏢', '🏬', '🚨', '⚡', '📘', '🧰', '🧹', '🔧', '🛡️', '🗂️', '🏥'];
 const catIcon = (c) => (c && c.icon) ? c.icon : '📄';
 
-function renderSidebar() {
-  const ul = $('#categoryList');
-  ul.innerHTML = categories.map((c, i) => `
-    <li>
-      <button class="cat-btn ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">
+// Alakategoriat: yksi taso. Pääkategoriat = parent_id tyhjä.
+const topCategories = () => categories.filter((c) => !c.parent_id);
+const subCategories = (parentId) => categories.filter((c) => c.parent_id === parentId);
+const parentOf = (c) => (c && c.parent_id) ? categories.find((x) => x.id === c.parent_id) : null;
+
+// Kategorian ja sen alakategorioiden yhteenlaskettu ohjemäärä.
+function totalPageCount(c) {
+  let n = c.page_count || 0;
+  for (const k of subCategories(c.id)) n += (k.page_count || 0);
+  return n;
+}
+
+function catRowHtml(c, i, total, isSub) {
+  return `<li>
+      <button class="cat-btn ${isSub ? 'subcat' : ''} ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">
         <span class="cat-ico">${esc(catIcon(c))}</span>
         <span class="cat-name">${esc(c.name)}</span>
         <span class="count-badge">${c.page_count != null ? c.page_count : ''}</span>
       </button>
       <span class="row-order">
         ${i > 0 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="-1" title="Siirrä ylös">▲</button>` : ''}
-        ${i < categories.length - 1 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="1" title="Siirrä alas">▼</button>` : ''}
+        ${i < total - 1 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="1" title="Siirrä alas">▼</button>` : ''}
       </span>
-    </li>`).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
+    </li>`;
+}
+
+function renderSidebar() {
+  const ul = $('#categoryList');
+  const tops = topCategories();
+  ul.innerHTML = tops.map((c, i) => {
+    const kids = subCategories(c.id);
+    return catRowHtml(c, i, tops.length, false)
+      + (kids.length ? `<li class="subcat-wrap"><ul class="subcat-list">${
+          kids.map((k, j) => catRowHtml(k, j, kids.length, true)).join('')}</ul></li>` : '');
+  }).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
 }
 
 // Siirtää id:n annettuun suuntaan id-listassa; palauttaa uuden listan tai null.
@@ -307,6 +328,27 @@ function moveInList(ids, id, dir) {
 function iconSelectHtml(id, selected) {
   return `<select id="${id}" title="Ikoni">${CAT_ICONS.map((i) =>
     `<option ${i === selected ? 'selected' : ''}>${i}</option>`).join('')}</select>`;
+}
+
+// Kategoriavalinnan optiot hierarkiassa: pääkategoria ja sen alakategoriat
+// sisennettynä. Käytetään ohjeen kategorian valintaan.
+function categoryOptionsHtml(selectedId) {
+  return topCategories().map((c) => {
+    const self = `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${esc(c.name)}</option>`;
+    const kids = subCategories(c.id).map((k) =>
+      `<option value="${k.id}" ${k.id === selectedId ? 'selected' : ''}>  ↳ ${esc(k.name)}</option>`).join('');
+    return self + kids;
+  }).join('');
+}
+
+// Yläkategorian valitsin: tyhjä = pääkategoria. Vain pääkategoriat kelpaavat
+// yläkategoriaksi (yksi taso). excludeId jätetään pois (kategoria itse).
+function parentSelectHtml(id, selected, excludeId) {
+  const opts = topCategories().filter((c) => c.id !== excludeId);
+  return `<select id="${id}" class="parent-select" title="Yläkategoria">
+    <option value="">— Pääkategoria (ei yläkategoriaa) —</option>
+    ${opts.map((c) => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${esc(catIcon(c))} ${esc(c.name)}</option>`).join('')}
+  </select>`;
 }
 
 function setActiveNav(nav) {
@@ -416,11 +458,15 @@ async function viewHome() {
       </div>
       <div class="home-main">
         <div class="cat-grid">
-          ${categories.map((c) => `<a class="cat-card" href="#/kohde/${c.id}">
+          ${topCategories().map((c) => {
+            const subs = subCategories(c.id);
+            const total = totalPageCount(c);
+            return `<a class="cat-card" href="#/kohde/${c.id}">
             <span class="cc-ico">${esc(catIcon(c))}</span>
             <span class="cc-name">${esc(c.name)}</span>
-            <span class="cc-count">${c.page_count || 0} ohjetta</span>
-          </a>`).join('')}
+            <span class="cc-count">${total} ohjetta${subs.length ? ` · ${subs.length} alakategoriaa` : ''}</span>
+          </a>`;
+          }).join('')}
         </div>
         ${otherAnns.length ? `<div class="card">
           <div class="spread"><h3 style="margin:0">📢 Tiedotteet</h3>
@@ -518,18 +564,32 @@ async function viewCategory(id) {
     return;
   }
   const pages = await Store.pages.list(id);
+  const parent = parentOf(cat);
+  const subs = subCategories(id);
+  const crumbs = parent
+    ? `<a href="#/">Etusivu</a><span class="sep">›</span><a href="#/kohde/${parent.id}">${esc(parent.name)}</a><span class="sep">›</span><span>${esc(cat.name)}</span>`
+    : `<a href="#/">Etusivu</a><span class="sep">›</span><span>${esc(cat.name)}</span>`;
   content.innerHTML = `
-    <div class="crumbs"><a href="#/">Etusivu</a><span class="sep">›</span><span>${esc(cat.name)}</span></div>
+    <div class="crumbs">${crumbs}</div>
     <div class="spread">
       <h2 style="margin:0">${esc(catIcon(cat))} ${esc(cat.name)}</h2>
       <div class="row">
         <button class="btn small" id="newPageBtn">＋ Uusi ohje</button>
+        ${!parent ? '<button class="btn small secondary" id="newSubBtn">＋ Alakategoria</button>' : ''}
         <button class="btn small secondary" id="renameCatBtn">✏️ Muokkaa</button>
         <button class="btn small danger" id="delCatBtn">Poista kategoria</button>
       </div>
     </div>
     <div id="catEditRow"></div>
+    ${subs.length ? `<div class="cat-grid">
+      ${subs.map((s) => `<a class="cat-card" href="#/kohde/${s.id}">
+        <span class="cc-ico">${esc(catIcon(s))}</span>
+        <span class="cc-name">${esc(s.name)}</span>
+        <span class="cc-count">${s.page_count || 0} ohjetta</span>
+      </a>`).join('')}
+    </div>` : ''}
     <div class="card">
+      ${subs.length ? '<div class="spread"><h3 style="margin:0 0 4px">Kategorian omat ohjeet</h3></div>' : ''}
       <ul class="page-list">
         ${pages.map((p, i) => `<li class="orderable">
           <button class="page-link" data-page="${p.id}">
@@ -541,7 +601,7 @@ async function viewCategory(id) {
             ${i < pages.length - 1 ? `<button class="icon-btn" data-pmove="${p.id}" data-dir="1" title="Siirrä alas">▼</button>` : ''}
           </span>
         </li>`).join('')
-          || '<li class="empty">Ei ohjeita tässä kategoriassa. Luo ensimmäinen.</li>'}
+          || `<li class="empty">${subs.length ? 'Ei ohjeita suoraan tässä kategoriassa – valitse alakategoria yltä.' : 'Ei ohjeita tässä kategoriassa. Luo ensimmäinen.'}</li>`}
       </ul>
     </div>`;
 
@@ -551,28 +611,68 @@ async function viewCategory(id) {
   });
 
   $('#newPageBtn').onclick = () => { location.hash = `#/uusi?kohde=${id}`; };
+  const subBtn = $('#newSubBtn');
+  if (subBtn) subBtn.onclick = () => {
+    const row = $('#catEditRow');
+    if (row.dataset.mode === 'sub') { row.innerHTML = ''; row.dataset.mode = ''; return; }
+    row.dataset.mode = 'sub';
+    row.innerHTML = `<div class="card"><div class="row" style="flex-wrap:wrap">
+      ${iconSelectHtml('subCatIcon', '🏢')}
+      <input type="text" id="subCatName" placeholder="Alakategorian nimi (esim. asiakas)"
+        style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
+      <button class="btn small" id="subCatSave">Lisää alakategoria</button>
+    </div></div>`;
+    $('#subCatSave').onclick = async () => {
+      const name = $('#subCatName').value.trim();
+      if (!name) return toast('Anna nimi', true);
+      try {
+        const c = await Store.categories.create({ name, icon: $('#subCatIcon').value, parent_id: id });
+        row.innerHTML = ''; row.dataset.mode = '';
+        await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Alakategoria lisätty');
+      } catch (err) { toast(err.message, true); }
+    };
+    $('#subCatName').focus();
+  };
   // Kategorian muokkaus: siisti lomake promptin sijaan.
+  // Alakategoria voidaan siirtää toisen yläkategorian alle tai pääkategoriaksi.
+  // Yläkategoriaa (jolla on alakategorioita) ei voi tehdä alakategoriaksi.
+  const hasChildren = subs.length > 0;
   $('#renameCatBtn').onclick = () => {
     const row = $('#catEditRow');
-    if (row.innerHTML) { row.innerHTML = ''; return; }
-    row.innerHTML = `<div class="card"><div class="row">
-      ${iconSelectHtml('editCatIcon', catIcon(cat))}
-      <input type="text" id="editCatName" value="${esc(cat.name)}"
-        style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
-      <button class="btn small" id="editCatSave">Tallenna</button>
-    </div></div>`;
+    if (row.dataset.mode === 'edit') { row.innerHTML = ''; row.dataset.mode = ''; return; }
+    row.dataset.mode = 'edit';
+    row.innerHTML = `<div class="card">
+      <div class="row" style="flex-wrap:wrap">
+        ${iconSelectHtml('editCatIcon', catIcon(cat))}
+        <input type="text" id="editCatName" value="${esc(cat.name)}"
+          style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
+        <button class="btn small" id="editCatSave">Tallenna</button>
+      </div>
+      ${hasChildren
+        ? '<p class="muted" style="margin:8px 0 0">Tällä kategorialla on alakategorioita, joten sitä ei voi siirtää toisen alle.</p>'
+        : `<label class="muted" style="display:block;margin:10px 0 4px">Yläkategoria</label>${parentSelectHtml('editCatParent', cat.parent_id || null, id)}`}
+    </div>`;
     $('#editCatSave').onclick = async () => {
       const name = $('#editCatName').value.trim();
       if (!name) return toast('Anna nimi', true);
-      await Store.categories.update(id, { name, icon: $('#editCatIcon').value });
-      await loadCategories(); viewCategory(id); toast('Tallennettu');
+      const data = { name, icon: $('#editCatIcon').value };
+      if (!hasChildren) data.parent_id = $('#editCatParent').value || null;
+      try {
+        await Store.categories.update(id, data);
+        await loadCategories(); viewCategory(id); toast('Tallennettu');
+      } catch (err) { toast(err.message, true); }
     };
     $('#editCatName').focus();
   };
   $('#delCatBtn').onclick = async () => {
-    if (confirm('Poistetaanko kategoria ja KAIKKI sen ohjeet ja liitteet?')) {
+    const msg = subs.length
+      ? `Poistetaanko kategoria, sen ${subs.length} alakategoriaa ja KAIKKI niiden ohjeet ja liitteet?`
+      : 'Poistetaanko kategoria ja KAIKKI sen ohjeet ja liitteet?';
+    if (confirm(msg)) {
       await Store.categories.remove(id);
-      await loadCategories(); location.hash = '#/'; toast('Kategoria poistettu');
+      await loadCategories();
+      location.hash = parent ? '#/kohde/' + parent.id : '#/';
+      toast('Kategoria poistettu');
     }
   };
 }
@@ -655,7 +755,7 @@ async function viewPageEdit(id, presetCat) {
       <div class="field">
         <label>Kategoria</label>
         <select id="catSelect">
-          ${categories.map((c) => `<option value="${c.id}" ${c.id === p.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+          ${categoryOptionsHtml(p.category_id)}
         </select>
       </div>
       <div class="field">
@@ -760,7 +860,7 @@ async function viewShiftLog() {
         <label>Kategoria (valinnainen)</label>
         <select id="noteCat">
           <option value="">– Yleinen –</option>
-          ${categories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+          ${categoryOptionsHtml(null)}
         </select>
       </div>
       <div class="field">
@@ -1168,7 +1268,11 @@ function closeSidebarMobile() { $('#sidebar').classList.remove('open'); }
 document.addEventListener('click', async (e) => {
   const catMove = e.target.closest('[data-catmove]');
   if (catMove) {
-    const ids = moveInList(categories.map((c) => c.id), +catMove.dataset.catmove, +catMove.dataset.dir);
+    // Järjestys vaihdetaan vain sisarusten (saman yläkategorian) kesken.
+    const cid = +catMove.dataset.catmove;
+    const moved = categories.find((c) => c.id === cid);
+    const siblingIds = categories.filter((c) => (c.parent_id || null) === (moved.parent_id || null)).map((c) => c.id);
+    const ids = moveInList(siblingIds, cid, +catMove.dataset.dir);
     if (ids) { await Store.categories.reorder(ids); await loadCategories(); }
     return;
   }
@@ -1190,15 +1294,18 @@ $('#addCategoryBtn').onclick = () => {
   if (existing) { existing.remove(); return; }
   const wrap = document.createElement('div');
   wrap.id = 'catForm'; wrap.className = 'cat-form';
-  wrap.innerHTML = `${iconSelectHtml('newCatIcon', '📄')}
-    <input id="newCatName" type="text" placeholder="Kategorian nimi" />
-    <button class="btn small" id="newCatSave">OK</button>`;
+  wrap.innerHTML = `<div class="row" style="width:100%">
+      ${iconSelectHtml('newCatIcon', '📄')}
+      <input id="newCatName" type="text" placeholder="Kategorian nimi" style="flex:1;min-width:0" />
+    </div>
+    ${parentSelectHtml('newCatParent', null, null)}
+    <button class="btn small" id="newCatSave" style="width:100%">Lisää kategoria</button>`;
   $('#categoryList').before(wrap);
   const saveCat = async () => {
     const name = $('#newCatName').value.trim();
     if (!name) return toast('Anna nimi', true);
     try {
-      const c = await Store.categories.create({ name, icon: $('#newCatIcon').value });
+      const c = await Store.categories.create({ name, icon: $('#newCatIcon').value, parent_id: $('#newCatParent').value || null });
       wrap.remove(); await loadCategories();
       location.hash = '#/kohde/' + c.id; toast('Kategoria lisätty');
     } catch (err) { toast(err.message, true); }

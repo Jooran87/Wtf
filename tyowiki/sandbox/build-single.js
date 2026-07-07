@@ -60,7 +60,9 @@ ${css}
       </nav>
       <div class="sidebar-section">
         <div class="sidebar-title"><span>Ohjeet</span>
-          <button id="addCategoryBtn" class="icon-btn small" title="Lisää kategoria">＋</button></div>
+          <span class="sidebar-title-actions">
+            <button id="toggleSubcatsBtn" class="icon-btn small" title="Piilota alakategoriat">▾</button>
+            <button id="addCategoryBtn" class="icon-btn small" title="Lisää kategoria">＋</button></span></div>
         <ul id="categoryList" class="category-list"></ul>
       </div>
     </aside>

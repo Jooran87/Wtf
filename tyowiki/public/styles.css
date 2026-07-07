@@ -148,6 +148,14 @@ input, textarea, select { background: var(--panel); color: var(--text); }
   padding: 0 8px 8px; font-size: 12px; text-transform: uppercase;
   letter-spacing: .04em; color: var(--muted); font-weight: 700;
 }
+.sidebar-title-actions { display: flex; align-items: center; gap: 2px; }
+.sidebar-title-actions #toggleSubcatsBtn.active { color: var(--brand-ink); }
+/* Merkki pääkategoriassa, kun sen alakategoriat on piilotettu */
+.subs-chip {
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  background: var(--hover); border-radius: 8px; padding: 0 5px; flex-shrink: 0;
+}
+.cat-btn.active .subs-chip { background: var(--panel); color: var(--brand-ink); }
 .category-list { list-style: none; margin: 0; padding: 0; }
 .category-list li { display: flex; align-items: center; }
 .category-list .cat-btn {

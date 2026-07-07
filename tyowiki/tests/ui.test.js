@@ -155,6 +155,16 @@ async function main() {
     ok('uusi alakategoria näkyy sivupalkissa',
       (await page.$$eval('#categoryList .cat-btn.subcat .cat-name', (els) => els.map((e) => e.textContent))).some((t) => t.includes('Asiakas C')));
 
+    // Alakategorioiden piilotusnappi: piilottaa alakategoriat + näyttää merkin, muistetaan
+    const subsBefore = (await page.$$('#categoryList .cat-btn.subcat')).length;
+    await page.click('#toggleSubcatsBtn'); await page.waitForTimeout(200);
+    ok('piilotusnappi piilottaa alakategoriat', (await page.$$('#categoryList .cat-btn.subcat')).length === 0 && subsBefore > 0);
+    ok('piilotettuna näkyy määrämerkki', (await page.$$('.subs-chip')).length >= 1);
+    await page.reload(); await page.waitForTimeout(900);
+    ok('piilotusvalinta muistetaan latauksessa', (await page.$$('#categoryList .cat-btn.subcat')).length === 0);
+    await page.click('#toggleSubcatsBtn'); await page.waitForTimeout(200);
+    ok('napista alakategoriat takaisin näkyviin', (await page.$$('#categoryList .cat-btn.subcat')).length === subsBefore);
+
     // Väriaksentit: seed-kategorioilla on värillinen reuna sivupalkissa ja korteissa
     await page.goto(base + '#/'); await page.waitForTimeout(400);
     ok('kategorioilla väriaksentti sivupalkissa', (await page.$$('#categoryList .cat-btn.has-accent')).length >= 5);

@@ -162,6 +162,14 @@ input, textarea, select { background: var(--panel); color: var(--text); }
   padding: 0 8px 8px; font-size: 12px; text-transform: uppercase;
   letter-spacing: .04em; color: var(--muted); font-weight: 700;
 }
+.sidebar-title-actions { display: flex; align-items: center; gap: 2px; }
+.sidebar-title-actions #toggleSubcatsBtn.active { color: var(--brand-ink); }
+/* Merkki pääkategoriassa, kun sen alakategoriat on piilotettu */
+.subs-chip {
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  background: var(--hover); border-radius: 8px; padding: 0 5px; flex-shrink: 0;
+}
+.cat-btn.active .subs-chip { background: var(--panel); color: var(--brand-ink); }
 .category-list { list-style: none; margin: 0; padding: 0; }
 .category-list li { display: flex; align-items: center; }
 .category-list .cat-btn {
@@ -631,7 +639,9 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
       </nav>
       <div class="sidebar-section">
         <div class="sidebar-title"><span>Ohjeet</span>
-          <button id="addCategoryBtn" class="icon-btn small" title="Lisää kategoria">＋</button></div>
+          <span class="sidebar-title-actions">
+            <button id="toggleSubcatsBtn" class="icon-btn small" title="Piilota alakategoriat">▾</button>
+            <button id="addCategoryBtn" class="icon-btn small" title="Lisää kategoria">＋</button></span></div>
         <ul id="categoryList" class="category-list"></ul>
       </div>
     </aside>
@@ -1985,12 +1995,19 @@ function totalPageCount(c) {
   return n;
 }
 
-function catRowHtml(c, i, total, isSub) {
+// Alakategorioiden näkyvyys sivupalkissa (käyttäjän näkymäasetus, muistetaan).
+let subcatsHidden = false;
+try { subcatsHidden = localStorage.getItem('tyowiki_hide_subcats') === '1'; } catch (_) {}
+
+function catRowHtml(c, i, total, isSub, hiddenSubs) {
   const accent = catColor(c) ? ' has-accent' : '';
+  // Kun alakategoriat on piilotettu, pääkategoriassa näkyy pieni merkki niiden määrästä.
+  const chip = hiddenSubs ? `<span class="subs-chip" title="${hiddenSubs} alakategoriaa piilotettu">▸${hiddenSubs}</span>` : '';
   return `<li>
       <button class="cat-btn ${isSub ? 'subcat' : ''}${accent} ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}"${accentStyle(c)}>
         <span class="cat-ico">${esc(catIcon(c))}</span>
         <span class="cat-name">${esc(c.name)}</span>
+        ${chip}
         <span class="count-badge">${c.page_count != null ? c.page_count : ''}</span>
       </button>
       <span class="row-order">
@@ -2005,10 +2022,27 @@ function renderSidebar() {
   const tops = topCategories();
   ul.innerHTML = tops.map((c, i) => {
     const kids = subCategories(c.id);
-    return catRowHtml(c, i, tops.length, false)
+    if (subcatsHidden) {
+      // Piilotettuna: vain pääkategoriat + merkki alakategorioiden määrästä.
+      return catRowHtml(c, i, tops.length, false, kids.length);
+    }
+    return catRowHtml(c, i, tops.length, false, 0)
       + (kids.length ? `<li class="subcat-wrap"><ul class="subcat-list">${
-          kids.map((k, j) => catRowHtml(k, j, kids.length, true)).join('')}</ul></li>` : '');
+          kids.map((k, j) => catRowHtml(k, j, kids.length, true, 0)).join('')}</ul></li>` : '');
   }).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
+  updateSubcatToggle();
+}
+
+// Päivittää piilotusnapin kuvakkeen/tekstin ja piilottaa sen kokonaan,
+// jos alakategorioita ei ole lainkaan.
+function updateSubcatToggle() {
+  const b = $('#toggleSubcatsBtn');
+  if (!b) return;
+  const anySubs = categories.some((c) => c.parent_id);
+  b.style.display = anySubs ? '' : 'none';
+  b.textContent = subcatsHidden ? '▸' : '▾';
+  b.title = subcatsHidden ? 'Näytä alakategoriat' : 'Piilota alakategoriat';
+  b.classList.toggle('active', subcatsHidden);
 }
 
 // Siirtää id:n annettuun suuntaan id-listassa; palauttaa uuden listan tai null.
@@ -3063,6 +3097,14 @@ document.addEventListener('click', async (e) => {
 });
 
 // Kategorian lisäys: siisti pikalomake sivupalkkiin (ei selaimen prompt-ikkunaa).
+// Piilota/näytä alakategoriat sivupalkissa (siistimpi näkymä; asetus muistetaan).
+const toggleSubcatsBtn = $('#toggleSubcatsBtn');
+if (toggleSubcatsBtn) toggleSubcatsBtn.onclick = () => {
+  subcatsHidden = !subcatsHidden;
+  try { localStorage.setItem('tyowiki_hide_subcats', subcatsHidden ? '1' : '0'); } catch (_) {}
+  renderSidebar();
+};
+
 $('#addCategoryBtn').onclick = () => {
   const existing = $('#catForm');
   if (existing) { existing.remove(); return; }

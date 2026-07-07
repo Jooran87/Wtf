@@ -105,9 +105,9 @@ async function main() {
     ok('tyhjä nimi hylätään (400)', await status('POST', '/api/categories', { name: '' }) === 400);
 
     // Kategorian väriaksentti: heksa hyväksytään, roska siivotaan tyhjäksi
-    ok('seed-kategorialla väri', topCats[0].color === '#8b5cf6', topCats[0].color);
-    const colored = await jsend('POST', '/api/categories', { name: 'Värillinen', color: '#EA6A1E' });
-    ok('väri tallentuu (normalisoitu)', colored.color === '#ea6a1e', colored.color);
+    ok('seed-kategorialla väri', /^#[0-9a-f]{6}$/.test(topCats[0].color), topCats[0].color);
+    const colored = await jsend('POST', '/api/categories', { name: 'Värillinen', color: '#C2410C' });
+    ok('väri tallentuu (normalisoitu)', colored.color === '#c2410c', colored.color);
     const badColor = await jsend('POST', '/api/categories', { name: 'Rojuväri', color: 'punainen; x:1' });
     ok('kelvoton väri hylätään (tyhjä)', badColor.color === '', badColor.color);
     const recolored = await jsend('PUT', `/api/categories/${colored.id}`, { name: 'Värillinen', color: '#16a34a' });

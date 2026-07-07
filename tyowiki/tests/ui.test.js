@@ -200,6 +200,17 @@ async function main() {
     ok('sisällysluettelossa otsikot', tocLinks.length >= 3 && tocLinks.some((t) => t.includes('Päivä 1')), JSON.stringify(tocLinks));
     ok('otsikoilla ankkuri-id', (await page.$$('.doc .doc-head[id]')).length >= 3);
 
+    // Kuvagalleria + lightbox: Kipa-ohjeeseen ladattu kuva (imgFileInput-testi)
+    await page.goto(base + '#/'); await page.waitForTimeout(300);
+    await page.click('#categoryList >> text=Kipa'); await page.waitForTimeout(300);
+    await page.click('text=Kipa – kohteen yleisohje'); await page.waitForTimeout(500);
+    ok('kuvaliite näkyy galleriana', (await page.$$('.att-thumb')).length >= 1);
+    await page.click('.att-thumb'); await page.waitForTimeout(400);
+    ok('lightbox avautuu kuvasta', await page.isVisible('.lightbox.open'));
+    ok('lightboxissa on kuva', (await page.$$('.lightbox .lb-img')).length === 1);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    ok('lightbox sulkeutuu Esc:llä', !(await page.isVisible('.lightbox.open')));
+
     // Etusivun uusi järjestys: banneri, Viimeksi päivitetyt ja pikahuomio
     await page.goto(base + '#/'); await page.waitForTimeout(500);
     ok('kiinnitetty tiedote bannerina etusivulla',
@@ -225,6 +236,18 @@ async function main() {
     ok('etusivulla reunapalsta on tyhjä (ei tuplasisältöä)',
       (await wide.$eval('#rail', (e) => e.innerHTML.trim())) === '');
     await wide.close();
+
+    // Puhelimen alapalkki: näkyy kapealla näytöllä ja navigoi
+    const mob = await browser.newPage({ viewport: { width: 390, height: 800 } });
+    mob.on('pageerror', (e) => errors.push('mob: ' + e.message));
+    await mob.goto(fileUrl); await mob.waitForTimeout(800);
+    ok('alapalkki näkyy puhelimessa', await mob.isVisible('#bottomNav'));
+    ok('alapalkissa 5 kohtaa', (await mob.$$('.bn-item')).length === 5);
+    await mob.click('.bn-item[data-bnav="shiftlog"]'); await mob.waitForTimeout(400);
+    ok('alapalkista siirrytään vuorolokiin', /#\/vuoroloki/.test(mob.url()), mob.url());
+    ok('alapalkin aktiivinen kohta korostuu',
+      (await mob.$$('.bn-item.active[data-bnav="shiftlog"]')).length === 1);
+    await mob.close();
 
     ok('ei JS-virheitä koko ajossa', errors.length === 0, errors.join(','));
   } finally {

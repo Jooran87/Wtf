@@ -30,6 +30,9 @@ Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
   vihreää (vahvistettu ≤ 180 pv), punaista (vahvistus vanhentunut) tai harmaata
   (ei vahvistettu). Vahvistus vaatii nimen yläkulman kenttään.
 - **Tiedostoliitteet** – PDF, kuvat, Word, Excel (PDF ja kuvat näkyvät suoraan selaimessa, muut latautuvat)
+- **Kuvagalleria** – kuvaliitteet näkyvät pikkukuvina; klikkaus suurentaa (lightbox, nuolinäppäimet selaavat). Myös artikkelin sisällön kuvat suurenevat klikkaamalla
+- **Yhtenäiset SVG-kuvakkeet** – käyttöliittymä käyttää samannäköisiä viivaikoneita joka laitteella (kategorioille voi silti valita oman emojin)
+- **Puhelimen alapalkki** – kapealla näytöllä alareunassa pikapainikkeet (Etusivu, Vuoroloki, Haku, Tiedotteet, Valikko)
 - **Haku** ohjeista, huomioista **ja tiedostojen sisällöstä** (PDF, Word, Excel) – näyttää otteen osumakohdasta
 
 Suunniteltu pienelle käyttäjämäärälle (n. 20) ja pyörii firman omalla palvelimella.

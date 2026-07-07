@@ -19,11 +19,11 @@ const insAnn = db.prepare('INSERT INTO announcements (title, content, pinned, cr
 const insTerm = db.prepare('INSERT INTO terms (term, definition, updated_at, updated_by) VALUES (?, ?, ?, ?)');
 
 // Kategoriat asiakkuuksittain / aihealueittain (Palmia – kiinteistöhoito)
-const pereh = insCat.run('Perehdytys', '🎓', '#8b5cf6', 0).lastInsertRowid;
-const kipa = insCat.run('Kipa', '🏢', '#ea6a1e', 1).lastInsertRowid;
-const halytyskeskus = insCat.run('Hälytyskeskus', '🚨', '#e11d48', 2).lastInsertRowid;
-const hairiot = insCat.run('Häiriötilanteet', '⚡', '#f59e0b', 3).lastInsertRowid;
-const ism = insCat.run('ISM-ohjeet', '📘', '#2563eb', 4).lastInsertRowid;
+const pereh = insCat.run('Perehdytys', '🎓', '#7c3aed', 0).lastInsertRowid;
+const kipa = insCat.run('Kipa', '🏢', '#c2410c', 1).lastInsertRowid;
+const halytyskeskus = insCat.run('Hälytyskeskus', '🚨', '#9d174d', 2).lastInsertRowid;
+const hairiot = insCat.run('Häiriötilanteet', '⚡', '#b45309', 3).lastInsertRowid;
+const ism = insCat.run('ISM-ohjeet', '📘', '#0369a1', 4).lastInsertRowid;
 
 // Esimerkki alakategorioista: Kipan alle asiakkuuksittain.
 const kipaAsA = insSubCat.run('Asiakas A – Toimistotalo', '🏢', 1, kipa).lastInsertRowid;

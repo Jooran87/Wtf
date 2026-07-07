@@ -97,12 +97,12 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [], links: [] };
-  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', color: '#8b5cf6', sort_order: 0, parent_id: null };
+  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', color: '#7c3aed', sort_order: 0, parent_id: null };
   DB.categories.push(pereh);
-  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', color: '#ea6a1e', sort_order: 1, parent_id: null };
-  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', color: '#e11d48', sort_order: 2, parent_id: null };
-  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', color: '#f59e0b', sort_order: 3, parent_id: null };
-  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', color: '#2563eb', sort_order: 4, parent_id: null };
+  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', color: '#c2410c', sort_order: 1, parent_id: null };
+  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', color: '#9d174d', sort_order: 2, parent_id: null };
+  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', color: '#b45309', sort_order: 3, parent_id: null };
+  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', color: '#0369a1', sort_order: 4, parent_id: null };
   DB.categories.push(kipa, halytyskeskus, hairiot, ism);
   // Esimerkki alakategorioista: Kipan alle asiakkuuksittain.
   const kipaAsA = { id: nextId(), name: 'Asiakas A – Toimistotalo', icon: '🏢', sort_order: 1, parent_id: kipa.id };

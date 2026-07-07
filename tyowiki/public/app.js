@@ -30,6 +30,55 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// ---------- Yhtenäinen SVG-ikonisto (perii tekstin värin, sama joka laitteella) ----------
+// Käyttöliittymän kuvakkeet (ei kategorioiden käyttäjävalittavia emojeja).
+const ICON_PATHS = {
+  home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/>',
+  announce: '<path d="M3 11v2.5l13 5V6z"/><path d="M16 8.5a3.5 3.5 0 0 1 0 7"/><path d="M7 14v4.5h3V15"/>',
+  note: '<path d="M5 3.5h9l5 5V20.5H5z"/><path d="M8 12h8M8 16h5"/>',
+  terms: '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v18H6.5A1.5 1.5 0 0 1 5 19.5z"/><path d="M9 3v18"/>',
+  link: '<path d="M10 13a4 4 0 0 0 6 .5l2-2a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 11a4 4 0 0 0-6-.5l-2 2A4 4 0 0 0 11.7 18l1-1"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6"/><path d="M17 14.4a5.5 5.5 0 0 1 3.5 5.1"/>',
+  offline: '<path d="M12 3v10m0 0 3.5-3.5M12 13 8.5 9.5"/><path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/>',
+  popular: '<path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-1.5.6-2.8 1.3-3.8C9 10 9.5 12 11 12c1 0 1-1.2.5-3C11 7.5 12 4.5 12 3z"/>',
+  recent: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  contact: '<path d="M6 3.5h3l1.5 4.5-2 1.3a11 11 0 0 0 5 5l1.3-2 4.5 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4 6a2 2 0 0 1 2-2.5z"/>',
+  attach: '<path d="M20 11.5 12 19.5a4.5 4.5 0 0 1-6.4-6.4l8-8a3 3 0 0 1 4.3 4.3l-8 8a1.5 1.5 0 0 1-2.2-2.2l7.3-7.3"/>',
+  edit: '<path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17.5z"/><path d="M14 8.5 16.5 11"/>',
+  trash: '<path d="M4.5 6.5h15M9 6.5V4.5h6v2M6 6.5 7 20h10l1-13.5"/><path d="M10 10v6M14 10v6"/>',
+  pin: '<path d="M9 3.5h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 14.5V21"/>',
+  history: '<path d="M4 12a8 8 0 1 1 2.5 5.8"/><path d="M4 20v-4h4"/><path d="M12 7.5V12l3 2"/>',
+  verify: '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2 11 14.7l4.5-5"/>',
+  toc: '<path d="M8 6h11M8 12h11M8 18h7"/><circle cx="4.2" cy="6" r="1.1"/><circle cx="4.2" cy="12" r="1.1"/><circle cx="4.2" cy="18" r="1.1"/>',
+  camera: '<path d="M4 8.5h3l1.5-2h7L17 8.5h3V19H4z"/><circle cx="12" cy="13" r="3.2"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
+  moon: '<path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8 6 18M18 6l1.8-1.8"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  add: '<path d="M12 5v14M5 12h14"/>',
+  warn: '<path d="M12 4 2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.2"/>',
+  arrowRight: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
+  chevUp: '<path d="M6 15l6-6 6 6"/>',
+  chevDown: '<path d="M6 9l6 6 6-6"/>',
+  chevRight: '<path d="M9 6l6 6-6 6"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+  filePdf: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M8.5 17v-3.5h1a1.2 1.2 0 0 1 0 2.4h-1"/>',
+  fileImage: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><circle cx="10" cy="13" r="1.3"/><path d="M8 19l3-3 2 2 2-2.5 2 3.5"/>',
+  fileWord: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M8 13l1.3 4 1.2-3 1.2 3 1.3-4"/>',
+  fileExcel: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M8.5 13.5l4 4M12.5 13.5l-4 4"/>',
+  file: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
+  shield: '<path d="M12 3l7 2.5V11c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V5.5z"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  search2: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
+};
+function icon(name, cls) {
+  const p = ICON_PATHS[name];
+  if (!p) return '';
+  return `<svg class="ic${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" `
+    + `stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+}
+
 // Korostaa hakusanan otteessa (escapeta ensin XSS:n välttämiseksi).
 function highlight(text, q) {
   const safe = esc(text);
@@ -50,11 +99,11 @@ function fmtSize(bytes) {
 }
 
 function fileIcon(mime) {
-  if (mime === 'application/pdf') return '📕';
-  if (mime.startsWith('image/')) return '🖼️';
-  if (mime.includes('word')) return '📄';
-  if (mime.includes('sheet') || mime.includes('excel')) return '📊';
-  return '📎';
+  if (mime === 'application/pdf') return icon('filePdf');
+  if (mime.startsWith('image/')) return icon('fileImage');
+  if (mime.includes('word')) return icon('fileWord');
+  if (mime.includes('sheet') || mime.includes('excel')) return icon('fileExcel');
+  return icon('file');
 }
 
 // ---------- Yksinkertainen Markdown-renderöinti (turvallinen: escapeta ensin) ----------
@@ -200,7 +249,7 @@ async function viewUsers(editId) {
   const users = await Store.users.list();
   const editing = editId ? users.find((u) => u.id === editId) : null;
   content.innerHTML = `
-    <h2>👥 Käyttäjät</h2>
+    <h2>${icon('users','ic-lg')} Käyttäjät</h2>
     <p class="muted">Ylläpitäjä hallitsee tunnuksia. Roolit: Ylläpitäjä (kaikki + käyttäjät),
       Muokkaaja (sisällön muokkaus), Lukija (vain luku).</p>
     <div class="card">
@@ -227,13 +276,13 @@ async function viewUsers(editId) {
     <div class="card">
       <ul class="link-list">
         ${users.map((u) => `<li class="link-row">
-          <span class="att-icon">${u.role === 'admin' ? '🛡️' : u.role === 'editor' ? '✏️' : '👁'}</span>
+          <span class="att-icon">${u.role === 'admin' ? icon('shield') : u.role === 'editor' ? icon('edit') : icon('eye')}</span>
           <span class="att-name"><strong>${esc(u.name)}</strong>
             <div class="att-meta">${esc(u.username)} · ${esc(ROLE_LABELS[u.role] || u.role)}${u.id === currentUser.id ? ' · (sinä)' : ''}</div>
           </span>
           <span class="contact-actions">
-            <button class="icon-btn small" data-edituser="${u.id}" title="Muokkaa">✏️</button>
-            ${u.id !== currentUser.id ? `<button class="icon-btn small" data-deluser="${u.id}" title="Poista">🗑</button>` : ''}
+            <button class="icon-btn small" data-edituser="${u.id}" title="Muokkaa">${icon('edit')}</button>
+            ${u.id !== currentUser.id ? `<button class="icon-btn small" data-deluser="${u.id}" title="Poista">${icon('trash')}</button>` : ''}
           </span>
         </li>`).join('')}
       </ul>
@@ -279,8 +328,10 @@ async function loadCategories() {
 const CAT_ICONS = ['📄', '🎓', '🏢', '🏬', '🚨', '⚡', '📘', '🧰', '🧹', '🔧', '🛡️', '🗂️', '🏥'];
 const catIcon = (c) => (c && c.icon) ? c.icon : '📄';
 
-// Kategorian väriaksentti: valmis paletti + heksavalidointi (turvallinen inline-tyyliin).
-const CAT_COLORS = ['#ea6a1e', '#e11d48', '#f59e0b', '#16a34a', '#2563eb', '#8b5cf6', '#0891b2', '#64748b'];
+// Kategorian väriaksentti: rauhallinen, erottuva paletti. Vältetään kirkasta
+// punaista/vihreää, jotka sekoittuvat vaara/ok-merkityksiin. Heksavalidointi
+// (HEX_RE) pitää inline-tyylin turvallisena.
+const CAT_COLORS = ['#c2410c', '#b45309', '#0f766e', '#0369a1', '#4f46e5', '#7c3aed', '#9d174d', '#475569'];
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 const catColor = (c) => (c && HEX_RE.test(c.color || '')) ? c.color.toLowerCase() : '';
 // Palauttaa turvallisen style-attribuutin (tai tyhjän) värille.
@@ -323,8 +374,8 @@ function catRowHtml(c, i, total, isSub, hiddenSubs) {
         <span class="count-badge">${c.page_count != null ? c.page_count : ''}</span>
       </button>
       <span class="row-order">
-        ${i > 0 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="-1" title="Siirrä ylös">▲</button>` : ''}
-        ${i < total - 1 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="1" title="Siirrä alas">▼</button>` : ''}
+        ${i > 0 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="-1" title="Siirrä ylös">${icon('chevUp')}</button>` : ''}
+        ${i < total - 1 ? `<button class="icon-btn" data-catmove="${c.id}" data-dir="1" title="Siirrä alas">${icon('chevDown')}</button>` : ''}
       </span>
     </li>`;
 }
@@ -352,7 +403,7 @@ function updateSubcatToggle() {
   if (!b) return;
   const anySubs = categories.some((c) => c.parent_id);
   b.style.display = anySubs ? '' : 'none';
-  b.textContent = subcatsHidden ? '▸' : '▾';
+  b.innerHTML = icon(subcatsHidden ? 'chevRight' : 'chevDown');
   b.title = subcatsHidden ? 'Näytä alakategoriat' : 'Piilota alakategoriat';
   b.classList.toggle('active', subcatsHidden);
 }
@@ -394,6 +445,7 @@ function parentSelectHtml(id, selected, excludeId) {
 
 function setActiveNav(nav) {
   document.querySelectorAll('.nav-link').forEach((b) => b.classList.toggle('active', b.dataset.nav === nav));
+  document.querySelectorAll('.bn-item[data-bnav]').forEach((b) => b.classList.toggle('active', b.dataset.bnav === nav));
 }
 
 // Reititys hash-osoitteilla: #/, #/kohde/:id, #/sivu/:id, #/muokkaa/:id, #/uusi, #/vuoroloki, #/haku?q=
@@ -415,7 +467,7 @@ async function updateRail(section) {
   try {
     const notes = await Store.notes.list({ limit: 5 });
     rail.innerHTML = `<div class="card">
-      <div class="spread"><h3 style="margin:0">📝 Vuoroloki</h3>
+      <div class="spread"><h3 style="margin:0">${icon('note')} Vuoroloki</h3>
         <a class="btn small secondary" href="#/vuoroloki">Kaikki</a></div>
       <div class="note-quick">
         <textarea id="railNoteText" placeholder="Kirjaa huomio…"></textarea>
@@ -482,14 +534,14 @@ async function viewHome() {
     .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
     .slice(0, 5);
   content.innerHTML = `
-    ${pinned.map((a) => `<a class="pin-banner" href="#/tiedotteet">📌 <strong>${esc(a.title)}</strong>
+    ${pinned.map((a) => `<a class="pin-banner" href="#/tiedotteet">${icon('pin')} <strong>${esc(a.title)}</strong>
       <span>${esc(String(a.content || '').replace(/\s+/g, ' ').slice(0, 140))}</span></a>`).join('')}
     <h2>Hälytyskeskuksen työohjeet</h2>
     <p class="muted">Valitse kategoria tai hae yläpalkista (pikanäppäin <code>/</code>).</p>
     <div class="home-grid">
       <div class="hg-num">
         <div class="card">
-          <div class="spread"><h3 style="margin:0">☎ Tärkeät numerot</h3>
+          <div class="spread"><h3 style="margin:0">${icon('contact')} Tärkeät numerot</h3>
             <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">＋</button></div>
           <div id="contactFormWrap"></div>
           <ul class="contact-list">
@@ -510,12 +562,12 @@ async function viewHome() {
           }).join('')}
         </div>
         ${otherAnns.length ? `<div class="card">
-          <div class="spread"><h3 style="margin:0">📢 Tiedotteet</h3>
+          <div class="spread"><h3 style="margin:0">${icon('announce')} Tiedotteet</h3>
             <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
           ${otherAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
         </div>` : ''}
         <div class="card">
-          <div class="spread"><h3 style="margin:0">🔥 Suosituimmat ohjeet</h3></div>
+          <div class="spread"><h3 style="margin:0">${icon('popular')} Suosituimmat ohjeet</h3></div>
           <ol class="rank-list">
             ${popular.map((p) => `<li><button class="page-link" data-page="${p.id}">
               <span>${esc(p.title)}</span>
@@ -524,7 +576,7 @@ async function viewHome() {
           </ol>
         </div>
         <div class="card">
-          <div class="spread"><h3 style="margin:0">🕐 Viimeksi päivitetyt</h3></div>
+          <div class="spread"><h3 style="margin:0">${icon('recent')} Viimeksi päivitetyt</h3></div>
           <ul class="page-list">
             ${recent.map((p) => `<li><button class="page-link" data-page="${p.id}">
               <span>${esc(p.title)}</span>
@@ -535,7 +587,7 @@ async function viewHome() {
       </div>
       <div class="hg-notes">
         <div class="card">
-          <div class="spread"><h3 style="margin:0">📝 Vuorohuomiot</h3>
+          <div class="spread"><h3 style="margin:0">${icon('note')} Vuorohuomiot</h3>
             <a class="btn small secondary" href="#/vuoroloki">Kaikki</a></div>
           <div class="note-quick">
             <textarea id="homeNoteText" placeholder="Kirjaa huomio vuorolokiin…"></textarea>
@@ -617,7 +669,7 @@ async function viewCategory(id) {
       <div class="row">
         <button class="btn small" id="newPageBtn">＋ Uusi ohje</button>
         ${!parent ? '<button class="btn small secondary" id="newSubBtn">＋ Alakategoria</button>' : ''}
-        <button class="btn small secondary" id="renameCatBtn">✏️ Muokkaa</button>
+        <button class="btn small secondary" id="renameCatBtn">${icon('edit')} Muokkaa</button>
         <button class="btn small danger" id="delCatBtn">Poista kategoria</button>
       </div>
     </div>
@@ -638,8 +690,8 @@ async function viewCategory(id) {
             <span class="muted">${esc(fmtDate(p.updated_at))}</span>
           </button>
           <span class="row-order">
-            ${i > 0 ? `<button class="icon-btn" data-pmove="${p.id}" data-dir="-1" title="Siirrä ylös">▲</button>` : ''}
-            ${i < pages.length - 1 ? `<button class="icon-btn" data-pmove="${p.id}" data-dir="1" title="Siirrä alas">▼</button>` : ''}
+            ${i > 0 ? `<button class="icon-btn" data-pmove="${p.id}" data-dir="-1" title="Siirrä ylös">${icon('chevUp')}</button>` : ''}
+            ${i < pages.length - 1 ? `<button class="icon-btn" data-pmove="${p.id}" data-dir="1" title="Siirrä alas">${icon('chevDown')}</button>` : ''}
           </span>
         </li>`).join('')
           || `<li class="empty">${subs.length ? 'Ei ohjeita suoraan tässä kategoriassa – valitse alakategoria yltä.' : 'Ei ohjeita tässä kategoriassa. Luo ensimmäinen.'}</li>`}
@@ -730,7 +782,7 @@ async function viewCategory(id) {
       if (row.dataset.mode === 'del') { row.innerHTML = ''; row.dataset.mode = ''; return; }
       row.dataset.mode = 'del';
       row.innerHTML = `<div class="card danger-zone">
-        <p style="margin:0 0 10px"><strong>⚠️ ${esc(delMsg)}</strong></p>
+        <p style="margin:0 0 10px"><strong>${icon('warn')} ${esc(delMsg)}</strong></p>
         <div class="row" style="flex-wrap:wrap">
           <input type="password" id="delCatPass" placeholder="Vahvista omalla salasanallasi" autocomplete="current-password"
             style="flex:1; min-width:200px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
@@ -766,7 +818,7 @@ function buildToc() {
   if (heads.length < 3) return; // lyhyille ohjeille ei tarvita luetteloa
   heads.forEach((h, i) => { if (!h.id) h.id = 'osio-' + i; h.classList.add('doc-head'); });
   holder.innerHTML = `<nav class="toc-card" aria-label="Sisällys">
-    <div class="toc-title">📑 Tällä sivulla</div>
+    <div class="toc-title">${icon('toc')} Tällä sivulla</div>
     <ul>${heads.map((h) => `<li class="toc-${h.tagName.toLowerCase()}">
       <a href="#" data-toc="${h.id}">${esc(h.textContent)}</a></li>`).join('')}</ul>
   </nav>`;
@@ -788,6 +840,9 @@ function buildToc() {
 
 async function viewPage(id) {
   const p = await Store.pages.get(id, { track: true });
+  // Kuvaliitteet omaan galleriaan (pikkukuvat + lightbox), muut listaan.
+  const imgAtts = p.attachments.filter((a) => (a.mimetype || '').startsWith('image/'));
+  const otherAtts = p.attachments.filter((a) => !(a.mimetype || '').startsWith('image/'));
   content.innerHTML = `
     <div class="spread">
       <div>
@@ -797,24 +852,29 @@ async function viewPage(id) {
         <h2 style="margin:4px 0 0">${esc(p.title)}</h2>
       </div>
       <div class="row">
-        <button class="btn small secondary" id="editBtn">✏️ Muokkaa</button>
-        <a class="btn small secondary" href="#/historia/${p.id}">🕘 Historia</a>
+        <button class="btn small secondary" id="editBtn">${icon('edit')} Muokkaa</button>
+        <a class="btn small secondary" href="#/historia/${p.id}">${icon('history')} Historia</a>
         <button class="btn small danger" id="delBtn">Poista</button>
       </div>
     </div>
     <p class="muted">Päivitetty ${esc(fmtDate(p.updated_at))}${p.updated_by ? ' · ' + esc(p.updated_by) : ''}</p>
     <div class="row" style="margin-bottom:12px">
       ${verifyBadge(p)}
-      <button class="btn small secondary" id="verifyBtn">✔ Vahvista ajantasaiseksi</button>
+      <button class="btn small secondary" id="verifyBtn">${icon('verify')} Vahvista ajantasaiseksi</button>
     </div>
     ${(p.keywords || '').trim() ? `<div class="tags">${p.keywords.split(',').map((k) => k.trim()).filter(Boolean)
       .map((k) => `<a class="tag-chip" href="#/haku?q=${encodeURIComponent(k)}">${esc(k)}</a>`).join('')}</div>` : ''}
     <div id="tocHolder"></div>
     <div class="card doc">${p.content.trim() ? renderMarkdown(p.content) : '<p class="muted">Ei sisältöä. Klikkaa Muokkaa.</p>'}</div>
     <div class="card">
-      <div class="spread"><h3 style="margin:0">📎 Liitteet (${p.attachments.length})</h3></div>
+      <div class="spread"><h3 style="margin:0">${icon('attach')} Liitteet (${p.attachments.length})</h3></div>
+      ${imgAtts.length ? `<div class="att-gallery">${imgAtts.map((a, i) => `
+        <figure class="att-thumb" data-img="${i}" title="${esc(a.original_name)}">
+          <img src="${esc(a.url)}" alt="${esc(a.original_name)}" loading="lazy" />
+          <button class="att-thumb-del" data-delatt="${a.id}" title="Poista liite">${icon('trash', 'ic-sm')}</button>
+        </figure>`).join('')}</div>` : ''}
       <ul class="attach-list">
-        ${p.attachments.map(attHtml).join('') || '<li class="muted" style="border:none">Ei liitteitä.</li>'}
+        ${otherAtts.map(attHtml).join('') || (imgAtts.length ? '' : '<li class="muted" style="border:none">Ei liitteitä.</li>')}
       </ul>
       <form id="uploadForm" class="row" style="margin-top:12px" enctype="multipart/form-data">
         <input type="file" id="fileInput" name="files" multiple
@@ -826,6 +886,21 @@ async function viewPage(id) {
 
   hydrateDocImages($('#content'));
   buildToc();
+
+  // Kuvagalleria: pikkukuvan klikkaus avaa lightboxin (paitsi poistonappi).
+  const galleryImgs = imgAtts.map((a) => ({ url: a.url, name: a.original_name }));
+  document.querySelectorAll('.att-thumb').forEach((fig) => fig.onclick = (e) => {
+    if (e.target.closest('[data-delatt]')) return;
+    openLightbox(galleryImgs, +fig.dataset.img);
+  });
+  // Artikkelin sisällön kuvat suurenevat myös klikkaamalla.
+  $('#content').querySelectorAll('.doc img.doc-img').forEach((im) => {
+    im.classList.add('zoomable');
+    im.onclick = () => {
+      const all = Array.from($('#content').querySelectorAll('.doc img.doc-img'));
+      openLightbox(all.map((x) => ({ url: x.currentSrc || x.src, name: x.alt || 'kuva' })), all.indexOf(im));
+    };
+  });
 
   $('#verifyBtn').onclick = async () => {
     if (!author.get()) return toast('Kirjoita ensin nimesi oikeaan yläkulmaan', true);
@@ -877,8 +952,8 @@ async function viewPageEdit(id, presetCat) {
         <div class="spread" style="margin-bottom:4px">
           <label style="margin-bottom:0">Sisältö (Markdown: # otsikko, **lihavointi**, - lista)</label>
           <span class="row">
-            <button type="button" class="btn small secondary" id="insertImgBtn" title="Lisää kuva tiedostosta – tai liitä kuvakaappaus suoraan tekstikenttään (Ctrl/Cmd+V)">📷 Lisää kuva</button>
-            <button type="button" class="btn small secondary" id="previewToggle">👁 Esikatselu</button>
+            <button type="button" class="btn small secondary" id="insertImgBtn" title="Lisää kuva tiedostosta – tai liitä kuvakaappaus suoraan tekstikenttään (Ctrl/Cmd+V)">${icon('camera')} Lisää kuva</button>
+            <button type="button" class="btn small secondary" id="previewToggle">${icon('eye')} Esikatselu</button>
           </span>
         </div>
         <input type="file" id="imgFileInput" accept="image/*" multiple style="display:none" />
@@ -935,10 +1010,10 @@ async function viewPageEdit(id, presetCat) {
       box.innerHTML = renderMarkdown(ta.value) || '<p class="muted">Ei sisältöä vielä.</p>';
       hydrateDocImages(box);
       box.style.display = ''; ta.style.display = 'none';
-      btn.textContent = '✏️ Muokkaa tekstiä';
+      btn.innerHTML = icon('edit') + ' Muokkaa tekstiä';
     } else {
       box.style.display = 'none'; ta.style.display = '';
-      btn.textContent = '👁 Esikatselu';
+      btn.innerHTML = icon('eye') + ' Esikatselu';
     }
   };
 
@@ -964,7 +1039,7 @@ async function viewPageEdit(id, presetCat) {
 async function viewShiftLog() {
   const notes = await Store.notes.list({ limit: 200 });
   content.innerHTML = `
-    <h2>📝 Vuoroloki</h2>
+    <h2>${icon('note','ic-lg')} Vuoroloki</h2>
     <p class="muted">Kirjaa juoksevaan listaan huomiot vuoron ajalta. Uusin näkyy ylimpänä.</p>
     <div class="card">
       <div class="field">
@@ -996,8 +1071,8 @@ async function viewShiftLog() {
 async function viewHistory(pageId) {
   const [p, revs] = await Promise.all([Store.pages.get(pageId), Store.pages.revisions(pageId)]);
   content.innerHTML = `
-    <div class="muted"><a href="#/sivu/${p.id}">← ${esc(p.title)}</a></div>
-    <h2 style="margin-top:4px">🕘 Versiohistoria</h2>
+    <div class="muted"><a href="#/sivu/${p.id}">${icon('back','ic-sm')} ${esc(p.title)}</a></div>
+    <h2 style="margin-top:4px">${icon('history','ic-lg')} Versiohistoria</h2>
     <div class="card">
       <ul class="page-list">
         <li><button class="page-link" data-page="${p.id}">
@@ -1019,10 +1094,10 @@ async function viewHistory(pageId) {
 async function viewRevision(revId) {
   const rev = await Store.revisions.get(revId);
   content.innerHTML = `
-    <div class="muted"><a href="#/historia/${rev.page_id}">← Versiohistoria</a></div>
+    <div class="muted"><a href="#/historia/${rev.page_id}">${icon('back','ic-sm')} Versiohistoria</a></div>
     <div class="spread">
       <h2 style="margin:4px 0 0">${esc(rev.title)}</h2>
-      <button class="btn small" id="restoreBtn">↩️ Palauta tämä versio</button>
+      <button class="btn small" id="restoreBtn">${icon('history')} Palauta tämä versio</button>
     </div>
     <p class="muted">Vanha versio · tallennettu ${esc(fmtDate(rev.saved_at))}${rev.saved_by ? ' · ' + esc(rev.saved_by) : ''}</p>
     <div class="card doc">${rev.content.trim() ? renderMarkdown(rev.content) : '<p class="muted">Tyhjä sisältö.</p>'}</div>`;
@@ -1044,8 +1119,8 @@ async function viewAnnouncements(editId) {
   const anns = await Store.announcements.list();
   const editing = editId ? anns.find((a) => a.id === editId) : null;
   content.innerHTML = `
-    <h2>📢 Tiedotteet</h2>
-    <p class="muted">Kiinnitetyt tiedotteet (📌) pysyvät listan ja etusivun kärjessä.</p>
+    <h2>${icon('announce','ic-lg')} Tiedotteet</h2>
+    <p class="muted">Kiinnitetyt tiedotteet pysyvät listan ja etusivun kärjessä.</p>
     <div class="card">
       <h3 style="margin-top:0">${editing ? 'Muokkaa tiedotetta' : 'Uusi tiedote'}</h3>
       <div class="field">
@@ -1058,7 +1133,7 @@ async function viewAnnouncements(editId) {
       </div>
       <label class="row" style="margin-bottom:12px; cursor:pointer">
         <input type="checkbox" id="annPinned" ${editing && editing.pinned ? 'checked' : ''} />
-        📌 Kiinnitä tärkeänä (pysyy kärjessä)
+        ${icon('pin')} Kiinnitä tärkeänä (pysyy kärjessä)
       </label>
       <div class="row">
         <button class="btn" id="annSaveBtn">${editing ? 'Tallenna muutokset' : 'Julkaise tiedote'}</button>
@@ -1106,7 +1181,7 @@ async function viewTerms(editId) {
     (groups[letter] = groups[letter] || []).push(t);
   }
   content.innerHTML = `
-    <h2>📖 Termipankki</h2>
+    <h2>${icon('terms','ic-lg')} Termipankki</h2>
     <p class="muted">Talon termit, lyhenteet ja käsitteet selkokielellä – erityisesti uusille työntekijöille. Haku löytää myös termit.</p>
     <div class="card">
       <h3 style="margin-top:0">${editing ? 'Muokkaa termiä' : 'Lisää termi'}</h3>
@@ -1134,8 +1209,8 @@ async function viewTerms(editId) {
               <dt>${esc(t.term)}</dt>
               <dd>${esc(t.definition)}</dd>
               <span class="term-actions">
-                <button class="icon-btn small" data-editterm="${t.id}" title="Muokkaa">✏️</button>
-                <button class="icon-btn small" data-delterm="${t.id}" title="Poista">🗑</button>
+                <button class="icon-btn small" data-editterm="${t.id}" title="Muokkaa">${icon('edit')}</button>
+                <button class="icon-btn small" data-delterm="${t.id}" title="Poista">${icon('trash')}</button>
               </span>
             </div>`).join('')}
         </dl>`).join('') || '<p class="empty">Ei termejä vielä. Lisää ensimmäinen yllä.</p>'}
@@ -1161,7 +1236,7 @@ async function viewLinks(editId) {
   const links = await Store.links.list();
   const editing = editId ? links.find((l) => l.id === editId) : null;
   content.innerHTML = `
-    <h2>🔗 Linkit</h2>
+    <h2>${icon('link','ic-lg')} Linkit</h2>
     <p class="muted">Usein tarvitut osoitteet: järjestelmät, häiriökartat, intranet ym.</p>
     <div class="card">
       <h3 style="margin-top:0">${editing ? 'Muokkaa linkkiä' : 'Lisää linkki'}</h3>
@@ -1213,18 +1288,18 @@ async function viewLinks(editId) {
 
 function linkHtml(l) {
   return `<li class="link-row">
-    <span class="att-icon">🔗</span>
+    <span class="att-icon">${icon('link')}</span>
     <span class="att-name">
       <a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>
       <div class="att-meta">${esc(l.url)}${l.note ? ' · ' + esc(l.note) : ''}</div>
     </span>
     <span class="contact-actions">
       <span class="row-order">
-        <button class="icon-btn" data-lmove="${l.id}" data-dir="-1" title="Siirrä ylös">▲</button>
-        <button class="icon-btn" data-lmove="${l.id}" data-dir="1" title="Siirrä alas">▼</button>
+        <button class="icon-btn" data-lmove="${l.id}" data-dir="-1" title="Siirrä ylös">${icon('chevUp')}</button>
+        <button class="icon-btn" data-lmove="${l.id}" data-dir="1" title="Siirrä alas">${icon('chevDown')}</button>
       </span>
-      <button class="icon-btn small" data-editlink="${l.id}" title="Muokkaa">✏️</button>
-      <button class="icon-btn small" data-dellink="${l.id}" title="Poista">🗑</button>
+      <button class="icon-btn small" data-editlink="${l.id}" title="Muokkaa">${icon('edit')}</button>
+      <button class="icon-btn small" data-dellink="${l.id}" title="Poista">${icon('trash')}</button>
     </span>
   </li>`;
 }
@@ -1247,7 +1322,7 @@ async function viewSearch(q) {
       </ul>
     </div>
     <div class="card">
-      <h3 style="margin-top:0">📎 Tiedostot (${r.files.length})</h3>
+      <h3 style="margin-top:0">${icon('attach')} Tiedostot (${r.files.length})</h3>
       <ul class="attach-list">
         ${r.files.map((f) => `<li>
           <span class="att-icon">${fileIcon(f.mimetype)}</span>
@@ -1261,10 +1336,10 @@ async function viewSearch(q) {
       </ul>
     </div>
     ${(r.links || []).length ? `<div class="card">
-      <h3 style="margin-top:0">🔗 Linkit (${r.links.length})</h3>
+      <h3 style="margin-top:0">${icon('link')} Linkit (${r.links.length})</h3>
       <ul class="link-list">
         ${r.links.map((l) => `<li class="link-row">
-          <span class="att-icon">🔗</span>
+          <span class="att-icon">${icon('link')}</span>
           <span class="att-name">
             <a href="${esc(l.url)}" target="_blank" rel="noopener">${highlight(l.label, q)}</a>
             <div class="att-meta">${esc(l.url)}${l.note ? ' · ' + esc(l.note) : ''}</div>
@@ -1273,7 +1348,7 @@ async function viewSearch(q) {
       </ul>
     </div>` : ''}
     ${(r.terms || []).length ? `<div class="card">
-      <h3 style="margin-top:0">📖 Termit (${r.terms.length})</h3>
+      <h3 style="margin-top:0">${icon('terms')} Termit (${r.terms.length})</h3>
       <dl class="term-list">
         ${r.terms.map((t) => `<div class="term-row">
           <dt>${highlight(t.term, q)}</dt>
@@ -1283,7 +1358,7 @@ async function viewSearch(q) {
       </dl>
     </div>` : ''}
     <div class="card">
-      <h3 style="margin-top:0">📢 Tiedotteet (${(r.announcements || []).length})</h3>
+      <h3 style="margin-top:0">${icon('announce')} Tiedotteet (${(r.announcements || []).length})</h3>
       ${(r.announcements || []).map((a) => announcementHtml(a, { compact: true })).join('')
         || '<p class="empty">Ei osumia tiedotteista.</p>'}
     </div>
@@ -1305,20 +1380,20 @@ function verifyBadge(p) {
   const days = Math.floor((Date.now() - new Date(p.verified_at).getTime()) / 86400000);
   const meta = esc(fmtDate(p.verified_at)) + (p.verified_by ? ' · ' + esc(p.verified_by) : '');
   if (days > VERIFY_MAX_DAYS) {
-    return `<span class="verify-badge stale">⚠️ Vahvistus vanhentunut (${meta})</span>`;
+    return `<span class="verify-badge stale">${icon('warn','ic-sm')} Vahvistus vanhentunut (${meta})</span>`;
   }
-  return `<span class="verify-badge ok">✔ Vahvistettu ajantasaiseksi ${meta}</span>`;
+  return `<span class="verify-badge ok">${icon('verify','ic-sm')} Vahvistettu ajantasaiseksi ${meta}</span>`;
 }
 
 function announcementHtml(a, { compact } = {}) {
   return `<div class="ann ${a.pinned ? 'pinned' : ''}">
     <div class="ann-head">
-      <strong class="ann-title">${a.pinned ? '📌 ' : ''}${esc(a.title)}</strong>
+      <strong class="ann-title">${a.pinned ? icon('pin', 'ic-sm') + ' ' : ''}${esc(a.title)}</strong>
       <span class="ann-actions">
         ${compact ? '' : `<button class="icon-btn small" data-pin="${a.id}" data-pinned="${a.pinned ? 1 : 0}"
-          title="${a.pinned ? 'Poista kiinnitys' : 'Kiinnitä'}">${a.pinned ? '📌' : '📍'}</button>
-        <button class="icon-btn small" data-editann="${a.id}" title="Muokkaa">✏️</button>
-        <button class="icon-btn small" data-delann="${a.id}" title="Poista">🗑</button>`}
+          title="${a.pinned ? 'Poista kiinnitys' : 'Kiinnitä'}" ${a.pinned ? 'aria-pressed="true"' : ''}>${icon('pin')}</button>
+        <button class="icon-btn small" data-editann="${a.id}" title="Muokkaa">${icon('edit')}</button>
+        <button class="icon-btn small" data-delann="${a.id}" title="Poista">${icon('trash')}</button>`}
       </span>
     </div>
     ${a.content.trim() ? `<div class="ann-body">${esc(a.content)}</div>` : ''}
@@ -1331,7 +1406,7 @@ function noteHtml(n) {
     <div class="note-head">
       <span>${n.author ? '<strong>' + esc(n.author) + '</strong> · ' : ''}${esc(fmtDate(n.created_at))}
         ${n.category_name ? '· <span class="tag">' + esc(n.category_name) + '</span>' : ''}</span>
-      <button class="icon-btn small" data-delnote="${n.id}" title="Poista">🗑</button>
+      <button class="icon-btn small" data-delnote="${n.id}" title="Poista">${icon('trash')}</button>
     </div>
     <div class="note-body">${esc(n.content)}</div>
   </div>`;
@@ -1347,11 +1422,11 @@ function contactHtml(c) {
     </div>
     <div class="contact-actions">
       <span class="row-order">
-        <button class="icon-btn" data-cmove="${c.id}" data-dir="-1" title="Siirrä ylös">▲</button>
-        <button class="icon-btn" data-cmove="${c.id}" data-dir="1" title="Siirrä alas">▼</button>
+        <button class="icon-btn" data-cmove="${c.id}" data-dir="-1" title="Siirrä ylös">${icon('chevUp')}</button>
+        <button class="icon-btn" data-cmove="${c.id}" data-dir="1" title="Siirrä alas">${icon('chevDown')}</button>
       </span>
-      <button class="icon-btn small" data-editcontact="${c.id}" title="Muokkaa">✏️</button>
-      <button class="icon-btn small" data-delcontact="${c.id}" title="Poista">🗑</button>
+      <button class="icon-btn small" data-editcontact="${c.id}" title="Muokkaa">${icon('edit')}</button>
+      <button class="icon-btn small" data-delcontact="${c.id}" title="Poista">${icon('trash')}</button>
     </div>
   </li>`;
 }
@@ -1372,6 +1447,64 @@ function bindNoteDelete(refresh) {
     if (confirm('Poistetaanko huomio?')) { await Store.notes.remove(b.dataset.delnote); refresh(); }
   });
 }
+
+// ---------- Kuvien lightbox ----------
+// images: [{url, name}]. Nuolet/nuolinäppäimet selaavat, Esc/tausta sulkee.
+function openLightbox(images, start) {
+  if (!images || !images.length) return;
+  let i = start || 0;
+  let ov = $('#lightbox');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'lightbox'; ov.className = 'lightbox'; document.body.appendChild(ov); }
+  const multi = images.length > 1;
+  const close = () => { ov.classList.remove('open'); document.removeEventListener('keydown', onKey); setTimeout(() => { ov.innerHTML = ''; }, 180); };
+  const step = (d) => { i = (i + d + images.length) % images.length; render(); };
+  const onKey = (e) => {
+    if (e.key === 'Escape') close();
+    else if (multi && e.key === 'ArrowLeft') step(-1);
+    else if (multi && e.key === 'ArrowRight') step(1);
+  };
+  function render() {
+    ov.innerHTML = `
+      <button class="lb-close" title="Sulje (Esc)" aria-label="Sulje">${icon('close', 'ic-lg')}</button>
+      ${multi ? `<button class="lb-nav lb-prev" title="Edellinen" aria-label="Edellinen">${icon('back')}</button>` : ''}
+      <img class="lb-img" src="${esc(images[i].url)}" alt="${esc(images[i].name)}" />
+      ${multi ? `<button class="lb-nav lb-next" title="Seuraava" aria-label="Seuraava">${icon('chevRight')}</button>` : ''}
+      <div class="lb-caption">${esc(images[i].name)}${multi ? ` · ${i + 1}/${images.length}` : ''}</div>`;
+    ov.querySelector('.lb-close').onclick = close;
+    const pv = ov.querySelector('.lb-prev'); if (pv) pv.onclick = (e) => { e.stopPropagation(); step(-1); };
+    const nx = ov.querySelector('.lb-next'); if (nx) nx.onclick = (e) => { e.stopPropagation(); step(1); };
+  }
+  ov.onclick = (e) => { if (e.target === ov || e.target.classList.contains('lb-img')) close(); };
+  document.addEventListener('keydown', onKey);
+  render();
+  requestAnimationFrame(() => ov.classList.add('open'));
+}
+
+// ---------- Puhelimen alapalkki (näkyy vain kapealla näytöllä) ----------
+(function initBottomNav() {
+  const bar = document.createElement('nav');
+  bar.id = 'bottomNav';
+  bar.className = 'bottom-nav';
+  bar.setAttribute('aria-label', 'Päävalikko');
+  const items = [
+    { nav: 'home', ic: 'home', label: 'Etusivu' },
+    { nav: 'shiftlog', ic: 'note', label: 'Vuoroloki' },
+    { act: 'search', ic: 'search2', label: 'Haku' },
+    { nav: 'announcements', ic: 'announce', label: 'Tiedotteet' },
+    { act: 'menu', ic: 'menu', label: 'Valikko' },
+  ];
+  bar.innerHTML = items.map((it) =>
+    `<button class="bn-item" ${it.nav ? `data-bnav="${it.nav}"` : `data-bact="${it.act}"`}>
+      ${icon(it.ic)}<span>${it.label}</span></button>`).join('');
+  document.body.appendChild(bar);
+  bar.querySelectorAll('[data-bnav]').forEach((b) => b.onclick = () => {
+    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet' };
+    location.hash = routes[b.dataset.bnav] || '#/';
+    window.scrollTo({ top: 0 });
+  });
+  bar.querySelector('[data-bact="search"]').onclick = () => { window.scrollTo({ top: 0 }); const s = $('#searchInput'); if (s) s.focus(); };
+  bar.querySelector('[data-bact="menu"]').onclick = () => $('#sidebar').classList.toggle('open');
+})();
 
 // ---------- Globaalit tapahtumat ----------
 function closeSidebarMobile() { $('#sidebar').classList.remove('open'); }
@@ -1512,7 +1645,7 @@ $('#searchForm').onsubmit = (e) => {
           <span class="sd-label">${esc(row.label)}</span><span class="sd-meta">${esc(row.meta)}</span></a>`;
       }
     }
-    html += `<button type="button" class="sd-all">Näytä kaikki tulokset “${esc(q)}” →</button>`;
+    html += `<button type="button" class="sd-all">Näytä kaikki tulokset “${esc(q)}” ${icon('arrowRight','ic-sm')}</button>`;
     drop.innerHTML = html;
     drop.style.display = ''; hi = -1; input.setAttribute('aria-expanded', 'true');
     // mousedown (ei click), jotta navigointi ehtii ennen kentän blur-piilotusta
@@ -1541,6 +1674,14 @@ $('#searchForm').onsubmit = (e) => {
 
 $('#menuToggle').onclick = () => $('#sidebar').classList.toggle('open');
 
+// Injektoi kiinteät SVG-ikonit chromeen (navigaatio, valikko, lisää-nappi).
+(function initChromeIcons() {
+  document.querySelectorAll('.nav-link[data-icon]').forEach((b) =>
+    b.insertAdjacentHTML('afterbegin', icon(b.dataset.icon)));
+  const menu = $('#menuToggle'); if (menu) menu.innerHTML = icon('menu', 'ic-lg');
+  const addCat = $('#addCategoryBtn'); if (addCat) addCat.innerHTML = icon('add');
+})();
+
 // Teema: tallennettu valinta > käyttöjärjestelmän asetus.
 function applyTheme() {
   let saved = null;
@@ -1549,7 +1690,7 @@ function applyTheme() {
     : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   const btn = $('#themeToggle');
-  if (btn) { btn.textContent = dark ? '☀️' : '🌙'; btn.title = dark ? 'Vaalea tila' : 'Tumma tila'; }
+  if (btn) { btn.innerHTML = icon(dark ? 'sun' : 'moon'); btn.title = dark ? 'Vaalea tila' : 'Tumma tila'; }
 }
 const themeToggle = $('#themeToggle');
 if (themeToggle) themeToggle.onclick = () => {
@@ -1576,7 +1717,7 @@ document.addEventListener('keydown', (e) => {
 
 // Takaisin ylös -nappi pitkillä sivuilla.
 const backTop = document.createElement('button');
-backTop.id = 'backTop'; backTop.title = 'Takaisin ylös'; backTop.textContent = '↑';
+backTop.id = 'backTop'; backTop.title = 'Takaisin ylös'; backTop.innerHTML = icon('chevUp');
 document.body.appendChild(backTop);
 backTop.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 window.addEventListener('scroll', () => backTop.classList.toggle('show', window.scrollY > 600), { passive: true });

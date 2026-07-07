@@ -46,7 +46,8 @@ const Store = {
     list: () => api('/api/categories'),
     create: (data) => api('/api/categories', jsonBody('POST', data)),
     update: (id, data) => api('/api/categories/' + id, jsonBody('PUT', data)),
-    remove: (id) => api('/api/categories/' + id, { method: 'DELETE' }),
+    // Poisto vaatii ylläpitäjän salasanan vahvistuksena (lähetetään bodyssa).
+    remove: (id, password) => api('/api/categories/' + id, jsonBody('DELETE', { password })),
     reorder: (ids) => api('/api/categories/reorder', jsonBody('POST', { ids })),
   },
 

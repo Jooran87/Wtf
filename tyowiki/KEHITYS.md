@@ -44,7 +44,7 @@ jolloin app.js ohittaa kirjautumisen).
    seed-dataan – tee näin vain kun uusi seed-sisältö on demolle tärkeä).
 5. **Ulkoasu-/logiikkamuutoksen jälkeen aina** `node sandbox/build-single.js`
    ja committaa syntynyt tyowiki-sandbox.html.
-6. **`npm test` vihreänä (96 testiä) ennen jokaista committia.** Testit ajavat
+6. **`npm test` vihreänä (103 testiä) ennen jokaista committia.** Testit ajavat
    palvelimen eristetyssä TYOWIKI_DATA_DIR-hakemistossa – eivät koske oikeaa dataa.
 7. **Tekijätieto tulee AINA istunnosta** (`req.user.name`) – älä koskaan luota
    selaimen author-kenttään.
@@ -87,6 +87,11 @@ jolloin app.js ohittaa kirjautumisen).
 - `editor`: kaikki paitsi /api/users
 - `viewer`: vain GET (käyttöliittymä piilottaa napit CSS:llä
   `:root[data-vrole="viewer"]`, mutta palvelin on ainoa oikea vartija)
+- **Kategorian poisto: vain `admin` JA salasanavahvistus.** `DELETE
+  /api/categories/:id` tarkistaa roolin ja `verifyPassword`:lla bodyn
+  `password`-kentän (peruuttamaton, vie alakategoriat+sivut+liitteet). UI
+  näyttää salasanalomakkeen; napin piilotus `[data-vrole="editor"] #delCatBtn`.
+  Sandboxissa (ei authia) riittää vahvistus.
 - Avoimet reitit: /api/auth-status, /api/login, /api/setup (vain kun 0
   käyttäjää), /api/logout, staattiset tiedostot
 
@@ -106,7 +111,7 @@ jolloin app.js ohittaa kirjautumisen).
 
 ```bash
 npm start                      # palvelin (PORT=xxxx vaihtaa portin)
-npm test                       # 96 testiä eristetyssä ympäristössä
+npm test                       # 103 testiä eristetyssä ympäristössä
 npm run backup                 # varmuuskopio backups/-kansioon
 node sandbox/build-single.js   # kokoa jaettava sandbox-tiedosto
 node reindex.js                # liitteiden hakuindeksin uudelleenajo

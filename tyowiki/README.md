@@ -207,6 +207,10 @@ mitään ei tuhota.
   httpOnly-evästeellä, kirjautumisyritysten rajoitus. Ensikäynnistys luo
   pääkäyttäjän; muut tunnukset luodaan 👥 Käyttäjät -sivulta. Muokkausten
   tekijä tulee aina istunnosta.
+- **Kategorian poisto suojattu**: peruuttamaton kategorian (ja sen
+  alakategorioiden, ohjeiden ja liitteiden) poisto onnistuu vain
+  ylläpitäjältä ja vaatii salasanan vahvistukseksi. Palvelin tarkistaa
+  sekä roolin että salasanan.
 - Suositus tuotantoon: palomuurirajaus sisäverkkoon ja HTTPS
   käänteisproxyllä, jos käyttö laajenee verkon yli.
 

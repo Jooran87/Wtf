@@ -518,3 +518,10 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 :root[data-vrole="viewer"] [data-delnote],
 :root[data-vrole="viewer"] .note-quick,
 :root[data-vrole="viewer"] [data-delatt] { display: none !important; }
+
+/* Kategorian poisto on vain ylläpitäjälle (muokkaajalta piiloon;
+   palvelin estää joka tapauksessa ja vaatii salasanan). */
+:root[data-vrole="editor"] #delCatBtn { display: none !important; }
+
+/* Vaaravyöhyke: kategorian poiston salasanavahvistus */
+.danger-zone { border-color: var(--danger-text); background: var(--danger-bg); }

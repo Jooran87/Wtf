@@ -329,6 +329,15 @@ app.put('/api/categories/:id', (req, res) => {
 });
 
 app.delete('/api/categories/:id', (req, res) => {
+  // Kategorian poisto on peruuttamaton ja vie mukanaan sivut/liitteet, joten
+  // se on rajattu ylläpitäjälle ja vaatii salasanan vahvistuksena.
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Vain ylläpitäjä voi poistaa kategorioita' });
+  }
+  const u = db.prepare('SELECT pass_salt, pass_hash FROM users WHERE id = ?').get(req.user.id);
+  if (!u || !verifyPassword(String(req.body.password || ''), u.pass_salt, u.pass_hash)) {
+    return res.status(403).json({ error: 'Väärä salasana – kategoriaa ei poistettu' });
+  }
   // Poistaa kategorian, sen alakategoriat sekä kaikkien sivut ja liitteet (levyltä).
   const id = Number(req.params.id);
   const childIds = db.prepare('SELECT id FROM categories WHERE parent_id = ?').all(id).map((r) => r.id);

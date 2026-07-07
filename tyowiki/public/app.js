@@ -664,16 +664,46 @@ async function viewCategory(id) {
     };
     $('#editCatName').focus();
   };
-  $('#delCatBtn').onclick = async () => {
-    const msg = subs.length
-      ? `Poistetaanko kategoria, sen ${subs.length} alakategoriaa ja KAIKKI niiden ohjeet ja liitteet?`
-      : 'Poistetaanko kategoria ja KAIKKI sen ohjeet ja liitteet?';
-    if (confirm(msg)) {
-      await Store.categories.remove(id);
+  const delMsg = subs.length
+    ? `Poistetaanko kategoria, sen ${subs.length} alakategoriaa ja KAIKKI niiden ohjeet ja liitteet? Tätä ei voi perua.`
+    : 'Poistetaanko kategoria ja KAIKKI sen ohjeet ja liitteet? Tätä ei voi perua.';
+  const doDeleteCat = async (password) => {
+    try {
+      await Store.categories.remove(id, password);
       await loadCategories();
       location.hash = parent ? '#/kohde/' + parent.id : '#/';
       toast('Kategoria poistettu');
+    } catch (err) { toast(err.message, true); }
+  };
+  $('#delCatBtn').onclick = () => {
+    // Palvelinversiossa poisto vain ylläpitäjälle ja salasanaa vastaan.
+    if (Store.auth) {
+      if (currentUser && currentUser.role !== 'admin') return toast('Vain ylläpitäjä voi poistaa kategorioita', true);
+      const row = $('#catEditRow');
+      if (row.dataset.mode === 'del') { row.innerHTML = ''; row.dataset.mode = ''; return; }
+      row.dataset.mode = 'del';
+      row.innerHTML = `<div class="card danger-zone">
+        <p style="margin:0 0 10px"><strong>⚠️ ${esc(delMsg)}</strong></p>
+        <div class="row" style="flex-wrap:wrap">
+          <input type="password" id="delCatPass" placeholder="Vahvista omalla salasanallasi" autocomplete="current-password"
+            style="flex:1; min-width:200px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
+          <button class="btn small danger" id="delCatConfirm">Poista lopullisesti</button>
+          <button class="btn small secondary" id="delCatCancel">Peruuta</button>
+        </div>
+      </div>`;
+      const submit = () => {
+        const pw = $('#delCatPass').value;
+        if (!pw) return toast('Anna salasanasi', true);
+        doDeleteCat(pw);
+      };
+      $('#delCatConfirm').onclick = submit;
+      $('#delCatPass').onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+      $('#delCatCancel').onclick = () => { row.innerHTML = ''; row.dataset.mode = ''; };
+      $('#delCatPass').focus();
+      return;
     }
+    // Sandbox-demo: ei kirjautumista, riittää vahvistus.
+    if (confirm(delMsg)) doDeleteCat(null);
   };
 }
 

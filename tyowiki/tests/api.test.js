@@ -29,6 +29,13 @@ const status = (method, url, body, cookie) =>
     headers: body ? { ...J, Cookie: cookie === undefined ? COOKIE : cookie } : { Cookie: cookie === undefined ? COOKIE : cookie },
     body: body ? JSON.stringify(body) : undefined,
   }).then((r) => r.status);
+// Kategorian poisto vaatii salasanan bodyssa; palauttaa HTTP-statuksen.
+const delCat = (id, password, cookie) =>
+  fetch(`${B}/api/categories/${id}`, {
+    method: 'DELETE',
+    headers: { ...J, Cookie: cookie === undefined ? COOKIE : cookie },
+    body: JSON.stringify({ password }),
+  }).then((r) => r.status);
 
 async function main() {
   // Siemen + palvelin eristettyyn hakemistoon
@@ -111,12 +118,26 @@ async function main() {
     const tmpSub = await jsend('POST', '/api/categories', { name: 'PoistoChild', parent_id: tmpParent.id });
     const tmpPage = await jsend('POST', '/api/pages', { title: 'Alasivu', content: 'x', category_id: tmpSub.id });
     ok('sivu alakategoriaan', tmpPage.category_id === tmpSub.id);
-    await fetch(`${B}/api/categories/${tmpParent.id}`, { method: 'DELETE', headers: H() });
+    await delCat(tmpParent.id, 'salasana123');
     const afterDel = await jget('/api/categories');
     ok('yläkategorian poisto vei alakategorian', !afterDel.some((c) => c.id === tmpSub.id));
     ok('yläkategorian poisto vei alasivun', (await fetch(`${B}/api/pages/${tmpPage.id}`, { headers: H() })).status === 404);
+
+    // --- Kategorian poiston suojaus: vain ylläpitäjä + salasana ---
+    await jsend('POST', '/api/users', { name: 'Muokkaaja Matti', username: 'matti', password: 'salasana123', role: 'editor' });
+    const eLogin = await fetch(B + '/api/login', { method: 'POST', headers: J, body: JSON.stringify({ username: 'matti', password: 'salasana123' }) });
+    const E_COOKIE = (eLogin.headers.get('set-cookie') || '').split(';')[0];
+    const permCat = await jsend('POST', '/api/categories', { name: 'Suojattu', icon: '🛡️' });
+    ok('muokkaaja ei voi poistaa kategoriaa (403)', await delCat(permCat.id, 'salasana123', E_COOKIE) === 403);
+    ok('lukija ei voi poistaa kategoriaa (403)', await delCat(permCat.id, 'salasana123', V_COOKIE) === 403);
+    ok('ylläpitäjä ilman salasanaa ei poista (403)', await delCat(permCat.id, '') === 403);
+    ok('ylläpitäjä väärällä salasanalla ei poista (403)', await delCat(permCat.id, 'vaarasalasana') === 403);
+    ok('kategoria yhä olemassa väärien yritysten jälkeen', (await jget('/api/categories')).some((c) => c.id === permCat.id));
+    ok('ylläpitäjä oikealla salasanalla poistaa (200)', await delCat(permCat.id, 'salasana123') === 200);
+    ok('kategoria poistui oikean salasanan jälkeen', !(await jget('/api/categories')).some((c) => c.id === permCat.id));
+
     // Siivotaan testin alakategoria pois, ettei se häiritse myöhempiä laskentoja.
-    await fetch(`${B}/api/categories/${sub.id}`, { method: 'DELETE', headers: H() });
+    await delCat(sub.id, 'salasana123');
 
     // --- Järjestyksen muokkaus ---
     const catsOrig = await jget('/api/categories');

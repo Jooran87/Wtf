@@ -9,7 +9,7 @@ README.md (ominaisuudet), ASENNUS.md (käyttäjän oma kone),
 TUOTANTOON.md (palvelimelle vienti, ICT-tehtävät).
 
 Nyrkkisäännöt:
-- `npm test` (kansiossa tyowiki/) vihreänä ennen committia – 96 testiä
+- `npm test` (kansiossa tyowiki/) vihreänä ennen committia – 103 testiä
 - Käyttöliittymämuutoksen jälkeen `node sandbox/build-single.js` ja
   committaa syntynyt sandbox/tyowiki-sandbox.html
 - Ei uusia npm-riippuvuuksia kevyin perustein; `npm audit` pidetään nollassa

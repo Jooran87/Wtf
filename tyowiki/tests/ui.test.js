@@ -132,6 +132,32 @@ async function main() {
     const imgSrc = await page.$eval('.doc img.doc-img', (e) => e.getAttribute('src')).catch(() => null);
     ok('kuva renderöityy artikkelissa', !!imgSrc && imgSrc.indexOf('blob:') === 0, imgSrc);
 
+    // Etusivun uusi järjestys: banneri, Viimeksi päivitetyt ja pikahuomio
+    await page.goto(base + '#/'); await page.waitForTimeout(500);
+    ok('kiinnitetty tiedote bannerina etusivulla',
+      (await page.$eval('.pin-banner', (e) => e.textContent).catch(() => '')).includes('Uusi työohje-wiki'));
+    ok('Viimeksi päivitetyt -lista etusivulla',
+      (await page.$eval('#content', (e) => e.textContent)).includes('Viimeksi päivitetyt'));
+    await page.fill('#homeNoteText', 'Pikahuomio etusivulta');
+    await page.click('#homeNoteAdd'); await page.waitForTimeout(500);
+    ok('pikahuomio tallentuu etusivulta',
+      (await page.$eval('#content', (e) => e.textContent)).includes('Pikahuomio etusivulta'));
+
+    // Oikean reunan vuoroloki-palsta leveällä näytöllä (>= 1400 px)
+    const wide = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+    wide.on('pageerror', (e) => errors.push('wide: ' + e.message));
+    await wide.goto(fileUrl + '#/termipankki'); await wide.waitForTimeout(900);
+    const railText = await wide.$eval('#rail', (e) => e.textContent).catch(() => '');
+    ok('vuoroloki-palsta näkyy leveällä näytöllä', railText.includes('Vuoroloki'));
+    await wide.fill('#railNoteText', 'Huomio reunapalstasta');
+    await wide.click('#railNoteAdd'); await wide.waitForTimeout(500);
+    ok('huomio tallentuu reunapalstasta',
+      (await wide.$eval('#rail', (e) => e.textContent)).includes('Huomio reunapalstasta'));
+    await wide.goto(fileUrl + '#/'); await wide.waitForTimeout(500);
+    ok('etusivulla reunapalsta on tyhjä (ei tuplasisältöä)',
+      (await wide.$eval('#rail', (e) => e.innerHTML.trim())) === '');
+    await wide.close();
+
     ok('ei JS-virheitä koko ajossa', errors.length === 0, errors.join(','));
   } finally {
     await browser.close();

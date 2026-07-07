@@ -74,6 +74,7 @@ ${css}
         sen sisältö näkyy myös esikatselussa.
       </div>
     </main>
+    <aside id="rail" class="rail"></aside>
   </div>
   <div id="toast" class="toast"></div>
   <script>

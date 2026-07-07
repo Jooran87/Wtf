@@ -149,7 +149,7 @@ input, textarea, select { background: var(--panel); color: var(--text); }
 .cat-form input:focus { border-color: var(--brand); }
 
 /* Content */
-.content { flex: 1; padding: 26px 34px; max-width: 960px; min-width: 0; }
+.content { flex: 1; padding: 26px 34px; max-width: 1100px; min-width: 0; }
 .content h2 { margin-top: 0; }
 .card {
   background: var(--panel); border: 1px solid var(--border);
@@ -323,11 +323,50 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
 .cc-name { font-weight: 700; color: var(--text); }
 .cc-count { font-size: 12px; color: var(--muted); }
 
-/* Home dashboard layout */
-.home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
-.home-main, .home-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.home-main .card, .home-side .card { margin-bottom: 0; }
-@media (max-width: 820px) { .home-grid { grid-template-columns: 1fr; } }
+/* Etusivun ruudukko: vasen leveä palsta + oikealla numerot ylhäällä ja
+   vuorohuomiot alla. Kapealla näytöllä järjestys: numerot → sisältö → huomiot. */
+.home-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "main num" "main notes";
+  gap: 16px; align-items: start;
+}
+.home-main { grid-area: main; }
+.hg-num { grid-area: num; }
+.hg-notes { grid-area: notes; }
+.home-main, .hg-num, .hg-notes { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.home-main .card, .hg-num .card, .hg-notes .card { margin-bottom: 0; }
+@media (max-width: 820px) {
+  .home-grid { grid-template-columns: 1fr; grid-template-rows: auto; grid-template-areas: "num" "main" "notes"; }
+}
+
+/* Kiinnitetty tiedote: huomiobanneri sivun ylälaidassa */
+.pin-banner {
+  display: block; background: var(--brand); color: #fff;
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 14px;
+  text-decoration: none; box-shadow: 0 4px 14px rgba(234, 106, 30, .28);
+}
+.pin-banner strong { margin-right: 8px; }
+.pin-banner span { opacity: .93; }
+.pin-banner:hover { filter: brightness(1.06); }
+
+/* Vuorohuomion pikakirjoitus (etusivu + oikean reunan palsta) */
+.note-quick { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 12px; }
+.note-quick textarea { min-height: 56px; }
+
+/* Oikean reunan kiinnitetty vuoroloki-palsta – näkyy vain leveillä näytöillä */
+.rail { display: none; }
+@media (min-width: 1400px) {
+  .rail {
+    display: block; flex: 0 0 300px; width: 300px;
+    padding: 26px 26px 26px 0;
+    position: sticky; top: 0; align-self: flex-start;
+    max-height: 100vh; overflow-y: auto;
+  }
+}
+.rail:empty { display: none !important; }
+.rail-note { border-top: 1px solid var(--border); padding: 8px 0; font-size: 14px; overflow-wrap: anywhere; }
+.rail-note .muted { font-size: 12px; }
 
 /* Ranked list (suosituimmat) */
 .rank-list { list-style: none; margin: 0; padding: 0; counter-reset: rank; }
@@ -462,4 +501,5 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 :root[data-vrole="viewer"] .ann-actions,
 :root[data-vrole="viewer"] .term-actions,
 :root[data-vrole="viewer"] [data-delnote],
+:root[data-vrole="viewer"] .note-quick,
 :root[data-vrole="viewer"] [data-delatt] { display: none !important; }

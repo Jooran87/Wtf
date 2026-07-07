@@ -3,9 +3,13 @@
 Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
 
 - **Ohjeet ja kategoriat** – Wikipedia-tyylinen sivupalkki ja hakukenttä
-- **Vuoroloki** – juokseva aikaleimattu lista vuoron huomioista
+- **Etusivu tärkeysjärjestyksessä** – kiinnitetty tiedote huomiobannerina ylimpänä,
+  tärkeät numerot heti näkyvissä ilman vieritystä, suosituimmat ja viimeksi
+  päivitetyt ohjeet; kapealla näytöllä numerot nousevat ensimmäiseksi
+- **Vuoroloki** – juokseva aikaleimattu lista vuoron huomioista; pikakirjaus
+  suoraan etusivulta, ja leveällä näytöllä loki kulkee mukana oikeassa reunassa
 - **Tiedotteet** – oma sivu + nosto etusivulle; tärkeät tiedotteet voi 📌-kiinnittää,
-  jolloin ne pysyvät listan ja etusivun kärjessä
+  jolloin ne näkyvät bannerina etusivun ylälaidassa
 - **Versiohistoria** – jokainen muokkaus tallentaa edellisen version talteen;
   vanhoja versioita voi katsella ja palauttaa (🕘 Historia -nappi ohjesivulla)
 - **Termipankki** – talon termit ja lyhenteet aakkosittain; termit löytyvät myös haulla

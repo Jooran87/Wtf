@@ -314,11 +314,47 @@ function setActiveNav(nav) {
 }
 
 // Reititys hash-osoitteilla: #/, #/kohde/:id, #/sivu/:id, #/muokkaa/:id, #/uusi, #/vuoroloki, #/haku?q=
+// Oikean reunan kiinnitetty vuoroloki-palsta: näkyy leveillä näytöillä
+// muilla sivuilla kuin etusivulla ja vuorolokissa (niissä huomiot ovat jo esillä).
+const RAIL_ROUTES = ['kohde', 'sivu', 'tiedotteet', 'termipankki', 'linkit', 'haku', 'historia', 'versio', 'kayttajat'];
+
+function railNoteHtml(n) {
+  return `<div class="rail-note">
+    <div class="muted">${n.author ? esc(n.author) + ' · ' : ''}${esc(fmtDate(n.created_at))}</div>
+    <div>${esc(n.content)}</div>
+  </div>`;
+}
+
+async function updateRail(section) {
+  const rail = $('#rail');
+  if (!rail) return;
+  if (!RAIL_ROUTES.includes(section)) { rail.innerHTML = ''; return; }
+  try {
+    const notes = await Store.notes.list({ limit: 5 });
+    rail.innerHTML = `<div class="card">
+      <div class="spread"><h3 style="margin:0">📝 Vuoroloki</h3>
+        <a class="btn small secondary" href="#/vuoroloki">Kaikki</a></div>
+      <div class="note-quick">
+        <textarea id="railNoteText" placeholder="Kirjaa huomio…"></textarea>
+        <button class="btn small" id="railNoteAdd">Lisää huomio</button>
+      </div>
+      ${notes.map(railNoteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+    </div>`;
+    $('#railNoteAdd').onclick = async () => {
+      const text = $('#railNoteText').value;
+      if (!text.trim()) return toast('Kirjoita huomio', true);
+      try { await Store.notes.create({ content: text, category_id: null, author: author.get() }); toast('Lisätty'); updateRail(section); }
+      catch (err) { toast(err.message, true); }
+    };
+  } catch (_) { rail.innerHTML = ''; }
+}
+
 async function router() {
   const hash = location.hash.slice(1) || '/';
   const [pathPart, queryPart] = hash.split('?');
   const parts = pathPart.split('/').filter(Boolean);
   closeSidebarMobile();
+  updateRail(parts[0] || '');
   const openCatForm = $('#catForm');
   if (openCatForm) openCatForm.remove();
   setUnsavedGuard(false);
@@ -355,25 +391,42 @@ async function viewHome() {
     Store.contacts.list(),
     Store.announcements.list(),
   ]);
-  // Etusivulle kiinnitetyt + uusimmat, yhteensä enintään 4.
-  const homeAnns = anns.filter((a) => a.pinned).concat(anns.filter((a) => !a.pinned)).slice(0, 4);
+  // Kiinnitetyt tiedotteet nousevat bannereiksi ylimmäksi; muut omaan korttiin.
+  const pinned = anns.filter((a) => a.pinned);
+  const otherAnns = anns.filter((a) => !a.pinned).slice(0, 3);
+  // Viimeksi päivitetyt: kertoo yhdellä silmäyksellä mikä on muuttunut.
+  const recent = [...pages]
+    .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+    .slice(0, 5);
   content.innerHTML = `
+    ${pinned.map((a) => `<a class="pin-banner" href="#/tiedotteet">📌 <strong>${esc(a.title)}</strong>
+      <span>${esc(String(a.content || '').replace(/\s+/g, ' ').slice(0, 140))}</span></a>`).join('')}
     <h2>Hälytyskeskuksen työohjeet</h2>
     <p class="muted">Valitse kategoria tai hae yläpalkista (pikanäppäin <code>/</code>).</p>
-    <div class="cat-grid">
-      ${categories.map((c) => `<a class="cat-card" href="#/kohde/${c.id}">
-        <span class="cc-ico">${esc(catIcon(c))}</span>
-        <span class="cc-name">${esc(c.name)}</span>
-        <span class="cc-count">${c.page_count || 0} ohjetta</span>
-      </a>`).join('')}
-    </div>
-    ${anns.length ? `<div class="card">
-      <div class="spread"><h3 style="margin:0">📢 Tiedotteet</h3>
-        <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
-      ${homeAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
-    </div>` : ''}
     <div class="home-grid">
+      <div class="hg-num">
+        <div class="card">
+          <div class="spread"><h3 style="margin:0">☎ Tärkeät numerot</h3>
+            <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">＋</button></div>
+          <div id="contactFormWrap"></div>
+          <ul class="contact-list">
+            ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä.</li>'}
+          </ul>
+        </div>
+      </div>
       <div class="home-main">
+        <div class="cat-grid">
+          ${categories.map((c) => `<a class="cat-card" href="#/kohde/${c.id}">
+            <span class="cc-ico">${esc(catIcon(c))}</span>
+            <span class="cc-name">${esc(c.name)}</span>
+            <span class="cc-count">${c.page_count || 0} ohjetta</span>
+          </a>`).join('')}
+        </div>
+        ${otherAnns.length ? `<div class="card">
+          <div class="spread"><h3 style="margin:0">📢 Tiedotteet</h3>
+            <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
+          ${otherAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
+        </div>` : ''}
         <div class="card">
           <div class="spread"><h3 style="margin:0">🔥 Suosituimmat ohjeet</h3></div>
           <ol class="rank-list">
@@ -384,32 +437,35 @@ async function viewHome() {
           </ol>
         </div>
         <div class="card">
-          <div class="spread"><h3 style="margin:0">Kaikki työohjeet (${pages.length})</h3></div>
+          <div class="spread"><h3 style="margin:0">🕐 Viimeksi päivitetyt</h3></div>
           <ul class="page-list">
-            ${pages.map((p) => `<li><button class="page-link" data-page="${p.id}">
+            ${recent.map((p) => `<li><button class="page-link" data-page="${p.id}">
               <span>${esc(p.title)}</span>
-              <span class="muted">${categoryName(p.category_id)}</span></button></li>`).join('')
+              <span class="muted">${categoryName(p.category_id)} · ${esc(fmtDate(p.updated_at))}</span></button></li>`).join('')
               || '<li class="empty">Ei ohjeita vielä. Lisää kategoria ja luo ensimmäinen ohje.</li>'}
           </ul>
         </div>
       </div>
-      <div class="home-side">
+      <div class="hg-notes">
         <div class="card">
-          <div class="spread"><h3 style="margin:0">☎ Tärkeät numerot</h3>
-            <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">＋</button></div>
-          <div id="contactFormWrap"></div>
-          <ul class="contact-list">
-            ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä.</li>'}
-          </ul>
-        </div>
-        <div class="card">
-          <div class="spread"><h3 style="margin:0">📝 Viimeisimmät vuorohuomiot</h3>
+          <div class="spread"><h3 style="margin:0">📝 Vuorohuomiot</h3>
             <a class="btn small secondary" href="#/vuoroloki">Kaikki</a></div>
+          <div class="note-quick">
+            <textarea id="homeNoteText" placeholder="Kirjaa huomio vuorolokiin…"></textarea>
+            <button class="btn small" id="homeNoteAdd">Lisää huomio</button>
+          </div>
           ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
         </div>
       </div>
     </div>`;
 
+  $('#homeNoteAdd').onclick = async () => {
+    const text = $('#homeNoteText').value;
+    if (!text.trim()) return toast('Kirjoita huomio', true);
+    try { await Store.notes.create({ content: text, category_id: null, author: author.get() }); toast('Lisätty'); viewHome(); }
+    catch (err) { toast(err.message, true); }
+  };
+  bindNoteDelete(viewHome);
   $('#addContactBtn').onclick = () => editContact(null);
   document.querySelectorAll('[data-editcontact]').forEach((b) => b.onclick = () => {
     editContact(contacts.find((c) => String(c.id) === b.dataset.editcontact));

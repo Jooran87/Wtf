@@ -185,6 +185,12 @@ async function main() {
     await page.click('#searchDrop .sd-item'); await page.waitForTimeout(400);
     ok('live-haun osumasta avautuu sivu', /#\/sivu\//.test(page.url()), page.url());
 
+    // Saavutettavuus: näppäimistöfokus näkyy (focus-visible outline)
+    await page.goto(base + '#/'); await page.waitForTimeout(300);
+    await page.keyboard.press('Tab'); await page.waitForTimeout(100);
+    const focusOutline = await page.evaluate(() => getComputedStyle(document.activeElement).outlineWidth);
+    ok('näppäimistöfokus näkyy reunuksena', focusOutline === '2px', focusOutline);
+
     // Sisällysluettelo: monta otsikkoa -> TOC-kortti, jonka linkki vierittää
     await page.goto(base + '#/'); await page.waitForTimeout(300);
     await page.click('#categoryList >> text=Perehdytys'); await page.waitForTimeout(300);

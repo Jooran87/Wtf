@@ -275,6 +275,19 @@ input[type=text], input[type=search], textarea, select { font-family: inherit; f
 .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--brand); }
 .preview-box { border: 1px dashed var(--border); border-radius: 6px; padding: 6px 16px; min-height: 260px; }
 
+/* Saavutettavuus: näkyvä näppäimistöfokus (WCAG 2.4.7). Hiiriklikkaus ei
+   näytä reunusta (:focus-visible), mutta Tab-navigointi näyttää selvästi. */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+a:focus-visible, button:focus-visible, .btn:focus-visible, .icon-btn:focus-visible,
+input:focus-visible, textarea:focus-visible, select:focus-visible,
+.cat-btn:focus-visible, .page-link:focus-visible, .cat-card:focus-visible, .sd-item:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 /* Artikkelin sisältö: isompi teksti, kapeampi palsta, ilmavampi */
 .doc { line-height: 1.7; font-size: 17px; max-width: 720px; }
 .doc h1, .doc h2, .doc h3 { line-height: 1.3; }

@@ -6,6 +6,12 @@ Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
 - **Alakategoriat** – kategorian alle voi luoda alakategorioita (yksi taso),
   esim. Kipa → asiakkuuksittain; alakategoriat näkyvät sivupalkissa sisennettyinä
   ja kategorian sivulla kortteina
+- **Väriaksentit kategorioille** – kategorialle voi valita värin, joka näkyy
+  sivupalkissa ja korteissa (nopeampi silmäys)
+- **Live-haku** – parhaat osumat (ohjeet, termit, liitteet) ilmestyvät
+  pudotusvalikkoon jo kirjoittaessa; nuolinäppäimet + Enter vievät suoraan
+- **Sisällysluettelo** – pitkän ohjeen otsikoista muodostuu automaattisesti
+  "Tällä sivulla" -luettelo, josta hyppää suoraan haluttuun kohtaan
 - **Etusivu tärkeysjärjestyksessä** – kiinnitetty tiedote huomiobannerina ylimpänä,
   tärkeät numerot heti näkyvissä ilman vieritystä, suosituimmat ja viimeksi
   päivitetyt ohjeet; kapealla näytöllä numerot nousevat ensimmäiseksi

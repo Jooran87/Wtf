@@ -35,8 +35,13 @@ app.use((req, res, next) => {
 const FIELD_LIMITS = {
   title: 300, content: 500000, keywords: 500, author: 100, name: 200,
   label: 200, note: 500, phone: 60, url: 2000, term: 150, definition: 2000,
-  icon: 8,
+  icon: 8, color: 16,
 };
+
+// Kategorian väri: sallitaan vain #rrggbb tai tyhjä (estää CSS-injektion,
+// koska väri sijoitetaan selaimessa inline-tyyliin).
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+const cleanColor = (v) => (HEX_COLOR.test(String(v || '').trim()) ? String(v).trim().toLowerCase() : '');
 
 const UPLOAD_DIR = path.join(process.env.TYOWIKI_DATA_DIR || path.join(__dirname, 'data'), 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -300,8 +305,8 @@ app.post('/api/categories', (req, res) => {
   }
   // Järjestysnumero lasketaan sisarusten (saman yläkategorian) kesken.
   const sort = db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS s FROM categories WHERE parent_id IS ?').get(parentId).s;
-  const info = db.prepare('INSERT INTO categories (name, icon, sort_order, parent_id) VALUES (?, ?, ?, ?)')
-    .run(name, icon, sort, parentId);
+  const info = db.prepare('INSERT INTO categories (name, icon, color, sort_order, parent_id) VALUES (?, ?, ?, ?, ?)')
+    .run(name, icon, cleanColor(req.body.color), sort, parentId);
   res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(info.lastInsertRowid));
 });
 
@@ -324,7 +329,8 @@ app.put('/api/categories/:id', (req, res) => {
         return res.status(400).json({ error: 'Kategorialla on alakategorioita – siirrä ne ensin' });
     }
   }
-  db.prepare('UPDATE categories SET name = ?, icon = ?, parent_id = ? WHERE id = ?').run(name, icon, parentId, id);
+  const color = ('color' in req.body) ? cleanColor(req.body.color) : (cur.color || '');
+  db.prepare('UPDATE categories SET name = ?, icon = ?, color = ?, parent_id = ? WHERE id = ?').run(name, icon, color, parentId, id);
   res.json(db.prepare('SELECT * FROM categories WHERE id = ?').get(id));
 });
 

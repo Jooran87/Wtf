@@ -21,6 +21,8 @@ let DB = load();
 const nowISO = () => new Date().toISOString();
 function nextId() { DB.seq += 1; return DB.seq; }
 function catName(id) { const c = DB.categories.find((x) => x.id === id); return c ? c.name : null; }
+// Väri sallitaan vain heksana (#rrggbb), muuten tyhjä – sama sääntö kuin palvelimella.
+function cleanColor(v) { v = String(v || '').trim().toLowerCase(); return /^#[0-9a-f]{6}$/.test(v) ? v : ''; }
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
 // ---------- IndexedDB blobit ----------
@@ -95,12 +97,12 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [], links: [] };
-  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', sort_order: 0, parent_id: null };
+  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', color: '#8b5cf6', sort_order: 0, parent_id: null };
   DB.categories.push(pereh);
-  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', sort_order: 1, parent_id: null };
-  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', sort_order: 2, parent_id: null };
-  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', sort_order: 3, parent_id: null };
-  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', sort_order: 4, parent_id: null };
+  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', color: '#ea6a1e', sort_order: 1, parent_id: null };
+  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', color: '#e11d48', sort_order: 2, parent_id: null };
+  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', color: '#f59e0b', sort_order: 3, parent_id: null };
+  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', color: '#2563eb', sort_order: 4, parent_id: null };
   DB.categories.push(kipa, halytyskeskus, hairiot, ism);
   // Esimerkki alakategorioista: Kipan alle asiakkuuksittain.
   const kipaAsA = { id: nextId(), name: 'Asiakas A – Toimistotalo', icon: '🏢', sort_order: 1, parent_id: kipa.id };
@@ -355,6 +357,7 @@ function migrateExisting() {
   if (!DB.links) { DB.links = []; changed = true; }
   DB.categories.forEach((c) => { if (typeof c.icon !== 'string') { c.icon = ''; changed = true; } });
   DB.categories.forEach((c) => { if (c.parent_id === undefined) { c.parent_id = null; changed = true; } });
+  DB.categories.forEach((c) => { if (typeof c.color !== 'string') { c.color = ''; changed = true; } });
   DB.pages.forEach((p) => {
     if (typeof p.views !== 'number') { p.views = 0; changed = true; }
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
@@ -411,7 +414,7 @@ const Store = {
       await ready;
       return clone(DB.categories)
         .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
-        .map((c) => ({ ...c, parent_id: c.parent_id != null ? c.parent_id : null,
+        .map((c) => ({ ...c, parent_id: c.parent_id != null ? c.parent_id : null, color: c.color || '',
           page_count: DB.pages.filter((p) => p.category_id === c.id).length }));
     },
     async create(data) {
@@ -425,7 +428,7 @@ const Store = {
         if (parent.parent_id != null) throw new Error('Alakategorialle ei voi luoda omaa alakategoriaa');
       }
       const siblings = DB.categories.filter((x) => (x.parent_id || null) === parentId);
-      const c = { id: nextId(), name, icon: (data.icon || '').trim(), parent_id: parentId,
+      const c = { id: nextId(), name, icon: (data.icon || '').trim(), color: cleanColor(data.color), parent_id: parentId,
         sort_order: (Math.max(0, ...siblings.map((x) => x.sort_order)) + 1) };
       DB.categories.push(c); save(DB); return clone(c);
     },
@@ -446,6 +449,7 @@ const Store = {
         }
         c.parent_id = parentId;
       }
+      if ('color' in data) c.color = cleanColor(data.color);
       c.name = name; c.icon = (data.icon || '').trim();
       save(DB); return clone(c);
     },

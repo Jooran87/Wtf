@@ -147,6 +147,11 @@ if (!catCols.includes('parent_id')) {
   db.exec('ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id) ON DELETE CASCADE');
 }
 
+// Migraatio: kategorian väriaksentti (heksana, esim. #ea6a1e; tyhjä = ei väriä).
+if (!catCols.includes('color')) {
+  db.exec("ALTER TABLE categories ADD COLUMN color TEXT NOT NULL DEFAULT ''");
+}
+
 // Migraatio: ohjeiden käsin asetettava järjestys kategorian sisällä.
 if (!pageCols.includes('sort_order')) {
   db.exec('ALTER TABLE pages ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');

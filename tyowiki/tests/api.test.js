@@ -104,6 +104,16 @@ async function main() {
     ok('kategorian muokkaus', renamed.name === 'Testi2' && renamed.icon === '🔧');
     ok('tyhjä nimi hylätään (400)', await status('POST', '/api/categories', { name: '' }) === 400);
 
+    // Kategorian väriaksentti: heksa hyväksytään, roska siivotaan tyhjäksi
+    ok('seed-kategorialla väri', topCats[0].color === '#8b5cf6', topCats[0].color);
+    const colored = await jsend('POST', '/api/categories', { name: 'Värillinen', color: '#EA6A1E' });
+    ok('väri tallentuu (normalisoitu)', colored.color === '#ea6a1e', colored.color);
+    const badColor = await jsend('POST', '/api/categories', { name: 'Rojuväri', color: 'punainen; x:1' });
+    ok('kelvoton väri hylätään (tyhjä)', badColor.color === '', badColor.color);
+    const recolored = await jsend('PUT', `/api/categories/${colored.id}`, { name: 'Värillinen', color: '#16a34a' });
+    ok('värin muokkaus', recolored.color === '#16a34a');
+    await delCat(colored.id, 'salasana123'); await delCat(badColor.id, 'salasana123');
+
     // --- Alakategoriat (yksi taso) ---
     ok('seed-alakategoriat olemassa', cats.some((c) => c.parent_id != null));
     const sub = await jsend('POST', '/api/categories', { name: 'Asiakas X', icon: '🏬', parent_id: newCat.id });

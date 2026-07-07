@@ -155,6 +155,28 @@ async function main() {
     ok('uusi alakategoria näkyy sivupalkissa',
       (await page.$$eval('#categoryList .cat-btn.subcat .cat-name', (els) => els.map((e) => e.textContent))).some((t) => t.includes('Asiakas C')));
 
+    // Väriaksentit: seed-kategorioilla on värillinen reuna sivupalkissa ja korteissa
+    await page.goto(base + '#/'); await page.waitForTimeout(400);
+    ok('kategorioilla väriaksentti sivupalkissa', (await page.$$('#categoryList .cat-btn.has-accent')).length >= 5);
+    ok('väriaksentti korteissa etusivulla', (await page.$$('.cat-card.has-accent')).length >= 5);
+
+    // Live-haku: pudotusvalikko näyttää osumat ja rivin klikkaus vie ohjeeseen
+    await page.fill('#searchInput', 'palo'); await page.waitForTimeout(400);
+    ok('live-haun pudotus näkyy', await page.isVisible('#searchDrop'));
+    const sdItems = await page.$$eval('#searchDrop .sd-item .sd-label', (els) => els.map((e) => e.textContent));
+    ok('live-haku löytää ohjeita', sdItems.some((t) => /palo/i.test(t)), JSON.stringify(sdItems));
+    await page.click('#searchDrop .sd-item'); await page.waitForTimeout(400);
+    ok('live-haun osumasta avautuu sivu', /#\/sivu\//.test(page.url()), page.url());
+
+    // Sisällysluettelo: monta otsikkoa -> TOC-kortti, jonka linkki vierittää
+    await page.goto(base + '#/'); await page.waitForTimeout(300);
+    await page.click('#categoryList >> text=Perehdytys'); await page.waitForTimeout(300);
+    await page.click('text=Tervetuloa taloon'); await page.waitForTimeout(500);
+    ok('sisällysluettelo näkyy pitkässä ohjeessa', await page.isVisible('.toc-card'));
+    const tocLinks = await page.$$eval('.toc-card a', (els) => els.map((e) => e.textContent.trim()));
+    ok('sisällysluettelossa otsikot', tocLinks.length >= 3 && tocLinks.some((t) => t.includes('Päivä 1')), JSON.stringify(tocLinks));
+    ok('otsikoilla ankkuri-id', (await page.$$('.doc .doc-head[id]')).length >= 3);
+
     // Etusivun uusi järjestys: banneri, Viimeksi päivitetyt ja pikahuomio
     await page.goto(base + '#/'); await page.waitForTimeout(500);
     ok('kiinnitetty tiedote bannerina etusivulla',

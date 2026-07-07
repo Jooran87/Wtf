@@ -279,6 +279,22 @@ async function loadCategories() {
 const CAT_ICONS = ['📄', '🎓', '🏢', '🏬', '🚨', '⚡', '📘', '🧰', '🧹', '🔧', '🛡️', '🗂️', '🏥'];
 const catIcon = (c) => (c && c.icon) ? c.icon : '📄';
 
+// Kategorian väriaksentti: valmis paletti + heksavalidointi (turvallinen inline-tyyliin).
+const CAT_COLORS = ['#ea6a1e', '#e11d48', '#f59e0b', '#16a34a', '#2563eb', '#8b5cf6', '#0891b2', '#64748b'];
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const catColor = (c) => (c && HEX_RE.test(c.color || '')) ? c.color.toLowerCase() : '';
+// Palauttaa turvallisen style-attribuutin (tai tyhjän) värille.
+const accentStyle = (c) => { const col = catColor(c); return col ? ` style="--cat-accent:${col}"` : ''; };
+
+// Väripalettivalitsin lomakkeisiin. Valinta luetaan elementin data-color-kentästä.
+function colorPickerHtml(id, selected) {
+  const sel = HEX_RE.test(selected || '') ? selected.toLowerCase() : '';
+  return `<div class="color-picker" id="${id}" data-color="${sel}">
+    <button type="button" class="swatch swatch-none ${!sel ? 'sel' : ''}" data-c="" title="Ei väriä">∅</button>
+    ${CAT_COLORS.map((c) => `<button type="button" class="swatch ${c === sel ? 'sel' : ''}" data-c="${c}" style="background:${c}" title="${c}"></button>`).join('')}
+  </div>`;
+}
+
 // Alakategoriat: yksi taso. Pääkategoriat = parent_id tyhjä.
 const topCategories = () => categories.filter((c) => !c.parent_id);
 const subCategories = (parentId) => categories.filter((c) => c.parent_id === parentId);
@@ -292,8 +308,9 @@ function totalPageCount(c) {
 }
 
 function catRowHtml(c, i, total, isSub) {
+  const accent = catColor(c) ? ' has-accent' : '';
   return `<li>
-      <button class="cat-btn ${isSub ? 'subcat' : ''} ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}">
+      <button class="cat-btn ${isSub ? 'subcat' : ''}${accent} ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}"${accentStyle(c)}>
         <span class="cat-ico">${esc(catIcon(c))}</span>
         <span class="cat-name">${esc(c.name)}</span>
         <span class="count-badge">${c.page_count != null ? c.page_count : ''}</span>
@@ -461,7 +478,7 @@ async function viewHome() {
           ${topCategories().map((c) => {
             const subs = subCategories(c.id);
             const total = totalPageCount(c);
-            return `<a class="cat-card" href="#/kohde/${c.id}">
+            return `<a class="cat-card${catColor(c) ? ' has-accent' : ''}" href="#/kohde/${c.id}"${accentStyle(c)}>
             <span class="cc-ico">${esc(catIcon(c))}</span>
             <span class="cc-name">${esc(c.name)}</span>
             <span class="cc-count">${total} ohjetta${subs.length ? ` · ${subs.length} alakategoriaa` : ''}</span>
@@ -582,7 +599,7 @@ async function viewCategory(id) {
     </div>
     <div id="catEditRow"></div>
     ${subs.length ? `<div class="cat-grid">
-      ${subs.map((s) => `<a class="cat-card" href="#/kohde/${s.id}">
+      ${subs.map((s) => `<a class="cat-card${catColor(s) ? ' has-accent' : ''}" href="#/kohde/${s.id}"${accentStyle(s)}>
         <span class="cc-ico">${esc(catIcon(s))}</span>
         <span class="cc-name">${esc(s.name)}</span>
         <span class="cc-count">${s.page_count || 0} ohjetta</span>
@@ -616,17 +633,21 @@ async function viewCategory(id) {
     const row = $('#catEditRow');
     if (row.dataset.mode === 'sub') { row.innerHTML = ''; row.dataset.mode = ''; return; }
     row.dataset.mode = 'sub';
-    row.innerHTML = `<div class="card"><div class="row" style="flex-wrap:wrap">
-      ${iconSelectHtml('subCatIcon', '🏢')}
-      <input type="text" id="subCatName" placeholder="Alakategorian nimi (esim. asiakas)"
-        style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
-      <button class="btn small" id="subCatSave">Lisää alakategoria</button>
-    </div></div>`;
+    row.innerHTML = `<div class="card">
+      <div class="row" style="flex-wrap:wrap">
+        ${iconSelectHtml('subCatIcon', '🏢')}
+        <input type="text" id="subCatName" placeholder="Alakategorian nimi (esim. asiakas)"
+          style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
+        <button class="btn small" id="subCatSave">Lisää alakategoria</button>
+      </div>
+      <label class="muted" style="display:block;margin:10px 0 4px">Väri</label>
+      ${colorPickerHtml('subCatColor', '')}
+    </div>`;
     $('#subCatSave').onclick = async () => {
       const name = $('#subCatName').value.trim();
       if (!name) return toast('Anna nimi', true);
       try {
-        const c = await Store.categories.create({ name, icon: $('#subCatIcon').value, parent_id: id });
+        const c = await Store.categories.create({ name, icon: $('#subCatIcon').value, color: $('#subCatColor').dataset.color, parent_id: id });
         row.innerHTML = ''; row.dataset.mode = '';
         await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Alakategoria lisätty');
       } catch (err) { toast(err.message, true); }
@@ -648,6 +669,8 @@ async function viewCategory(id) {
           style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
         <button class="btn small" id="editCatSave">Tallenna</button>
       </div>
+      <label class="muted" style="display:block;margin:10px 0 4px">Väri</label>
+      ${colorPickerHtml('editCatColor', cat.color || '')}
       ${hasChildren
         ? '<p class="muted" style="margin:8px 0 0">Tällä kategorialla on alakategorioita, joten sitä ei voi siirtää toisen alle.</p>'
         : `<label class="muted" style="display:block;margin:10px 0 4px">Yläkategoria</label>${parentSelectHtml('editCatParent', cat.parent_id || null, id)}`}
@@ -655,7 +678,7 @@ async function viewCategory(id) {
     $('#editCatSave').onclick = async () => {
       const name = $('#editCatName').value.trim();
       if (!name) return toast('Anna nimi', true);
-      const data = { name, icon: $('#editCatIcon').value };
+      const data = { name, icon: $('#editCatIcon').value, color: $('#editCatColor').dataset.color };
       if (!hasChildren) data.parent_id = $('#editCatParent').value || null;
       try {
         await Store.categories.update(id, data);
@@ -707,6 +730,38 @@ async function viewCategory(id) {
   };
 }
 
+// Sisällysluettelo pitkiin ohjeisiin: rakentaa otsikoista (h1–h3) linkkilistan
+// ja korostaa vierityksen mukaan sen osion, joka on näkyvissä.
+let tocObserver = null;
+function buildToc() {
+  if (tocObserver) { tocObserver.disconnect(); tocObserver = null; }
+  const docEl = $('#content .doc');
+  const holder = $('#tocHolder');
+  if (!docEl || !holder) return;
+  const heads = Array.from(docEl.querySelectorAll('h1, h2, h3'));
+  if (heads.length < 3) return; // lyhyille ohjeille ei tarvita luetteloa
+  heads.forEach((h, i) => { if (!h.id) h.id = 'osio-' + i; h.classList.add('doc-head'); });
+  holder.innerHTML = `<nav class="toc-card" aria-label="Sisällys">
+    <div class="toc-title">📑 Tällä sivulla</div>
+    <ul>${heads.map((h) => `<li class="toc-${h.tagName.toLowerCase()}">
+      <a href="#" data-toc="${h.id}">${esc(h.textContent)}</a></li>`).join('')}</ul>
+  </nav>`;
+  const links = new Map(heads.map((h) => [h.id, holder.querySelector(`[data-toc="${h.id}"]`)]));
+  holder.querySelectorAll('[data-toc]').forEach((a) => a.onclick = (e) => {
+    e.preventDefault();
+    const t = document.getElementById(a.dataset.toc);
+    if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  tocObserver = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      holder.querySelectorAll('[data-toc]').forEach((a) => a.classList.remove('on'));
+      const a = links.get(en.target.id); if (a) a.classList.add('on');
+    });
+  }, { rootMargin: '-72px 0px -70% 0px' });
+  heads.forEach((h) => tocObserver.observe(h));
+}
+
 async function viewPage(id) {
   const p = await Store.pages.get(id, { track: true });
   content.innerHTML = `
@@ -730,6 +785,7 @@ async function viewPage(id) {
     </div>
     ${(p.keywords || '').trim() ? `<div class="tags">${p.keywords.split(',').map((k) => k.trim()).filter(Boolean)
       .map((k) => `<a class="tag-chip" href="#/haku?q=${encodeURIComponent(k)}">${esc(k)}</a>`).join('')}</div>` : ''}
+    <div id="tocHolder"></div>
     <div class="card doc">${p.content.trim() ? renderMarkdown(p.content) : '<p class="muted">Ei sisältöä. Klikkaa Muokkaa.</p>'}</div>
     <div class="card">
       <div class="spread"><h3 style="margin:0">📎 Liitteet (${p.attachments.length})</h3></div>
@@ -745,6 +801,7 @@ async function viewPage(id) {
     </div>`;
 
   hydrateDocImages($('#content'));
+  buildToc();
 
   $('#verifyBtn').onclick = async () => {
     if (!author.get()) return toast('Kirjoita ensin nimesi oikeaan yläkulmaan', true);
@@ -1296,6 +1353,15 @@ function bindNoteDelete(refresh) {
 function closeSidebarMobile() { $('#sidebar').classList.remove('open'); }
 
 document.addEventListener('click', async (e) => {
+  // Värivalitsin: valitse sävy ja tallenna se pickerin data-color-kenttään.
+  const swatch = e.target.closest('.color-picker .swatch');
+  if (swatch) {
+    e.preventDefault();
+    const picker = swatch.closest('.color-picker');
+    picker.dataset.color = swatch.dataset.c || '';
+    picker.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('sel', s === swatch));
+    return;
+  }
   const catMove = e.target.closest('[data-catmove]');
   if (catMove) {
     // Järjestys vaihdetaan vain sisarusten (saman yläkategorian) kesken.
@@ -1329,13 +1395,14 @@ $('#addCategoryBtn').onclick = () => {
       <input id="newCatName" type="text" placeholder="Kategorian nimi" style="flex:1;min-width:0" />
     </div>
     ${parentSelectHtml('newCatParent', null, null)}
+    ${colorPickerHtml('newCatColor', '')}
     <button class="btn small" id="newCatSave" style="width:100%">Lisää kategoria</button>`;
   $('#categoryList').before(wrap);
   const saveCat = async () => {
     const name = $('#newCatName').value.trim();
     if (!name) return toast('Anna nimi', true);
     try {
-      const c = await Store.categories.create({ name, icon: $('#newCatIcon').value, parent_id: $('#newCatParent').value || null });
+      const c = await Store.categories.create({ name, icon: $('#newCatIcon').value, color: $('#newCatColor').dataset.color, parent_id: $('#newCatParent').value || null });
       wrap.remove(); await loadCategories();
       location.hash = '#/kohde/' + c.id; toast('Kategoria lisätty');
     } catch (err) { toast(err.message, true); }
@@ -1350,6 +1417,79 @@ $('#searchForm').onsubmit = (e) => {
   const q = $('#searchInput').value.trim();
   if (q) location.hash = '#/haku?q=' + encodeURIComponent(q);
 };
+
+// Live-haku: parhaat osumat pudotusvalikossa jo kirjoittaessa (nopea löytö).
+(function initLiveSearch() {
+  const input = $('#searchInput');
+  const form = $('#searchForm');
+  if (!input || !form) return;
+  form.classList.add('has-drop');
+  const drop = document.createElement('div');
+  drop.id = 'searchDrop';
+  drop.className = 'search-drop';
+  drop.style.display = 'none';
+  form.appendChild(drop);
+  let items = [];   // näkyvät rivit järjestyksessä (näppäinnavigointia varten)
+  let hi = -1;      // korostettu rivi
+  let timer = null;
+  let lastQ = '';
+
+  const hide = () => { drop.style.display = 'none'; hi = -1; };
+  const highlight = () => drop.querySelectorAll('.sd-item').forEach((el, i) => el.classList.toggle('hl', i === hi));
+  const go = (href) => { hide(); location.hash = href; };
+
+  async function run(q) {
+    if (q.length < 2) { hide(); return; }
+    let r;
+    try { r = await Store.search(q); } catch (_) { hide(); return; }
+    if (q !== lastQ) return; // vanhentunut vastaus – ohitetaan
+    const groups = [];
+    if (r.pages.length) groups.push(['Ohjeet', r.pages.slice(0, 6).map((p) => ({
+      href: '#/sivu/' + p.id, label: p.title, meta: p.category_name || 'Yleinen' }))]);
+    if (r.terms.length) groups.push(['Termit', r.terms.slice(0, 3).map((t) => ({
+      href: '#/haku?q=' + encodeURIComponent(t.term), label: t.term, meta: 'termi' }))]);
+    if (r.files.length) groups.push(['Liitteet', r.files.slice(0, 3).map((f) => ({
+      href: '#/sivu/' + f.page_id, label: f.original_name, meta: f.page_title || 'liite' }))]);
+    items = [];
+    if (!groups.length) {
+      drop.innerHTML = '<div class="sd-empty">Ei osumia – paina Enter täydelle haulle</div>';
+      drop.style.display = ''; hi = -1; return;
+    }
+    let html = '';
+    for (const [name, rows] of groups) {
+      html += `<div class="sd-grp">${esc(name)}</div>`;
+      for (const row of rows) {
+        const idx = items.length; items.push(row);
+        html += `<a class="sd-item" data-i="${idx}" href="${esc(row.href)}">
+          <span class="sd-label">${esc(row.label)}</span><span class="sd-meta">${esc(row.meta)}</span></a>`;
+      }
+    }
+    html += `<button type="button" class="sd-all">Näytä kaikki tulokset “${esc(q)}” →</button>`;
+    drop.innerHTML = html;
+    drop.style.display = ''; hi = -1;
+    // mousedown (ei click), jotta navigointi ehtii ennen kentän blur-piilotusta
+    drop.querySelectorAll('.sd-item').forEach((a) =>
+      a.onmousedown = (e) => { e.preventDefault(); go(a.getAttribute('href')); });
+    const allBtn = drop.querySelector('.sd-all');
+    if (allBtn) allBtn.onmousedown = (e) => { e.preventDefault(); go('#/haku?q=' + encodeURIComponent(q)); };
+  }
+
+  input.addEventListener('input', () => {
+    lastQ = input.value.trim();
+    clearTimeout(timer);
+    timer = setTimeout(() => run(lastQ), 160);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (drop.style.display === 'none') return;
+    const links = drop.querySelectorAll('.sd-item');
+    if (e.key === 'ArrowDown') { e.preventDefault(); hi = Math.min(hi + 1, links.length - 1); highlight(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); hi = Math.max(hi - 1, -1); highlight(); }
+    else if (e.key === 'Enter') { if (hi >= 0 && items[hi]) { e.preventDefault(); go(items[hi].href); } }
+    else if (e.key === 'Escape') { hide(); }
+  });
+  input.addEventListener('blur', () => setTimeout(hide, 120));
+  input.addEventListener('focus', () => { const q = input.value.trim(); if (q.length >= 2) run(q); });
+})();
 
 $('#menuToggle').onclick = () => $('#sidebar').classList.toggle('open');
 

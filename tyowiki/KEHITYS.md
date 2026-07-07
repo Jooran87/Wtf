@@ -44,7 +44,7 @@ jolloin app.js ohittaa kirjautumisen).
    seed-dataan – tee näin vain kun uusi seed-sisältö on demolle tärkeä).
 5. **Ulkoasu-/logiikkamuutoksen jälkeen aina** `node sandbox/build-single.js`
    ja committaa syntynyt tyowiki-sandbox.html.
-6. **`npm test` vihreänä (103 testiä) ennen jokaista committia.** Testit ajavat
+6. **`npm test` vihreänä (115 testiä) ennen jokaista committia.** Testit ajavat
    palvelimen eristetyssä TYOWIKI_DATA_DIR-hakemistossa – eivät koske oikeaa dataa.
 7. **Tekijätieto tulee AINA istunnosta** (`req.user.name`) – älä koskaan luota
    selaimen author-kenttään.
@@ -70,6 +70,13 @@ jolloin app.js ohittaa kirjautumisen).
   (v11 yritti kääntää lähteistä ja kaatui käyttäjän Macilla).
 - Kehitysympäristöhuomio: `pkill` bash-ketjussa palauttaa 144 ja katkaisee
   `&&`-ketjun – aja siivous erillisenä komentona.
+- **Kategorian väri sijoitetaan inline-tyyliin** (`--cat-accent`) → se on
+  validoitava heksaksi (`#rrggbb`) sekä palvelimella (`cleanColor`) että
+  sandboxissa, muuten syntyy CSS-injektioriski. Muut käyttäjäsyötteet eivät
+  koskaan mene tyyliin, vain escapettuun tekstiin/attribuutteihin.
+- **Live-haku** (`initLiveSearch` app.js:ssä) ja **sisällysluettelo**
+  (`buildToc`) ovat puhtaasti client-puolta, käyttävät olemassa olevaa
+  `Store.search`ia ja renderöityä `.doc`ia – ei uusia palvelinreittejä.
 
 ## Alakategoriat (yksi taso)
 
@@ -111,7 +118,7 @@ jolloin app.js ohittaa kirjautumisen).
 
 ```bash
 npm start                      # palvelin (PORT=xxxx vaihtaa portin)
-npm test                       # 103 testiä eristetyssä ympäristössä
+npm test                       # 115 testiä eristetyssä ympäristössä
 npm run backup                 # varmuuskopio backups/-kansioon
 node sandbox/build-single.js   # kokoa jaettava sandbox-tiedosto
 node reindex.js                # liitteiden hakuindeksin uudelleenajo

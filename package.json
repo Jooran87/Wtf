@@ -1,5 +1,5 @@
 {
-  "name": "fmi-saasovellus",
+  "name": "sillanrakentaja",
   "version": "1.0.0",
   "main": "expo/AppEntry.js",
   "scripts": {
@@ -8,21 +8,18 @@
     "android": "expo start --android"
   },
   "dependencies": {
-    "@expo/vector-icons": "^15.0.3",
     "babel-preset-expo": "~54.0.10",
     "expo": "~54.0.0",
-    "expo-blur": "~15.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-status-bar": "~3.0.9",
-    "fast-xml-parser": "^4.4.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-svg": "15.12.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@types/react": "~19.0.0",
-    "typescript": "~5.3.3"
+    "@types/react": "~19.1.0",
+    "typescript": "~5.9.2"
   },
   "private": true
 }

@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "FMI Sää",
-    "slug": "fmi-saa",
+    "name": "Sillanrakentaja",
+    "slug": "sillanrakentaja",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "orientation": "landscape",
+    "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "com.example.fmisaa"
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.sillanrakentaja"
     },
     "android": {
-      "package": "com.example.fmisaa"
+      "package": "com.example.sillanrakentaja"
     },
     "extra": {
       "eas": {

@@ -497,7 +497,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
               const cR = engine!.nodes[seg.chassis[0]];
               const cF = engine!.nodes[seg.chassis[1]];
               const wF = engine!.nodes[seg.wheels[0]];
-              const wR = engine!.nodes[seg.wheels[1]];
+              const wR = engine!.nodes[seg.wheels[seg.wheels.length - 1]];
               return (
                 <G key={i}>
                   <Polygon

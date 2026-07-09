@@ -78,7 +78,7 @@ export const LEVELS: LevelDef[] = [
     gap: 6,
     budget: 5400,
     vehicle: 'van',
-    hint: 'Pakettiauto painaa yli kaksi kertaa auton verran.',
+    hint: 'Pakettiauto painaa yli kaksi kertaa auton verran — tue kansi joka liitoksesta.',
   }),
   makeLevel(4, {
     name: 'Rotko',
@@ -117,10 +117,10 @@ export const LEVELS: LevelDef[] = [
   }),
   makeLevel(9, {
     name: 'Pitkä ylitys',
-    gap: 12,
-    budget: 15000,
+    gap: 11,
+    budget: 14000,
     vehicle: 'train1',
-    hint: 'Korkea ristikko jakaa voimat pidemmälle matkalle.',
+    hint: 'Mitä pidempi jänne, sitä kovempi veto kanteen — tue joka liitos ja pidä ristikko korkeana.',
   }),
   makeLevel(10, {
     name: 'Suurhanke',

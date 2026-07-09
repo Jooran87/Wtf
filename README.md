@@ -27,11 +27,42 @@ Oma voimapohjainen ristikkosimulaatio:
   välittävät painon siltarakenteeseen. Palkki murtuu, kun sen venymä
   ylittää materiaalin murtorajan.
 
-## Kehitys
+## Pelin avaaminen puhelimella (Expo Go)
+
+1. Asenna puhelimeen **Expo Go** -sovellus (App Store / Google Play).
+2. Kloonaa tämä repo tietokoneelle ja asenna riippuvuudet:
+   ```bash
+   git clone https://github.com/Jooran87/Wtf.git
+   cd Wtf
+   npm install
+   ```
+3. Käynnistä kehityspalvelin:
+   ```bash
+   npm start
+   ```
+4. Varmista, että puhelin ja tietokone ovat **samassa wifi-verkossa**.
+5. Skannaa terminaaliin ilmestyvä QR-koodi:
+   - **iPhone**: kameralla, avaa linkki Expo Go:hon.
+   - **Android**: Expo Go -sovelluksen omalla skannerilla.
+6. Käännä puhelin vaakasuuntaan — peli aukeaa hetken latauksen jälkeen.
+
+## Pelin avaaminen selaimella
+
+1. Asenna riippuvuudet kuten yllä (`npm install`).
+2. Käynnistä web-versio:
+   ```bash
+   npm run web
+   ```
+3. Selain aukeaa automaattisesti osoitteeseen `http://localhost:8081`
+   (avaa se itse, jos ei aukea). Palkit piirretään hiirellä vetämällä.
+
+Selaimesta voi myös tehdä staattisen buildin, jonka voi viedä mille
+tahansa web-palvelimelle:
 
 ```bash
-npm install
-npm start        # Expo-kehityspalvelin, avaa Expo Go -sovelluksella
+npx expo export --platform web   # tulos dist/-kansioon
+npx serve dist                   # kokeile paikallisesti
 ```
 
-Peli on suunniteltu pelattavaksi vaakasuunnassa puhelimella tai tabletilla.
+Peli on suunniteltu pelattavaksi vaakasuunnassa (puhelin/tabletti)
+tai tavallisessa työpöytäselaimessa.

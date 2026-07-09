@@ -12,6 +12,11 @@
     "android": {
       "package": "com.example.sillanrakentaja"
     },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Sillanrakentaja"
+    },
     "extra": {
       "eas": {
         "projectId": ""

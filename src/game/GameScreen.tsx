@@ -454,27 +454,18 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   /** Animaatioaika koristeille (vain testissä liikkuvat) */
   const animT = testing ? engine!.time : 0;
 
-  const hills = useMemo(() => {
-    // Selkeät kolmiohuiput, joiden välit palaavat horisonttiin —
-    // ei yhtenäistä massaa. Amplitudi skaalautuu kentän leveyteen.
-    const base = level.deckY + 0.05;
-    const ampScale = Math.min(1, level.worldW / 14);
-    const mkRidge = (seed: number, ampMin: number, ampMax: number, span: number) => {
-      const pts: { x: number; y: number }[] = [{ x: -0.5, y: base }];
-      let x = -0.5 + rnd01(seed) * span * 0.6;
-      let i = 0;
-      while (x < level.worldW + 0.5) {
-        const w = span * (0.7 + 0.6 * rnd01(seed + i * 13));
-        const h = (ampMin + (ampMax - ampMin) * rnd01(seed + i * 7)) * ampScale;
-        pts.push({ x, y: base });
-        pts.push({ x: x + w / 2, y: base - h });
-        x += w;
-        i++;
+  // Kuusimetsäsiluetit horisontissa: kaukainen tiheä rivi ja lähempi rivi
+  const trees = useMemo(() => {
+    const base = level.deckY + 0.02;
+    const mkRow = (seed: number, hMin: number, hMax: number, step: number) => {
+      const arr: { x: number; y: number; h: number; w: number }[] = [];
+      for (let x = -0.3; x < level.worldW + 0.3; x += step * (0.7 + 0.6 * rnd01(seed + x * 7))) {
+        const h = hMin + (hMax - hMin) * rnd01(seed + x * 13);
+        arr.push({ x, y: base, h, w: h * 0.6 });
       }
-      pts.push({ x: level.worldW + 0.5, y: base });
-      return pts;
+      return arr;
     };
-    return { far: mkRidge(11, 1.7, 2.6, 4.2), near: mkRidge(37, 0.7, 1.3, 3) };
+    return { far: mkRow(23, 0.55, 0.95, 0.55), near: mkRow(71, 0.85, 1.5, 0.8) };
   }, [level]);
 
   const nightStars = useMemo(() => {
@@ -490,8 +481,8 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
     return arr;
   }, [level]);
 
-  const hillPoints = (pts: { x: number; y: number }[]) =>
-    pts.map((p) => `${sx(p.x)},${sy(p.y)}`).join(' ');
+  const treePoly = (t: { x: number; y: number; h: number; w: number }) =>
+    `${sx(t.x - t.w / 2)},${sy(t.y)} ${sx(t.x)},${sy(t.y - t.h)} ${sx(t.x + t.w / 2)},${sy(t.y)}`;
 
   const buildNodes = useMemo(() => {
     const map = new Map<string, { x: number; y: number; degree: number }>();
@@ -531,9 +522,32 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
             </G>
           )}
 
-          {/* Taustavuoret */}
-          <Polygon points={hillPoints(hills.far)} fill={theme.hillFar} />
-          <Polygon points={hillPoints(hills.near)} fill={theme.hillNear} />
+          {/* Utuinen laakso horisontin alapuolella — rotkon takana ei näy taivasta */}
+          <Rect
+            x={sx(-0.5)}
+            y={sy(level.deckY)}
+            width={(level.worldW + 1) * scale}
+            height={(level.worldH - level.deckY + 0.5) * scale}
+            fill={theme.valley}
+          />
+          <Rect
+            x={sx(-0.5)}
+            y={sy(level.deckY + 1.2)}
+            width={(level.worldW + 1) * scale}
+            height={(level.worldH - level.deckY - 0.7) * scale}
+            fill={theme.valley}
+            opacity={0.6}
+          />
+
+          {/* Kuusimetsä horisontissa */}
+          <G>
+            {trees.far.map((t, i) => (
+              <Polygon key={`f${i}`} points={treePoly(t)} fill={theme.treeFar} />
+            ))}
+            {trees.near.map((t, i) => (
+              <Polygon key={`n${i}`} points={treePoly(t)} fill={theme.treeNear} />
+            ))}
+          </G>
 
           {/* Pilvet (ajelehtivat testin aikana) */}
           {theme.clouds &&

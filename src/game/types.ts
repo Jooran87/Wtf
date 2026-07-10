@@ -67,8 +67,12 @@ export type ThemeId = 'summer' | 'autumn' | 'winter' | 'night';
 export interface Theme {
   skyTop: string;
   skyBottom: string;
-  hillFar: string;
-  hillNear: string;
+  /** Kaukainen puurivi */
+  treeFar: string;
+  /** Lähempi puurivi */
+  treeNear: string;
+  /** Utuinen laakso horisontin alapuolella (rotkon tausta) */
+  valley: string;
   cliff: string;
   /** Kallion kerrosraidat */
   strata: string;
@@ -90,8 +94,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   summer: {
     skyTop: '#6fb0e3',
     skyBottom: '#cfe8f7',
-    hillFar: '#b9d4e9',
-    hillNear: '#8fb4d2',
+    treeFar: '#9dbccf',
+    treeNear: '#6d9b7d',
+    valley: '#bcd8ea',
     cliff: '#6b5340',
     strata: 'rgba(0,0,0,0.08)',
     edge: '#5da24e',
@@ -108,8 +113,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   autumn: {
     skyTop: '#7d9cc2',
     skyBottom: '#ecdcbc',
-    hillFar: '#c9b696',
-    hillNear: '#a3835c',
+    treeFar: '#c0a887',
+    treeNear: '#a3763f',
+    valley: '#d5c6a8',
     cliff: '#6b4c36',
     strata: 'rgba(0,0,0,0.09)',
     edge: '#c07f3a',
@@ -126,8 +132,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   winter: {
     skyTop: '#9fc0da',
     skyBottom: '#eef4f9',
-    hillFar: '#dae7f0',
-    hillNear: '#b3cadc',
+    treeFar: '#c5d8e6',
+    treeNear: '#8fa9bc',
+    valley: '#dfeaf2',
     cliff: '#5f6874',
     strata: 'rgba(255,255,255,0.10)',
     edge: '#f0f6fa',
@@ -144,8 +151,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   night: {
     skyTop: '#0d1a2e',
     skyBottom: '#2b4560',
-    hillFar: '#1a2a40',
-    hillNear: '#152238',
+    treeFar: '#16283e',
+    treeNear: '#0e1c2e',
+    valley: '#122338',
     cliff: '#2e2a26',
     strata: 'rgba(255,255,255,0.05)',
     edge: '#3d5c46',

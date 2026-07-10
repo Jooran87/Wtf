@@ -198,6 +198,34 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   // --- Rakentelun kosketuskäsittely ---
   const dragRef = useRef<{ x0: number; y0: number } | null>(null);
 
+  /**
+   * Tarttumispiste sormen kohdalle: ankkurit ja olemassa olevat solmut
+   * vetävät puoleensa laajemmalla säteellä kuin tyhjät ruudukkopisteet,
+   * jottei palkin pää jää vahingossa ankkurin viereen ilmaan.
+   */
+  function snapPoint(wx: number, wy: number): { x: number; y: number } | null {
+    const st = stateRef.current;
+    const magnets: { x: number; y: number }[] = [...st.level.anchors];
+    for (const b of st.beams) {
+      magnets.push({ x: b.ax, y: b.ay }, { x: b.bx, y: b.by });
+    }
+    let best: { x: number; y: number } | null = null;
+    let bestD = 0.8;
+    for (const m of magnets) {
+      const d = Math.hypot(wx - m.x, wy - m.y);
+      if (d < bestD) {
+        bestD = d;
+        best = m;
+      }
+    }
+    if (best) return best;
+    const gx = Math.round(wx);
+    const gy = Math.round(wy);
+    if (Math.hypot(wx - gx, wy - gy) > 0.48) return null;
+    if (!isValidPoint(st.level, gx, gy)) return null;
+    return { x: gx, y: gy };
+  }
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => stateRef.current.phase === 'build',
@@ -210,12 +238,10 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
           deleteNearestBeam(wx, wy);
           return;
         }
-        const gx = Math.round(wx);
-        const gy = Math.round(wy);
-        if (Math.hypot(wx - gx, wy - gy) > 0.48) return;
-        if (!isValidPoint(st.level, gx, gy)) return;
-        dragRef.current = { x0: gx, y0: gy };
-        setDrag({ x0: gx, y0: gy, x1: gx, y1: gy, valid: false });
+        const p = snapPoint(wx, wy);
+        if (!p) return;
+        dragRef.current = { x0: p.x, y0: p.y };
+        setDrag({ x0: p.x, y0: p.y, x1: p.x, y1: p.y, valid: false });
       },
       onPanResponderMove: (evt) => {
         const start = dragRef.current;
@@ -223,15 +249,14 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         const st = stateRef.current;
         const wx = (evt.nativeEvent.pageX - st.ox) / st.scale;
         const wy = (evt.nativeEvent.pageY - st.oy) / st.scale;
-        const gx = Math.round(wx);
-        const gy = Math.round(wy);
-        const len = Math.hypot(gx - start.x0, gy - start.y0);
+        const p = snapPoint(wx, wy) ?? { x: Math.round(wx), y: Math.round(wy) };
+        const len = Math.hypot(p.x - start.x0, p.y - start.y0);
         const valid =
           len >= 0.99 &&
           len <= MAX_BEAM_LEN &&
-          isValidPoint(st.level, gx, gy) &&
-          !hasBeam(st.beams, start.x0, start.y0, gx, gy);
-        setDrag({ x0: start.x0, y0: start.y0, x1: gx, y1: gy, valid });
+          isValidPoint(st.level, p.x, p.y) &&
+          !hasBeam(st.beams, start.x0, start.y0, p.x, p.y);
+        setDrag({ x0: start.x0, y0: start.y0, x1: p.x, y1: p.y, valid });
       },
       onPanResponderRelease: () => {
         const start = dragRef.current;
@@ -320,13 +345,26 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const info = vehicleInfo(vehicle);
 
   const buildNodes = useMemo(() => {
-    const set = new Map<string, { x: number; y: number }>();
+    const map = new Map<string, { x: number; y: number; degree: number }>();
     for (const b of beams) {
-      set.set(`${b.ax},${b.ay}`, { x: b.ax, y: b.ay });
-      set.set(`${b.bx},${b.by}`, { x: b.bx, y: b.by });
+      for (const [x, y] of [
+        [b.ax, b.ay],
+        [b.bx, b.by],
+      ] as const) {
+        const k = `${x},${y}`;
+        const n = map.get(k);
+        if (n) n.degree++;
+        else map.set(k, { x, y, degree: 1 });
+      }
     }
-    return [...set.values()];
+    return [...map.values()];
   }, [beams]);
+
+  const isAnchoredPoint = useCallback(
+    (x: number, y: number) =>
+      level.anchors.some((a) => a.x === x && a.y === y) || isTerrainPoint(level.terrain, x, y),
+    [level]
+  );
 
   return (
     <View style={styles.root}>
@@ -479,18 +517,28 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
               );
             })}
 
-          {/* Liitossolmut (maahan ankkuroidut piirretään ankkurityylillä) */}
+          {/* Liitossolmut (maahan ankkuroidut ankkurityylillä, irtopäät oranssilla) */}
           {!testing &&
-            buildNodes.map((n) =>
-              isTerrainPoint(level.terrain, n.x, n.y) ? (
-                <G key={`${n.x},${n.y}`}>
-                  <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.13 * scale} fill="#28455e" />
-                  <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.06 * scale} fill="#7fb2d9" />
-                </G>
-              ) : (
-                <Circle key={`${n.x},${n.y}`} cx={sx(n.x)} cy={sy(n.y)} r={0.07 * scale} fill="#2f3a45" />
-              )
-            )}
+            buildNodes.map((n) => {
+              if (isAnchoredPoint(n.x, n.y)) {
+                return (
+                  <G key={`${n.x},${n.y}`}>
+                    <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.13 * scale} fill="#28455e" />
+                    <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.06 * scale} fill="#7fb2d9" />
+                  </G>
+                );
+              }
+              if (n.degree === 1) {
+                // Vain yksi palkki kiinni: pää roikkuu vapaana testissä
+                return (
+                  <G key={`${n.x},${n.y}`}>
+                    <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.12 * scale} fill="#e08a2e" opacity={0.5} />
+                    <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.07 * scale} fill="#c96f14" />
+                  </G>
+                );
+              }
+              return <Circle key={`${n.x},${n.y}`} cx={sx(n.x)} cy={sy(n.y)} r={0.07 * scale} fill="#2f3a45" />;
+            })}
           {testing &&
             engine!.nodes.map((n, i) => {
               if (n.vehicle) return null;

@@ -1,4 +1,41 @@
-import { Box, LevelDef, VehicleId } from './types';
+import { Box, BuildBeam, LevelDef, VehicleId, isTerrainPoint } from './types';
+
+/**
+ * Jakaa 2 m:n suorat palkit kahtia, jos niiden keskikohdassa on liitos
+ * (toisen palkin pää, ankkuri tai maastopiste). Palkit liittyvät toisiinsa
+ * vain päistään — ilman jakoa keskelle piirretty palkki ei oikeasti
+ * kiinnittyisi, vaikka siltä näyttää.
+ */
+export function splitBeamsAtJoints(
+  level: LevelDef,
+  beams: BuildBeam[],
+  nextId: () => number
+): BuildBeam[] {
+  const pts = new Set<string>();
+  for (const b of beams) {
+    pts.add(`${b.ax},${b.ay}`);
+    pts.add(`${b.bx},${b.by}`);
+  }
+  for (const a of level.anchors) pts.add(`${a.x},${a.y}`);
+
+  const out: BuildBeam[] = [];
+  for (const b of beams) {
+    const dx = b.bx - b.ax;
+    const dy = b.by - b.ay;
+    const straight2 = (Math.abs(dx) === 2 && dy === 0) || (dx === 0 && Math.abs(dy) === 2);
+    if (straight2) {
+      const mx = (b.ax + b.bx) / 2;
+      const my = (b.ay + b.by) / 2;
+      if (pts.has(`${mx},${my}`) || isTerrainPoint(level.terrain, mx, my)) {
+        out.push({ ...b, id: nextId(), bx: mx, by: my });
+        out.push({ ...b, id: nextId(), ax: mx, ay: my });
+        continue;
+      }
+    }
+    out.push(b);
+  }
+  return out;
+}
 
 const CLIFF_W = 3;
 const DECK_Y = 4;

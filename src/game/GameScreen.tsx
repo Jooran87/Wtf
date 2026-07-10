@@ -10,6 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, G, Line, Polygon, Rect } from 'react-native-svg';
 import { Engine, buildEngine } from './engine';
+import { splitBeamsAtJoints } from './levels';
 import { spawnVehicle, vehicleInfo } from './vehicles';
 import {
   BuildBeam,
@@ -304,7 +305,10 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
       setTimeout(() => setBudgetFlash(false), 700);
       return;
     }
-    setBeams((prev) => [...prev, beam]);
+    // Jaa 2 m:n palkit kahtia liitosten kohdalta, jotta kiinnitys on aito
+    setBeams((prev) =>
+      splitBeamsAtJoints(st.level, [...prev, beam], () => nextBeamId.current++)
+    );
   }
 
   function deleteNearestBeam(wx: number, wy: number) {
@@ -356,6 +360,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const engine = engineRef.current;
   const testing = phase !== 'build' && engine !== null;
   const info = vehicleInfo(vehicle);
+  const brokenCount = testing ? engine!.beams.filter((b) => b.broken).length : 0;
 
   const buildNodes = useMemo(() => {
     const map = new Map<string, { x: number; y: number; degree: number }>();
@@ -462,6 +467,24 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
             </G>
           )}
 
+          {/* Haamukuva: rakennettu geometria testin aikana vertailua varten */}
+          {testing && (
+            <G>
+              {beams.map((b) => (
+                <Line
+                  key={`ghost-${b.id}`}
+                  x1={sx(b.ax)}
+                  y1={sy(b.ay)}
+                  x2={sx(b.bx)}
+                  y2={sy(b.by)}
+                  stroke="rgba(20,40,60,0.18)"
+                  strokeWidth={1.5}
+                  strokeDasharray="4,4"
+                />
+              ))}
+            </G>
+          )}
+
           {/* Palkit */}
           {!testing &&
             beams.map((b) => {
@@ -485,19 +508,19 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
               const nb = engine!.nodes[beam.b];
               const w = Math.max(2, beam.mat.width * scale);
               if (beam.broken) {
-                // Murtunut palkki: kaksi roikkuvaa tynkää
+                // Murtunut palkki: punaiset tyngät, jotta murtuma erottuu selvästi
                 const dx = nb.x - na.x;
                 const dy = nb.y - na.y;
                 const len = Math.hypot(dx, dy) || 1;
                 const s = (beam.restLen * 0.28) / len;
                 return (
-                  <G key={i} opacity={0.55}>
+                  <G key={i} opacity={0.85}>
                     <Line
                       x1={sx(na.x)}
                       y1={sy(na.y)}
                       x2={sx(na.x + dx * s)}
                       y2={sy(na.y + dy * s)}
-                      stroke={beam.mat.color}
+                      stroke="#c0392b"
                       strokeWidth={w}
                       strokeLinecap="round"
                     />
@@ -506,7 +529,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
                       y1={sy(nb.y)}
                       x2={sx(nb.x - dx * s)}
                       y2={sy(nb.y - dy * s)}
-                      stroke={beam.mat.color}
+                      stroke="#c0392b"
                       strokeWidth={w}
                       strokeLinecap="round"
                     />
@@ -720,6 +743,11 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
                 ? `Kustannus ${cost.toLocaleString('fi-FI')} €`
                 : `Kustannus ${cost.toLocaleString('fi-FI')} € / ${level.budget.toLocaleString('fi-FI')} €`}
             </Text>
+            <Text style={styles.cardText}>
+              {brokenCount === 0
+                ? 'Ei murtuneita palkkeja'
+                : `Murtuneita palkkeja: ${brokenCount}`}
+            </Text>
             <View style={styles.cardRow}>
               <TouchableOpacity style={styles.btn} onPress={backToBuild}>
                 <Text style={styles.btnText}>Paranna siltaa</Text>
@@ -743,6 +771,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Silta petti 💥</Text>
             <Text style={styles.cardText}>{failReason}</Text>
+            {brokenCount > 0 && (
+              <Text style={styles.cardText}>Murtuneita palkkeja: {brokenCount}</Text>
+            )}
             <View style={styles.cardRow}>
               <TouchableOpacity style={[styles.btn, styles.btnGo]} onPress={backToBuild}>
                 <Text style={styles.btnText}>Korjaa siltaa</Text>

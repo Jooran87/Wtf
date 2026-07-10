@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LEVELS } from './levels';
+import { LEVELS, SANDBOX } from './levels';
 import { vehicleInfo } from './vehicles';
 
 interface Props {
@@ -50,7 +50,7 @@ export default function LevelSelect({ progress, unlocked, onPick, onPickSandbox 
           >
             <Text style={styles.cardNum}>🧪</Text>
             <Text style={styles.cardName}>Testikenttä</Text>
-            <Text style={styles.cardMeta}>vapaa rakentelu · 9 m</Text>
+            <Text style={styles.cardMeta}>vapaa rakentelu · {SANDBOX.gap} m</Text>
             <Text style={styles.cardMeta}>ei kustannusrajaa</Text>
           </TouchableOpacity>
         </View>

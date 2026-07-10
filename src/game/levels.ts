@@ -60,9 +60,10 @@ function makeLevel(id: number, p: LevelParams): LevelDef {
 
 /** Testikenttä: vapaa rakentelu ilman kustannusrajaa, ajoneuvon saa valita */
 export const SANDBOX: LevelDef = {
+  // Parillinen jänneväli → keskipiste osuu ruudukkoon ja sillasta saa symmetrisen
   ...makeLevel(0, {
     name: 'Testikenttä',
-    gap: 9,
+    gap: 10,
     budget: 9999999,
     vehicle: 'truck',
     hint: 'Vapaa rakentelu: ei kustannusrajaa. Valitse testiajoneuvo alhaalta.',

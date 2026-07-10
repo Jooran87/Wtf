@@ -10,6 +10,10 @@ Viimeisissä kentissä sillan yli jyrää juna vaunuineen.
 - **Rakenna**: vedä sormella ruudukkopisteestä toiseen luodaksesi palkin.
   Materiaalit: **Tie** (ajettava kansi), **Palkki** (teräsristikko) ja
   **Vaijeri** (halpa, vedossa vahva, menee puristuksessa löysäksi).
+- Tien voi vetää yhdellä vedolla vaikka koko rotkon yli — se jakautuu
+  metrin paloihin, joiden jokainen liitos on aito nivel. Palkit ja
+  vaijerit liittyvät toisiinsa vain päistään; 2 m:n palkki jakautuu
+  automaattisesti, jos sen keskikohtaan tulee liitos.
 - Maanpinnan pisteet (ruoho, kallion seinämä, pilari) ovat kallioankkureita —
   rakenteen voi kiinnittää niihin, esim. harukset tornin huipusta maahan.
 - Valikon **Testikentässä** voi kokeilla rakenteita ilman kustannusrajaa ja

@@ -201,6 +201,49 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const flashRef = useRef(false);
 
   /**
+   * Tie voidaan vetää minkä pituisena tahansa, kunhan veto kulkee
+   * ruudukkopisteiden kautta: se jaetaan paloihin joka pisteen kohdalta.
+   * Palauttaa reitin pisteet tai null, jos veto ei ole mahdollinen.
+   */
+  function roadPath(x0: number, y0: number, x1: number, y1: number): { x: number; y: number }[] | null {
+    const st = stateRef.current;
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+    const g = gcd(Math.abs(dx), Math.abs(dy));
+    if (g === 0) return null;
+    const stepLen = Math.hypot(dx / g, dy / g);
+    if (stepLen < 0.99 || stepLen > MAX_BEAM_LEN) return null;
+    const pts: { x: number; y: number }[] = [];
+    for (let i = 0; i <= g; i++) {
+      const x = x0 + (dx / g) * i;
+      const y = y0 + (dy / g) * i;
+      if (!isValidPoint(st.level, x, y)) return null;
+      pts.push({ x, y });
+    }
+    return pts;
+  }
+
+  /** Tievedon uudet (ei-päällekkäiset) palat */
+  function roadSegments(pts: { x: number; y: number }[]): BuildBeam[] {
+    const st = stateRef.current;
+    const out: BuildBeam[] = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (!hasBeam(st.beams, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y)) {
+        out.push({
+          id: 0,
+          ax: pts[i].x,
+          ay: pts[i].y,
+          bx: pts[i + 1].x,
+          by: pts[i + 1].y,
+          material: 'road',
+        });
+      }
+    }
+    return out;
+  }
+
+  /**
    * Tarttumispiste sormen kohdalle: ankkurit ja olemassa olevat solmut
    * vetävät puoleensa laajemmalla säteellä kuin tyhjät ruudukkopisteet,
    * jottei palkin pää jää vahingossa ankkurin viereen ilmaan.
@@ -253,15 +296,25 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         const wy = (evt.nativeEvent.pageY - st.oy) / st.scale;
         const p = snapPoint(wx, wy) ?? { x: Math.round(wx), y: Math.round(wy) };
         const len = Math.hypot(p.x - start.x0, p.y - start.y0);
-        // Budjetin ylittävää palkkia ei voi piirtää: veto näkyy punaisena
-        const price = Math.round(len * MATERIALS[st.tool as MaterialId].costPerM);
         const totalCost = st.beams.reduce((s, b) => s + beamCost(b), 0);
-        const valid =
-          len >= 0.99 &&
-          len <= MAX_BEAM_LEN &&
-          isValidPoint(st.level, p.x, p.y) &&
-          !hasBeam(st.beams, start.x0, start.y0, p.x, p.y) &&
-          totalCost + price <= st.budget;
+        let valid: boolean;
+        let price: number;
+        if (st.tool === 'road') {
+          // Tie: rajaton pituus ruudukkopisteiden kautta, jaetaan paloihin
+          const pts = roadPath(start.x0, start.y0, p.x, p.y);
+          const segs = pts ? roadSegments(pts) : [];
+          price = segs.reduce((s, b) => s + beamCost(b), 0);
+          valid = segs.length > 0 && totalCost + price <= st.budget;
+        } else {
+          // Budjetin ylittävää palkkia ei voi piirtää: veto näkyy punaisena
+          price = Math.round(len * MATERIALS[st.tool as MaterialId].costPerM);
+          valid =
+            len >= 0.99 &&
+            len <= MAX_BEAM_LEN &&
+            isValidPoint(st.level, p.x, p.y) &&
+            !hasBeam(st.beams, start.x0, start.y0, p.x, p.y) &&
+            totalCost + price <= st.budget;
+        }
         if (totalCost + price > st.budget && !flashRef.current) {
           flashRef.current = true;
           setBudgetFlash(true);
@@ -298,8 +351,16 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   function addBeam(ax: number, ay: number, bx: number, by: number) {
     const st = stateRef.current;
     const material = st.tool as MaterialId;
-    const beam: BuildBeam = { id: nextBeamId.current++, ax, ay, bx, by, material };
-    const newCost = costRef.current + beamCost(beam);
+    let added: BuildBeam[];
+    if (material === 'road') {
+      const pts = roadPath(ax, ay, bx, by);
+      if (!pts) return;
+      added = roadSegments(pts).map((b) => ({ ...b, id: nextBeamId.current++ }));
+    } else {
+      added = [{ id: nextBeamId.current++, ax, ay, bx, by, material }];
+    }
+    if (added.length === 0) return;
+    const newCost = costRef.current + added.reduce((s, b) => s + beamCost(b), 0);
     if (newCost > st.budget) {
       setBudgetFlash(true);
       setTimeout(() => setBudgetFlash(false), 700);
@@ -307,7 +368,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
     }
     // Jaa 2 m:n palkit kahtia liitosten kohdalta, jotta kiinnitys on aito
     setBeams((prev) =>
-      splitBeamsAtJoints(st.level, [...prev, beam], () => nextBeamId.current++)
+      splitBeamsAtJoints(st.level, [...prev, ...added], () => nextBeamId.current++)
     );
   }
 

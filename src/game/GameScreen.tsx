@@ -197,6 +197,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
 
   // --- Rakentelun kosketuskäsittely ---
   const dragRef = useRef<{ x0: number; y0: number } | null>(null);
+  const flashRef = useRef(false);
 
   /**
    * Tarttumispiste sormen kohdalle: ankkurit ja olemassa olevat solmut
@@ -251,11 +252,23 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         const wy = (evt.nativeEvent.pageY - st.oy) / st.scale;
         const p = snapPoint(wx, wy) ?? { x: Math.round(wx), y: Math.round(wy) };
         const len = Math.hypot(p.x - start.x0, p.y - start.y0);
+        // Budjetin ylittävää palkkia ei voi piirtää: veto näkyy punaisena
+        const price = Math.round(len * MATERIALS[st.tool as MaterialId].costPerM);
+        const totalCost = st.beams.reduce((s, b) => s + beamCost(b), 0);
         const valid =
           len >= 0.99 &&
           len <= MAX_BEAM_LEN &&
           isValidPoint(st.level, p.x, p.y) &&
-          !hasBeam(st.beams, start.x0, start.y0, p.x, p.y);
+          !hasBeam(st.beams, start.x0, start.y0, p.x, p.y) &&
+          totalCost + price <= st.budget;
+        if (totalCost + price > st.budget && !flashRef.current) {
+          flashRef.current = true;
+          setBudgetFlash(true);
+          setTimeout(() => {
+            flashRef.current = false;
+            setBudgetFlash(false);
+          }, 900);
+        }
         setDrag({ x0: start.x0, y0: start.y0, x1: p.x, y1: p.y, valid });
       },
       onPanResponderRelease: () => {

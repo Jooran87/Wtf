@@ -189,11 +189,13 @@ export class Engine {
       n.y += vy + n.fy * n.invMass * h * h;
     }
 
-    // 3) Vetopyörät: kiihdytys pinnan tangentin suuntaan
+    // 3) Vetopyörät: kiihdytys pinnan tangentin suuntaan.
+    // Vain yläpuolinen kosketus vetää — sivu- tai alakosketuksesta ei saa
+    // työntöä väärään suuntaan.
     for (const seg of this.segments) {
       for (const wi of seg.drive) {
         const n = nodes[wi];
-        if (!n.contactPrev) continue;
+        if (!n.contactPrev || n.cny > -0.3) continue;
         const tx = -n.cny;
         const ty = n.cnx;
         const vt = ((n.x - n.px) * tx + (n.y - n.py) * ty) / h;
@@ -212,6 +214,7 @@ export class Engine {
     }
     for (let it = 0; it < PBD_ITERS; it++) {
       this.solveRigidLinks();
+      this.keepVehiclesUnmirrored();
       this.collideWheelsWithDeck();
       this.collideTerrain();
     }
@@ -234,6 +237,37 @@ export class Engine {
     }
 
     this.time += h;
+  }
+
+  /**
+   * Estää ajoneuvon peilautumisen: pelkät etäisyyssidokset sallivat
+   * kappaleen kääntymisen peilikuvakseen kovassa iskussa (kori päätyy
+   * akselin alapuolelle). Jos korisolmu on akselilinjan väärällä
+   * puolella, se heijastetaan takaisin. Aito ympäripyörähdys (jossa myös
+   * akseli kääntyy) on edelleen mahdollinen.
+   */
+  private keepVehiclesUnmirrored() {
+    for (const seg of this.segments) {
+      const wF = this.nodes[seg.wheels[0]];
+      const wR = this.nodes[seg.wheels[seg.wheels.length - 1]];
+      const fx = wF.x - wR.x;
+      const fy = wF.y - wR.y;
+      const len2 = fx * fx + fy * fy;
+      if (len2 < 1e-9) continue;
+      for (const ci of seg.chassis) {
+        const c = this.nodes[ci];
+        const ox = c.x - wR.x;
+        const oy = c.y - wR.y;
+        // Kori kuuluu akselilinjan yläpuolelle: cross < 0 (y kasvaa alaspäin)
+        if (fx * oy - fy * ox > 0) {
+          const t = (ox * fx + oy * fy) / len2;
+          const footX = wR.x + fx * t;
+          const footY = wR.y + fy * t;
+          c.x = 2 * footX - c.x;
+          c.y = 2 * footY - c.y;
+        }
+      }
+    }
   }
 
   private solveRigidLinks() {

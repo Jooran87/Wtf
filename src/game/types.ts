@@ -51,8 +51,8 @@ export const MATERIALS: Record<MaterialId, Material> = {
     id: 'cable',
     name: 'Vaijeri',
     costPerM: 90,
-    massPerM: 4,
-    EA: 2e6,
+    massPerM: 8,
+    EA: 8e6,
     breakStrain: 0.08,
     tensionOnly: true,
     collidable: false,
@@ -67,6 +67,18 @@ export interface Box {
   maxX: number;
   minY: number;
   maxY: number;
+}
+
+/** Onko piste maaston pinnalla (katto tai seinämä) → rakenteen voi ankkuroida siihen */
+export function isTerrainPoint(terrain: Box[], x: number, y: number): boolean {
+  const e = 1e-6;
+  for (const b of terrain) {
+    const onTop = Math.abs(y - b.minY) < e && x >= b.minX - e && x <= b.maxX + e;
+    const onLeft = Math.abs(x - b.minX) < e && y >= b.minY - e && y <= b.maxY + e;
+    const onRight = Math.abs(x - b.maxX) < e && y >= b.minY - e && y <= b.maxY + e;
+    if (onTop || onLeft || onRight) return true;
+  }
+  return false;
 }
 
 /** Rakennusvaiheen palkki ruudukkokoordinaateissa */
@@ -105,12 +117,14 @@ export interface LevelDef {
   failY: number;
   waterY: number;
   hint?: string;
+  /** Testikenttä: ei kustannusrajaa, ajoneuvon saa valita */
+  sandbox?: boolean;
 }
 
 // --- Fysiikkavakiot ---
 export const GRAVITY = 9.81;
-/** Alifysiikka-askelia per 60 Hz -ruutu → h = 1/600 s */
-export const SUBSTEPS = 10;
+/** Alifysiikka-askelia per 60 Hz -ruutu → h = 1/720 s (jäykät vaijerit vaativat tiheän askeleen) */
+export const SUBSTEPS = 12;
 export const FRAME_DT = 1 / 60;
 /** PBD-iteraatiot törmäyksille ja ajoneuvon jäykille sidoksille */
 export const PBD_ITERS = 6;

@@ -58,6 +58,18 @@ function makeLevel(id: number, p: LevelParams): LevelDef {
   };
 }
 
+/** Testikenttä: vapaa rakentelu ilman kustannusrajaa, ajoneuvon saa valita */
+export const SANDBOX: LevelDef = {
+  ...makeLevel(0, {
+    name: 'Testikenttä',
+    gap: 9,
+    budget: 9999999,
+    vehicle: 'truck',
+    hint: 'Vapaa rakentelu: ei kustannusrajaa. Valitse testiajoneuvo alhaalta.',
+  }),
+  sandbox: true,
+};
+
 export const LEVELS: LevelDef[] = [
   makeLevel(1, {
     name: 'Puronylitys',
@@ -99,7 +111,7 @@ export const LEVELS: LevelDef[] = [
     gap: 9,
     budget: 9800,
     vehicle: 'truck',
-    hint: 'Vaijerit ovat halpoja mutta kestävät vain vetoa.',
+    hint: 'Vaijeri on vedossa vahva mutta menee puristuksessa löysäksi — löysät vaijerit näkyvät testissä haaleina.',
   }),
   makeLevel(7, {
     name: 'Rautatie',

@@ -9,9 +9,10 @@ interface Props {
   progress: Record<number, number>;
   unlocked: number;
   onPick: (index: number) => void;
+  onPickSandbox: () => void;
 }
 
-export default function LevelSelect({ progress, unlocked, onPick }: Props) {
+export default function LevelSelect({ progress, unlocked, onPick, onPickSandbox }: Props) {
   return (
     <View style={styles.root}>
       <LinearGradient colors={['#173049', '#2c5578']} style={StyleSheet.absoluteFill} />
@@ -43,6 +44,15 @@ export default function LevelSelect({ progress, unlocked, onPick }: Props) {
               </TouchableOpacity>
             );
           })}
+          <TouchableOpacity
+            style={[styles.card, styles.cardSandbox]}
+            onPress={onPickSandbox}
+          >
+            <Text style={styles.cardNum}>🧪</Text>
+            <Text style={styles.cardName}>Testikenttä</Text>
+            <Text style={styles.cardMeta}>vapaa rakentelu · 9 m</Text>
+            <Text style={styles.cardMeta}>ei kustannusrajaa</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -76,6 +86,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.18)',
   },
   cardLocked: { opacity: 0.4 },
+  cardSandbox: { borderColor: 'rgba(224,169,46,0.6)', borderStyle: 'dashed' },
   cardNum: { color: '#ffd76b', fontSize: 20, fontWeight: '800' },
   cardName: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 2 },
   cardMeta: { color: '#a8c4da', fontSize: 11, marginTop: 2 },

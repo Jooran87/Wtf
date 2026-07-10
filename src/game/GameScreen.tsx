@@ -18,7 +18,11 @@ import {
   MAX_BEAM_LEN,
   MaterialId,
   TIME_LIMIT,
+  VehicleId,
+  isTerrainPoint,
 } from './types';
+
+const SANDBOX_VEHICLES: VehicleId[] = ['car', 'van', 'truck', 'train0', 'train1', 'train2'];
 
 type Phase = 'build' | 'test' | 'won' | 'failed';
 type Tool = MaterialId | 'delete';
@@ -81,6 +85,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const { width: winW, height: winH } = useWindowDimensions();
   const [beams, setBeams] = useState<BuildBeam[]>([]);
   const [tool, setTool] = useState<Tool>('road');
+  const [vehicle, setVehicle] = useState<VehicleId>(level.vehicle);
   const [phase, setPhase] = useState<Phase>('build');
   const [drag, setDrag] = useState<DragState | null>(null);
   const [failReason, setFailReason] = useState('');
@@ -94,13 +99,13 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const progressRef = useRef({ maxX: -Infinity, at: 0 });
 
   // Ajantasaiset arvot PanResponderin käyttöön (luodaan vain kerran)
-  const stateRef = useRef({ level, beams, tool, phase, scale: 1, ox: 0, oy: 0, budget: level.budget });
+  const stateRef = useRef({ level, beams, tool, phase, vehicle, scale: 1, ox: 0, oy: 0, budget: level.budget });
   const cost = useMemo(() => beams.reduce((s, b) => s + beamCost(b), 0), [beams]);
 
   const scale = Math.min(winW / level.worldW, winH / level.worldH);
   const ox = (winW - level.worldW * scale) / 2;
   const oy = (winH - level.worldH * scale) / 2;
-  stateRef.current = { level, beams, tool, phase, scale, ox, oy, budget: level.budget };
+  stateRef.current = { level, beams, tool, phase, vehicle, scale, ox, oy, budget: level.budget };
   const costRef = useRef(cost);
   costRef.current = cost;
 
@@ -112,6 +117,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
     setBeams([]);
     setPhase('build');
     setDrag(null);
+    setVehicle(level.vehicle);
     stopLoop();
     engineRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,7 +138,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const startTest = useCallback(() => {
     const st = stateRef.current;
     const engine = buildEngine(st.level, st.beams);
-    spawnVehicle(engine, st.level.vehicle, st.level.leftEdge - 0.8, st.level.deckY);
+    spawnVehicle(engine, st.vehicle, st.level.leftEdge - 0.8, st.level.deckY);
     engineRef.current = engine;
     progressRef.current = { maxX: -Infinity, at: 0 };
     setFailReason('');
@@ -287,10 +293,12 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   // --- Piirto ---
 
   const gridDots = useMemo(() => {
-    const dots: { x: number; y: number }[] = [];
+    const dots: { x: number; y: number; ground: boolean }[] = [];
     for (let x = 1; x <= level.worldW - 1; x++) {
       for (let y = BUILD_TOP; y <= BUILD_BOTTOM; y++) {
-        if (isValidPoint(level, x, y)) dots.push({ x, y });
+        if (isValidPoint(level, x, y)) {
+          dots.push({ x, y, ground: isTerrainPoint(level.terrain, x, y) });
+        }
       }
     }
     return dots;
@@ -309,7 +317,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
 
   const engine = engineRef.current;
   const testing = phase !== 'build' && engine !== null;
-  const info = vehicleInfo(level.vehicle);
+  const info = vehicleInfo(vehicle);
 
   const buildNodes = useMemo(() => {
     const set = new Map<string, { x: number; y: number }>();
@@ -378,15 +386,28 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
           {/* Ruudukko rakennustilassa */}
           {phase === 'build' && (
             <G>
-              {gridDots.map((d) => (
-                <Circle
-                  key={`${d.x},${d.y}`}
-                  cx={sx(d.x)}
-                  cy={sy(d.y)}
-                  r={2.5}
-                  fill="rgba(30,50,70,0.28)"
-                />
-              ))}
+              {gridDots.map((d) =>
+                d.ground ? (
+                  // Maanpinnan piste: kallioankkuri, johon rakenteen voi kiinnittää
+                  <Circle
+                    key={`${d.x},${d.y}`}
+                    cx={sx(d.x)}
+                    cy={sy(d.y)}
+                    r={0.08 * scale}
+                    fill="rgba(40,69,94,0.35)"
+                    stroke="rgba(40,69,94,0.7)"
+                    strokeWidth={1.5}
+                  />
+                ) : (
+                  <Circle
+                    key={`${d.x},${d.y}`}
+                    cx={sx(d.x)}
+                    cy={sy(d.y)}
+                    r={2.5}
+                    fill="rgba(30,50,70,0.28)"
+                  />
+                )
+              )}
             </G>
           )}
 
@@ -441,6 +462,8 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
                   </G>
                 );
               }
+              // Löysä vaijeri ei kanna kuormaa: piirretään haaleana
+              const slack = beam.mat.tensionOnly && beam.strain <= 0;
               return (
                 <Line
                   key={i}
@@ -448,24 +471,39 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
                   y1={sy(na.y)}
                   x2={sx(nb.x)}
                   y2={sy(nb.y)}
-                  stroke={stressColor(beam.stress)}
+                  stroke={slack ? beam.mat.color : stressColor(beam.stress)}
                   strokeWidth={w}
                   strokeLinecap="round"
+                  opacity={slack ? 0.35 : 1}
                 />
               );
             })}
 
-          {/* Liitossolmut */}
+          {/* Liitossolmut (maahan ankkuroidut piirretään ankkurityylillä) */}
           {!testing &&
-            buildNodes.map((n) => (
-              <Circle key={`${n.x},${n.y}`} cx={sx(n.x)} cy={sy(n.y)} r={0.07 * scale} fill="#2f3a45" />
-            ))}
-          {testing &&
-            engine!.nodes.map((n, i) =>
-              n.vehicle ? null : (
-                <Circle key={i} cx={sx(n.x)} cy={sy(n.y)} r={0.07 * scale} fill="#2f3a45" />
+            buildNodes.map((n) =>
+              isTerrainPoint(level.terrain, n.x, n.y) ? (
+                <G key={`${n.x},${n.y}`}>
+                  <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.13 * scale} fill="#28455e" />
+                  <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.06 * scale} fill="#7fb2d9" />
+                </G>
+              ) : (
+                <Circle key={`${n.x},${n.y}`} cx={sx(n.x)} cy={sy(n.y)} r={0.07 * scale} fill="#2f3a45" />
               )
             )}
+          {testing &&
+            engine!.nodes.map((n, i) => {
+              if (n.vehicle) return null;
+              if (n.fixed) {
+                return (
+                  <G key={i}>
+                    <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.13 * scale} fill="#28455e" />
+                    <Circle cx={sx(n.x)} cy={sy(n.y)} r={0.06 * scale} fill="#7fb2d9" />
+                  </G>
+                );
+              }
+              return <Circle key={i} cx={sx(n.x)} cy={sy(n.y)} r={0.07 * scale} fill="#2f3a45" />;
+            })}
 
           {/* Ankkurit */}
           {level.anchors.map((a) => (
@@ -540,7 +578,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
           </Text>
         </View>
         <Text style={[styles.budget, budgetFlash && styles.budgetOver]}>
-          {cost.toLocaleString('fi-FI')} € / {level.budget.toLocaleString('fi-FI')} €
+          {level.sandbox
+            ? `${cost.toLocaleString('fi-FI')} € · vapaa budjetti`
+            : `${cost.toLocaleString('fi-FI')} € / ${level.budget.toLocaleString('fi-FI')} €`}
         </Text>
         {phase === 'build' ? (
           <TouchableOpacity style={[styles.btn, styles.btnGo]} onPress={startTest}>
@@ -579,8 +619,28 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         </View>
       )}
 
+      {/* Hiekkalaatikon ajoneuvovalitsin */}
+      {phase === 'build' && level.sandbox && (
+        <View style={styles.vehBar} pointerEvents="box-none">
+          {SANDBOX_VEHICLES.map((v) => {
+            const vi = vehicleInfo(v);
+            return (
+              <TouchableOpacity
+                key={v}
+                style={[styles.tool, vehicle === v && styles.toolActive]}
+                onPress={() => setVehicle(v)}
+              >
+                <Text style={styles.toolText}>
+                  {vi.emoji} {(vi.totalMass / 1000).toFixed(1).replace('.', ',')} t
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
       {phase === 'build' && level.hint != null && (
-        <Text style={styles.hint}>💡 {level.hint}</Text>
+        <Text style={[styles.hint, level.sandbox && styles.hintHigh]}>💡 {level.hint}</Text>
       )}
       {phase === 'test' && (
         <Text style={styles.hint}>Palkin väri kertoo kuorman: vihreä = kevyt, punainen = murtumassa</Text>
@@ -591,9 +651,13 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         <View style={styles.overlay} pointerEvents="box-none">
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Silta kesti! 🎉</Text>
-            <Text style={styles.cardStars}>{'★'.repeat(stars) + '☆'.repeat(3 - stars)}</Text>
+            {!level.sandbox && (
+              <Text style={styles.cardStars}>{'★'.repeat(stars) + '☆'.repeat(3 - stars)}</Text>
+            )}
             <Text style={styles.cardText}>
-              Kustannus {cost.toLocaleString('fi-FI')} € / {level.budget.toLocaleString('fi-FI')} €
+              {level.sandbox
+                ? `Kustannus ${cost.toLocaleString('fi-FI')} €`
+                : `Kustannus ${cost.toLocaleString('fi-FI')} € / ${level.budget.toLocaleString('fi-FI')} €`}
             </Text>
             <View style={styles.cardRow}>
               <TouchableOpacity style={styles.btn} onPress={backToBuild}>
@@ -692,6 +756,16 @@ const styles = StyleSheet.create({
   swatch: { width: 18, height: 6, borderRadius: 3 },
   toolText: { color: '#173049', fontSize: 12, fontWeight: '700' },
   toolCost: { color: '#5a7186', fontSize: 10 },
+  vehBar: {
+    position: 'absolute',
+    bottom: 50,
+    left: 12,
+    right: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  hintHigh: { bottom: 96 },
   hint: {
     position: 'absolute',
     bottom: 52,

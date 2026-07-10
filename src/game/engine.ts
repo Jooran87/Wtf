@@ -20,6 +20,7 @@ import {
   Material,
   PBD_ITERS,
   SUBSTEPS,
+  isTerrainPoint,
 } from './types';
 
 export interface SimNode {
@@ -395,7 +396,9 @@ export function buildEngine(level: LevelDef, beams: BuildBeam[]): Engine {
     const k = key(x, y);
     let idx = nodeIdx.get(k);
     if (idx === undefined) {
-      idx = engine.addNode(x, y, 2, { fixed: anchorSet.has(k) });
+      // Maanpinnalla olevat pisteet ovat kallioankkureita
+      const fixed = anchorSet.has(k) || isTerrainPoint(level.terrain, x, y);
+      idx = engine.addNode(x, y, 2, { fixed });
       nodeIdx.set(k, idx);
     }
     return idx;

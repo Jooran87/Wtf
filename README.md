@@ -9,7 +9,11 @@ Viimeisissä kentissä sillan yli jyrää juna vaunuineen.
 
 - **Rakenna**: vedä sormella ruudukkopisteestä toiseen luodaksesi palkin.
   Materiaalit: **Tie** (ajettava kansi), **Palkki** (teräsristikko) ja
-  **Vaijeri** (halpa, kestää vain vetoa).
+  **Vaijeri** (halpa, vedossa vahva, menee puristuksessa löysäksi).
+- Maanpinnan pisteet (ruoho, kallion seinämä, pilari) ovat kallioankkureita —
+  rakenteen voi kiinnittää niihin, esim. harukset tornin huipusta maahan.
+- Valikon **Testikentässä** voi kokeilla rakenteita ilman kustannusrajaa ja
+  valita testiajoneuvon henkilöautosta täyteen junaan.
 - **Testaa**: ajoneuvo lähtee liikkeelle. Palkkien väri kertoo kuorman:
   vihreä = kevyt, keltainen = koholla, punainen = murtumaisillaan.
 - Silta kestää, kun ajoneuvo pääsee kokonaan toiselle puolelle.

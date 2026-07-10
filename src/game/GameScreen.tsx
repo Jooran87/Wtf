@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, G, Line, Polygon, Rect } from 'react-native-svg';
+import Svg, { Circle, Ellipse, G, Line, Polygon, Rect } from 'react-native-svg';
 import { Engine, buildEngine } from './engine';
 import { splitBeamsAtJoints } from './levels';
 import { spawnVehicle, vehicleInfo } from './vehicles';
@@ -18,12 +18,21 @@ import {
   MATERIALS,
   MAX_BEAM_LEN,
   MaterialId,
+  THEMES,
   TIME_LIMIT,
   VehicleId,
   isTerrainPoint,
 } from './types';
 
 const SANDBOX_VEHICLES: VehicleId[] = ['car', 'van', 'truck', 'train0', 'train1', 'train2'];
+
+/** Deterministinen pseudosatunnaisluku koristeille */
+const rnd01 = (i: number) => {
+  const s = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+  return s - Math.floor(s);
+};
+
+const CONFETTI_COLORS = ['#ffd76b', '#e05555', '#5bc0de', '#8fd18a', '#f2f2f2'];
 
 type Phase = 'build' | 'test' | 'won' | 'failed';
 type Tool = MaterialId | 'delete';
@@ -98,6 +107,10 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const rafRef = useRef<number | null>(null);
   const nextBeamId = useRef(1);
   const progressRef = useRef({ maxX: -Infinity, at: 0 });
+  // Tehosteet: murtumakipinät ja voittokonfetit
+  const brokenSeenRef = useRef<Set<number>>(new Set());
+  const burstsRef = useRef<{ x: number; y: number; t0: number }[]>([]);
+  const wonTimeRef = useRef<number | null>(null);
 
   // Ajantasaiset arvot PanResponderin käyttöön (luodaan vain kerran)
   const stateRef = useRef({ level, beams, tool, phase, vehicle, scale: 1, ox: 0, oy: 0, budget: level.budget });
@@ -142,6 +155,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
     spawnVehicle(engine, st.vehicle, st.level.leftEdge - 0.8, st.level.deckY);
     engineRef.current = engine;
     progressRef.current = { maxX: -Infinity, at: 0 };
+    brokenSeenRef.current = new Set();
+    burstsRef.current = [];
+    wonTimeRef.current = null;
     setFailReason('');
     setPhase('test');
     phaseRef.current = 'test';
@@ -151,11 +167,23 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
       if (!eng) return;
       eng.step();
 
+      // Kerää uudet murtumat kipinätehosteita varten
+      eng.beams.forEach((b, i) => {
+        if (b.broken && !brokenSeenRef.current.has(i)) {
+          brokenSeenRef.current.add(i);
+          const na = eng.nodes[b.a];
+          const nb = eng.nodes[b.b];
+          burstsRef.current.push({ x: (na.x + nb.x) / 2, y: (na.y + nb.y) / 2, t0: eng.time });
+          if (burstsRef.current.length > 14) burstsRef.current.shift();
+        }
+      });
+
       if (phaseRef.current === 'test') {
         const lvl = stateRef.current.level;
         if (eng.vehicleMinX() > lvl.rightEdge + 0.3) {
           const ratio = costRef.current / lvl.budget;
           const s = ratio <= 0.7 ? 3 : ratio <= 0.9 ? 2 : 1;
+          wonTimeRef.current = eng.time;
           setStars(s);
           setPhase('won');
           phaseRef.current = 'won';
@@ -422,6 +450,37 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const testing = phase !== 'build' && engine !== null;
   const info = vehicleInfo(vehicle);
   const brokenCount = testing ? engine!.beams.filter((b) => b.broken).length : 0;
+  const theme = THEMES[level.theme];
+  /** Animaatioaika koristeille (vain testissä liikkuvat) */
+  const animT = testing ? engine!.time : 0;
+
+  const hills = useMemo(() => {
+    const mk = (seed: number, amp: number, step: number) => {
+      const pts: { x: number; y: number }[] = [{ x: -0.5, y: level.deckY + 0.05 }];
+      for (let x = 0; x <= level.worldW + step; x += step) {
+        pts.push({ x, y: level.deckY - amp * (0.35 + 0.65 * rnd01(seed + x)) });
+      }
+      pts.push({ x: level.worldW + 0.5, y: level.deckY + 0.05 });
+      return pts;
+    };
+    return { far: mk(11, 2.4, 2.5), near: mk(37, 1.4, 2) };
+  }, [level]);
+
+  const nightStars = useMemo(() => {
+    const arr: { x: number; y: number; r: number; o: number }[] = [];
+    for (let i = 0; i < 42; i++) {
+      arr.push({
+        x: rnd01(i * 3 + 1) * level.worldW,
+        y: rnd01(i * 5 + 2) * (level.deckY - 1.6),
+        r: 0.8 + rnd01(i * 7 + 3) * 1.2,
+        o: 0.35 + rnd01(i * 11 + 4) * 0.55,
+      });
+    }
+    return arr;
+  }, [level]);
+
+  const hillPoints = (pts: { x: number; y: number }[]) =>
+    pts.map((p) => `${sx(p.x)},${sy(p.y)}`).join(' ');
 
   const buildNodes = useMemo(() => {
     const map = new Map<string, { x: number; y: number; degree: number }>();
@@ -447,23 +506,53 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
 
   return (
     <View style={styles.root}>
-      <LinearGradient colors={['#6fb0e3', '#cfe8f7']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[theme.skyTop, theme.skyBottom]} style={StyleSheet.absoluteFill} />
       <View style={{ flex: 1 }} {...panResponder.panHandlers}>
         <Svg width={winW} height={winH}>
+          {/* Tähdet ja kuu (yö) */}
+          {theme.stars && (
+            <G>
+              {nightStars.map((s, i) => (
+                <Circle key={i} cx={sx(s.x)} cy={sy(s.y)} r={s.r} fill="#e8f0f8" opacity={s.o} />
+              ))}
+              <Circle cx={sx(level.worldW - 2.2)} cy={sy(1.2)} r={0.65 * scale} fill="#dfe6d4" opacity={0.25} />
+              <Circle cx={sx(level.worldW - 2.2)} cy={sy(1.2)} r={0.45 * scale} fill="#e9edda" />
+            </G>
+          )}
+
+          {/* Taustavuoret */}
+          <Polygon points={hillPoints(hills.far)} fill={theme.hillFar} />
+          <Polygon points={hillPoints(hills.near)} fill={theme.hillNear} />
+
+          {/* Pilvet (ajelehtivat testin aikana) */}
+          {theme.clouds &&
+            [0, 1, 2].map((i) => {
+              const cw = level.worldW + 8;
+              const cx0 = ((rnd01(i * 13 + 5) * cw + animT * 0.18) % cw) - 4;
+              const cy0 = 0.7 + i * 0.55;
+              return (
+                <G key={i} opacity={0.9}>
+                  <Ellipse cx={sx(cx0)} cy={sy(cy0)} rx={0.9 * scale} ry={0.28 * scale} fill={theme.cloudColor} />
+                  <Ellipse cx={sx(cx0 + 0.7)} cy={sy(cy0 + 0.12)} rx={0.7 * scale} ry={0.22 * scale} fill={theme.cloudColor} />
+                  <Ellipse cx={sx(cx0 - 0.6)} cy={sy(cy0 + 0.1)} rx={0.55 * scale} ry={0.18 * scale} fill={theme.cloudColor} />
+                </G>
+              );
+            })}
+
           {/* Vesi */}
           <Rect
             x={sx(-0.5)}
             y={sy(level.waterY)}
             width={(level.worldW + 1) * scale}
             height={(level.worldH - level.waterY + 0.5) * scale}
-            fill="#2e6f9e"
+            fill={theme.water}
           />
           <Rect
             x={sx(-0.5)}
             y={sy(level.waterY)}
             width={(level.worldW + 1) * scale}
             height={0.12 * scale}
-            fill="#5b9cc7"
+            fill={theme.waterHi}
           />
           {/* Maasto */}
           {terrainRects.map((r) => (
@@ -473,14 +562,24 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
                 y={sy(r.y0)}
                 width={(r.x1 - r.x0) * scale}
                 height={(r.y1 - r.y0) * scale}
-                fill="#6b5340"
+                fill={theme.cliff}
               />
+              {[1.5, 3.1, 4.7].map((d) => (
+                <Rect
+                  key={d}
+                  x={sx(r.x0)}
+                  y={sy(r.y0 + d)}
+                  width={(r.x1 - r.x0) * scale}
+                  height={0.22 * scale}
+                  fill={theme.strata}
+                />
+              ))}
               <Rect
                 x={sx(r.x0)}
                 y={sy(r.y0)}
                 width={(r.x1 - r.x0) * scale}
                 height={0.18 * scale}
-                fill="#5da24e"
+                fill={theme.edge}
               />
             </G>
           ))}
@@ -504,6 +603,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
           {phase === 'build' && (
             <G>
               {gridDots.map((d) =>
+                // eslint-disable-next-line no-nested-ternary
                 d.ground ? (
                   // Maanpinnan piste: kallioankkuri, johon rakenteen voi kiinnittää
                   <Circle
@@ -521,7 +621,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
                     cx={sx(d.x)}
                     cy={sy(d.y)}
                     r={2.5}
-                    fill="rgba(30,50,70,0.28)"
+                    fill={theme.gridDot}
                   />
                 )
               )}
@@ -538,7 +638,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
                   y1={sy(b.ay)}
                   x2={sx(b.bx)}
                   y2={sy(b.by)}
-                  stroke="rgba(20,40,60,0.18)"
+                  stroke={theme.ghost}
                   strokeWidth={1.5}
                   strokeDasharray="4,4"
                 />
@@ -681,8 +781,31 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
               const cF = engine!.nodes[seg.chassis[1]];
               const wF = engine!.nodes[seg.wheels[0]];
               const wR = engine!.nodes[seg.wheels[seg.wheels.length - 1]];
+              // Ajovalot yökentillä
+              let headlight = null;
+              if (theme.stars && i === 0) {
+                const dx = cF.x - cR.x;
+                const dy = cF.y - cR.y;
+                const dl = Math.hypot(dx, dy) || 1;
+                const ux = dx / dl;
+                const uy = dy / dl;
+                const tipX = cF.x + ux * 2.6;
+                const tipY = cF.y + uy * 2.6;
+                headlight = (
+                  <G>
+                    <Polygon
+                      points={`${sx(cF.x)},${sy(cF.y)} ${sx(tipX - uy * 0.7)},${sy(tipY + ux * 0.7)} ${sx(
+                        tipX + uy * 0.7
+                      )},${sy(tipY - ux * 0.7)}`}
+                      fill="rgba(255,226,140,0.22)"
+                    />
+                    <Circle cx={sx(cF.x)} cy={sy(cF.y)} r={0.1 * scale} fill="#ffe28c" />
+                  </G>
+                );
+              }
               return (
                 <G key={i}>
+                  {headlight}
                   <Polygon
                     points={`${sx(cR.x)},${sy(cR.y)} ${sx(cF.x)},${sy(cF.y)} ${sx(wF.x)},${sy(wF.y)} ${sx(
                       wR.x
@@ -706,6 +829,80 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
                 </G>
               );
             })}
+
+          {/* Lumisade (talvi) */}
+          {theme.snow && (
+            <G>
+              {Array.from({ length: 42 }, (_, i) => {
+                const fx =
+                  ((rnd01(i) * (level.worldW + 1) + animT * (0.25 + 0.2 * (i % 3))) %
+                    (level.worldW + 1)) -
+                  0.5;
+                const fy = (rnd01(i + 99) * level.worldH + animT * (0.7 + 0.3 * rnd01(i + 7))) % level.worldH;
+                return (
+                  <Circle
+                    key={i}
+                    cx={sx(fx)}
+                    cy={sy(fy)}
+                    r={1.4 + (i % 3) * 0.7}
+                    fill="#ffffff"
+                    opacity={0.75}
+                  />
+                );
+              })}
+            </G>
+          )}
+
+          {/* Murtumakipinät */}
+          {testing &&
+            burstsRef.current.map((b, bi) => {
+              const age = engine!.time - b.t0;
+              if (age < 0 || age > 0.7) return null;
+              return (
+                <G key={bi} opacity={1 - age / 0.7}>
+                  {Array.from({ length: 8 }, (_, k) => {
+                    const ang = (k * Math.PI) / 4 + rnd01(k + bi * 17) * 0.5;
+                    const rr = 0.12 + age * 2.2;
+                    return (
+                      <Circle
+                        key={k}
+                        cx={sx(b.x + Math.cos(ang) * rr)}
+                        cy={sy(b.y + Math.sin(ang) * rr * 0.8 + age * age * 2.5)}
+                        r={2.2}
+                        fill="#ffb347"
+                      />
+                    );
+                  })}
+                </G>
+              );
+            })}
+
+          {/* Voittokonfetit */}
+          {phase === 'won' && testing && wonTimeRef.current !== null && (
+            <G>
+              {Array.from({ length: 40 }, (_, i) => {
+                const t = engine!.time - wonTimeRef.current!;
+                const o = Math.max(0, 1.15 - t / 2.4);
+                if (o <= 0) return null;
+                const x0 = level.worldW / 2 + (rnd01(i) - 0.5) * 6;
+                const vy0 = -(2.2 + 3 * rnd01(i + 50));
+                const vx = (rnd01(i + 13) - 0.5) * 4;
+                const cx0 = x0 + vx * t;
+                const cy0 = level.deckY - 2.6 + vy0 * t + 0.5 * 3.4 * t * t;
+                return (
+                  <Rect
+                    key={i}
+                    x={sx(cx0)}
+                    y={sy(cy0)}
+                    width={5}
+                    height={3.5}
+                    fill={CONFETTI_COLORS[i % CONFETTI_COLORS.length]}
+                    opacity={o}
+                  />
+                );
+              })}
+            </G>
+          )}
         </Svg>
       </View>
 
@@ -715,11 +912,12 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
           <Text style={styles.btnText}>‹ Kentät</Text>
         </TouchableOpacity>
         <View style={styles.titleBox}>
-          <Text style={styles.title}>
+          <Text style={[styles.title, { color: theme.text }]}>
             {level.id}. {level.name}
           </Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.subtitle, { color: theme.text, opacity: 0.8 }]}>
             {info.emoji} {info.name} · {(info.totalMass / 1000).toFixed(1).replace('.', ',')} t
+            {level.driveFactor != null && level.driveFactor < 1 ? ' · ❄ jäinen kansi' : ''}
           </Text>
         </View>
         <Text style={[styles.budget, budgetFlash && styles.budgetOver]}>

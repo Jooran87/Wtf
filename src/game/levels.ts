@@ -1,4 +1,4 @@
-import { Box, BuildBeam, LevelDef, VehicleId, isTerrainPoint } from './types';
+import { Box, BuildBeam, LevelDef, ThemeId, VehicleId, isTerrainPoint } from './types';
 
 /**
  * Jakaa 2 m:n suorat palkit kahtia, jos niiden keskikohdassa on liitos
@@ -52,6 +52,8 @@ interface LevelParams {
   /** Keskipilari (vain leveimmät kentät) */
   pillar?: boolean;
   hint?: string;
+  theme?: ThemeId;
+  driveFactor?: number;
 }
 
 function makeLevel(id: number, p: LevelParams): LevelDef {
@@ -92,6 +94,8 @@ function makeLevel(id: number, p: LevelParams): LevelDef {
     failY: FAIL_Y,
     waterY: WATER_Y,
     hint: p.hint,
+    theme: p.theme ?? 'summer',
+    driveFactor: p.driveFactor,
   };
 }
 
@@ -135,6 +139,7 @@ export const LEVELS: LevelDef[] = [
     gap: 7,
     budget: 6200,
     vehicle: 'van',
+    theme: 'autumn',
     hint: 'Alemmat ankkurit kallion kyljessä sopivat tukikaarelle.',
   }),
   makeLevel(5, {
@@ -142,6 +147,7 @@ export const LEVELS: LevelDef[] = [
     gap: 8,
     budget: 7800,
     vehicle: 'truck',
+    theme: 'autumn',
     hint: 'Kuorma-auto painaa 4,2 tonnia — seuraa palkkien värejä testissä.',
   }),
   makeLevel(6, {
@@ -149,20 +155,26 @@ export const LEVELS: LevelDef[] = [
     gap: 9,
     budget: 9800,
     vehicle: 'truck',
-    hint: 'Vaijeri on vedossa vahva mutta menee puristuksessa löysäksi — löysät vaijerit näkyvät testissä haaleina.',
+    theme: 'winter',
+    driveFactor: 0.75,
+    hint: 'Vaijeri kestää vain vetoa. ❄ Jäinen kansi pitää huonommin — loivat mäet!',
   }),
   makeLevel(7, {
     name: 'Rautatie',
     gap: 9,
     budget: 11500,
     vehicle: 'train0',
-    hint: 'Veturi painaa 7 tonnia. Piste­kuorma on kova — jaa se ristikolla.',
+    theme: 'winter',
+    driveFactor: 0.75,
+    hint: 'Veturi painaa 7 tonnia ja kansi on jäinen — jaa kuorma tiheällä ristikolla.',
   }),
   makeLevel(8, {
     name: 'Tavarajuna',
     gap: 10,
     budget: 12800,
     vehicle: 'train1',
+    theme: 'winter',
+    driveFactor: 0.75,
     hint: 'Juna kuormittaa siltaa koko ylityksen ajan, ei vain hetken.',
   }),
   makeLevel(9, {
@@ -170,6 +182,7 @@ export const LEVELS: LevelDef[] = [
     gap: 11,
     budget: 14000,
     vehicle: 'train1',
+    theme: 'night',
     hint: 'Mitä pidempi jänne, sitä kovempi veto kanteen — tue joka liitos ja pidä ristikko korkeana.',
   }),
   makeLevel(10, {
@@ -177,6 +190,7 @@ export const LEVELS: LevelDef[] = [
     gap: 14,
     budget: 18500,
     vehicle: 'train2',
+    theme: 'night',
     pillar: true,
     hint: 'Keskipilari on kaksi metriä kannen alapuolella — hyödynnä se.',
   }),

@@ -86,6 +86,8 @@ export class Engine {
   segments: VehicleSegment[] = [];
   terrain: Box[];
   time = 0;
+  /** Vetopyörien kiihtyvyys (jäisellä kannella pienempi) */
+  driveAccel = DRIVE_ACCEL;
   /** Murtuiko jokin palkki viimeisimmällä askeleella */
   brokeThisStep = false;
 
@@ -200,7 +202,7 @@ export class Engine {
         const ty = n.cnx;
         const vt = ((n.x - n.px) * tx + (n.y - n.py) * ty) / h;
         if (vt < seg.speed) {
-          const dv = Math.min(DRIVE_ACCEL * h, seg.speed - vt);
+          const dv = Math.min(this.driveAccel * h, seg.speed - vt);
           n.px -= tx * dv * h;
           n.py -= ty * dv * h;
         }
@@ -422,6 +424,7 @@ export class Engine {
 /** Kokoaa rakennetusta sillasta ja kentästä simulaation. */
 export function buildEngine(level: LevelDef, beams: BuildBeam[]): Engine {
   const engine = new Engine(level.terrain);
+  engine.driveAccel = DRIVE_ACCEL * (level.driveFactor ?? 1);
   const nodeIdx = new Map<string, number>();
   const key = (x: number, y: number) => `${x},${y}`;
 

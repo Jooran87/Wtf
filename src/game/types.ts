@@ -61,6 +61,106 @@ export const MATERIALS: Record<MaterialId, Material> = {
   },
 };
 
+// --- Visuaaliset teemat ---
+export type ThemeId = 'summer' | 'autumn' | 'winter' | 'night';
+
+export interface Theme {
+  skyTop: string;
+  skyBottom: string;
+  hillFar: string;
+  hillNear: string;
+  cliff: string;
+  /** Kallion kerrosraidat */
+  strata: string;
+  /** Pintakaista: ruoho tai lumi */
+  edge: string;
+  water: string;
+  waterHi: string;
+  /** HUD-tekstit taivasta vasten */
+  text: string;
+  gridDot: string;
+  ghost: string;
+  cloudColor: string;
+  clouds: boolean;
+  snow: boolean;
+  stars: boolean;
+}
+
+export const THEMES: Record<ThemeId, Theme> = {
+  summer: {
+    skyTop: '#6fb0e3',
+    skyBottom: '#cfe8f7',
+    hillFar: '#a3c6e0',
+    hillNear: '#8bb5d4',
+    cliff: '#6b5340',
+    strata: 'rgba(0,0,0,0.08)',
+    edge: '#5da24e',
+    water: '#2e6f9e',
+    waterHi: '#5b9cc7',
+    text: '#173049',
+    gridDot: 'rgba(30,50,70,0.28)',
+    ghost: 'rgba(20,40,60,0.18)',
+    cloudColor: 'rgba(255,255,255,0.85)',
+    clouds: true,
+    snow: false,
+    stars: false,
+  },
+  autumn: {
+    skyTop: '#7d9cc2',
+    skyBottom: '#ecdcbc',
+    hillFar: '#b5a184',
+    hillNear: '#a3835c',
+    cliff: '#6b4c36',
+    strata: 'rgba(0,0,0,0.09)',
+    edge: '#c07f3a',
+    water: '#3a6a8a',
+    waterHi: '#6c93ad',
+    text: '#2d2418',
+    gridDot: 'rgba(50,40,25,0.3)',
+    ghost: 'rgba(45,36,24,0.18)',
+    cloudColor: 'rgba(255,250,240,0.8)',
+    clouds: true,
+    snow: false,
+    stars: false,
+  },
+  winter: {
+    skyTop: '#9fc0da',
+    skyBottom: '#eef4f9',
+    hillFar: '#ccdde9',
+    hillNear: '#b8cfdf',
+    cliff: '#5f6874',
+    strata: 'rgba(255,255,255,0.10)',
+    edge: '#f0f6fa',
+    water: '#4a7ba0',
+    waterHi: '#d8e8f2',
+    text: '#1e3346',
+    gridDot: 'rgba(30,50,70,0.3)',
+    ghost: 'rgba(20,40,60,0.2)',
+    cloudColor: 'rgba(255,255,255,0.9)',
+    clouds: false,
+    snow: true,
+    stars: false,
+  },
+  night: {
+    skyTop: '#0d1a2e',
+    skyBottom: '#2b4560',
+    hillFar: '#1a2a40',
+    hillNear: '#152238',
+    cliff: '#2e2a26',
+    strata: 'rgba(255,255,255,0.05)',
+    edge: '#3d5c46',
+    water: '#0f2438',
+    waterHi: '#2c5570',
+    text: '#d7e6f2',
+    gridDot: 'rgba(220,235,250,0.3)',
+    ghost: 'rgba(220,235,250,0.22)',
+    cloudColor: 'rgba(180,200,220,0.25)',
+    clouds: false,
+    snow: false,
+    stars: true,
+  },
+};
+
 /** Akselien suuntainen maastolaatikko (kallio, pilari) */
 export interface Box {
   minX: number;
@@ -119,6 +219,9 @@ export interface LevelDef {
   hint?: string;
   /** Testikenttä: ei kustannusrajaa, ajoneuvon saa valita */
   sandbox?: boolean;
+  theme: ThemeId;
+  /** Vetovoiman kerroin (esim. jäinen kansi talvella < 1) */
+  driveFactor?: number;
 }
 
 // --- Fysiikkavakiot ---

@@ -37,6 +37,7 @@ export default function LevelSelect({ progress, unlocked, onPick, onPickSandbox 
                 <Text style={styles.cardName}>{lvl.name}</Text>
                 <Text style={styles.cardMeta}>
                   {info.emoji} {(info.totalMass / 1000).toFixed(1).replace('.', ',')} t · {lvl.gap} m
+                  {lvl.theme === 'autumn' ? ' · 🍂' : lvl.theme === 'winter' ? ' · ❄️' : lvl.theme === 'night' ? ' · 🌙' : ''}
                 </Text>
                 <Text style={styles.cardStars}>
                   {stars ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : locked ? ' ' : '☆☆☆'}

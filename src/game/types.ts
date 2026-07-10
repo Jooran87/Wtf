@@ -90,8 +90,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   summer: {
     skyTop: '#6fb0e3',
     skyBottom: '#cfe8f7',
-    hillFar: '#a3c6e0',
-    hillNear: '#8bb5d4',
+    hillFar: '#b9d4e9',
+    hillNear: '#8fb4d2',
     cliff: '#6b5340',
     strata: 'rgba(0,0,0,0.08)',
     edge: '#5da24e',
@@ -108,7 +108,7 @@ export const THEMES: Record<ThemeId, Theme> = {
   autumn: {
     skyTop: '#7d9cc2',
     skyBottom: '#ecdcbc',
-    hillFar: '#b5a184',
+    hillFar: '#c9b696',
     hillNear: '#a3835c',
     cliff: '#6b4c36',
     strata: 'rgba(0,0,0,0.09)',
@@ -126,8 +126,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   winter: {
     skyTop: '#9fc0da',
     skyBottom: '#eef4f9',
-    hillFar: '#ccdde9',
-    hillNear: '#b8cfdf',
+    hillFar: '#dae7f0',
+    hillNear: '#b3cadc',
     cliff: '#5f6874',
     strata: 'rgba(255,255,255,0.10)',
     edge: '#f0f6fa',

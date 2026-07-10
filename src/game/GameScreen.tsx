@@ -455,15 +455,26 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const animT = testing ? engine!.time : 0;
 
   const hills = useMemo(() => {
-    const mk = (seed: number, amp: number, step: number) => {
-      const pts: { x: number; y: number }[] = [{ x: -0.5, y: level.deckY + 0.05 }];
-      for (let x = 0; x <= level.worldW + step; x += step) {
-        pts.push({ x, y: level.deckY - amp * (0.35 + 0.65 * rnd01(seed + x)) });
+    // Selkeät kolmiohuiput, joiden välit palaavat horisonttiin —
+    // ei yhtenäistä massaa. Amplitudi skaalautuu kentän leveyteen.
+    const base = level.deckY + 0.05;
+    const ampScale = Math.min(1, level.worldW / 14);
+    const mkRidge = (seed: number, ampMin: number, ampMax: number, span: number) => {
+      const pts: { x: number; y: number }[] = [{ x: -0.5, y: base }];
+      let x = -0.5 + rnd01(seed) * span * 0.6;
+      let i = 0;
+      while (x < level.worldW + 0.5) {
+        const w = span * (0.7 + 0.6 * rnd01(seed + i * 13));
+        const h = (ampMin + (ampMax - ampMin) * rnd01(seed + i * 7)) * ampScale;
+        pts.push({ x, y: base });
+        pts.push({ x: x + w / 2, y: base - h });
+        x += w;
+        i++;
       }
-      pts.push({ x: level.worldW + 0.5, y: level.deckY + 0.05 });
+      pts.push({ x: level.worldW + 0.5, y: base });
       return pts;
     };
-    return { far: mk(11, 2.4, 2.5), near: mk(37, 1.4, 2) };
+    return { far: mkRidge(11, 1.7, 2.6, 4.2), near: mkRidge(37, 0.7, 1.3, 3) };
   }, [level]);
 
   const nightStars = useMemo(() => {

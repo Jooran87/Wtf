@@ -29,7 +29,7 @@ export const MATERIALS: Record<MaterialId, Material> = {
     costPerM: 260,
     massPerM: 40,
     EA: 2.5e6,
-    breakStrain: 0.025,
+    breakStrain: 0.024,
     tensionOnly: false,
     collidable: true,
     width: 0.16,
@@ -247,5 +247,11 @@ export const DRIVE_ACCEL = 3.5;
 export const GRID = 1;
 /** Palkin maksimipituus metreinä */
 export const MAX_BEAM_LEN = 2.4;
+/**
+ * Pyörän kosketusvara metreinä: pyörä lepää tämän verran pinnan
+ * yläpuolella sekä kansipalkeilla että maastossa, jotta sillan ja
+ * maan saumassa ei ole korkeuseroa.
+ */
+export const WHEEL_PAD = 0.04;
 /** Testin aikaraja sekunteina */
 export const TIME_LIMIT = 45;

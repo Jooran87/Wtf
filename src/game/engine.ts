@@ -20,6 +20,7 @@ import {
   Material,
   PBD_ITERS,
   SUBSTEPS,
+  WHEEL_PAD,
   isTerrainPoint,
 } from './types';
 
@@ -297,7 +298,7 @@ export class Engine {
     for (const seg of this.segments) {
       for (const wi of seg.wheels) {
         const w = nodes[wi];
-        const r = w.radius + 0.04;
+        const r = w.radius + WHEEL_PAD;
         for (const beam of this.beams) {
           if (beam.broken || !beam.mat.collidable) continue;
           const na = nodes[beam.a];
@@ -348,7 +349,10 @@ export class Engine {
   private collideTerrain() {
     for (const n of this.nodes) {
       if (n.fixed) continue;
-      const r = Math.max(n.radius, 0.02);
+      // Pyörille sama kosketusvara kuin kansipalkeissa, jotta sillan ja
+      // maanpinnan saumassa ei ole pudotusta joka tömäyttäisi ajoneuvon
+      // kannen päätypalkille.
+      const r = Math.max(n.radius, 0.02) + (n.radius > 0 ? WHEEL_PAD : 0);
       for (const box of this.terrain) {
         const cx = n.x < box.minX ? box.minX : n.x > box.maxX ? box.maxX : n.x;
         const cy = n.y < box.minY ? box.minY : n.y > box.maxY ? box.maxY : n.y;

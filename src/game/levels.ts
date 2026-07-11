@@ -116,7 +116,7 @@ export const LEVELS: LevelDef[] = [
   makeLevel(1, {
     name: 'Puronylitys',
     gap: 4,
-    budget: 3400,
+    budget: 4100,
     vehicle: 'car',
     hint: 'Rakenna tiekansi reunalta reunalle ja tue se palkeilla ylä- tai alapuolelta.',
   }),
@@ -124,7 +124,7 @@ export const LEVELS: LevelDef[] = [
     name: 'Joenranta',
     gap: 5,
     budget: 4200,
-    vehicle: 'car',
+    vehicle: 'van',
     hint: 'Kolmiot ovat lujin muoto — ristikko kestää enemmän kuin pelkkä kansi.',
   }),
   makeLevel(3, {

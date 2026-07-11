@@ -1,7 +1,7 @@
 // Ajoneuvot: jäykkinä kappaleina mallinnetut testikuormat.
 
 import { Engine } from './engine';
-import { VehicleId } from './types';
+import { VehicleId, WHEEL_PAD } from './types';
 
 export interface VehicleInfo {
   name: string;
@@ -27,7 +27,7 @@ interface UnitSpec {
 }
 
 const UNITS: Record<UnitSpec['kind'], UnitSpec> = {
-  car: { kind: 'car', wheelBase: 1.6, axles: 2, wheelR: 0.26, wheelMass: 450, overhang: 0.2, bodyH: 0.7, bodyMass: 350, speed: 3.2, driven: true, color: '#c94f3d' },
+  car: { kind: 'car', wheelBase: 1.6, axles: 2, wheelR: 0.26, wheelMass: 525, overhang: 0.2, bodyH: 0.7, bodyMass: 400, speed: 3.2, driven: true, color: '#c94f3d' },
   van: { kind: 'van', wheelBase: 2.0, axles: 2, wheelR: 0.3, wheelMass: 650, overhang: 0.3, bodyH: 0.95, bodyMass: 450, speed: 2.8, driven: true, color: '#3d7dc9' },
   truck: { kind: 'truck', wheelBase: 2.4, axles: 2, wheelR: 0.34, wheelMass: 1250, overhang: 0.3, bodyH: 1.05, bodyMass: 850, speed: 2.4, driven: true, color: '#c9963d' },
   loco: { kind: 'loco', wheelBase: 2.2, axles: 3, wheelR: 0.3, wheelMass: 1500, overhang: 0.4, bodyH: 1.05, bodyMass: 1250, speed: 2.0, driven: true, color: '#8c2f2f' },
@@ -80,7 +80,8 @@ export function spawnVehicle(engine: Engine, id: VehicleId, frontX: number, grou
   let prevRearWheel = -1;
 
   for (const u of units) {
-    const axleY = groundY - u.wheelR;
+    // Spawn suoraan kosketuspinnalle — penetraatio räjäyttäisi PBD-korjauksen
+    const axleY = groundY - u.wheelR - WHEEL_PAD;
     const bodyY = axleY - u.bodyH;
     const frontWheelX = cursor;
     const rearWheelX = cursor - u.wheelBase;

@@ -72,21 +72,28 @@ function beamCost(b: BuildBeam): number {
   return Math.round(len * MATERIALS[b.material].costPerM);
 }
 
-/** Jännitysväri: vihreä → keltainen → punainen */
-function stressColor(s: number): string {
+/**
+ * Jännitysväri. Veto: vihreä → keltainen → punainen (lämmin).
+ * Puristus: vihreä → sininen → violetti (kylmä), jotta pelaaja näkee
+ * kumpi kuormitustapa palkkia rasittaa.
+ */
+function stressColor(s: number, compression: boolean): string {
   const t = Math.max(0, Math.min(1, s));
   const lerp = (a: number, b: number, k: number) => Math.round(a + (b - a) * k);
+  const ramp = compression
+    ? [0x39, 0xc2, 0x5c, 0x3f, 0x8f, 0xd6, 0x9b, 0x59, 0xd6] // vihreä→sininen→violetti
+    : [0x39, 0xc2, 0x5c, 0xe6, 0xc3, 0x19, 0xe0, 0x43, 0x43]; // vihreä→keltainen→punainen
   let r: number, g: number, bl: number;
   if (t < 0.5) {
     const k = t / 0.5;
-    r = lerp(0x39, 0xe6, k);
-    g = lerp(0xc2, 0xc3, k);
-    bl = lerp(0x5c, 0x19, k);
+    r = lerp(ramp[0], ramp[3], k);
+    g = lerp(ramp[1], ramp[4], k);
+    bl = lerp(ramp[2], ramp[5], k);
   } else {
     const k = (t - 0.5) / 0.5;
-    r = lerp(0xe6, 0xe0, k);
-    g = lerp(0xc3, 0x43, k);
-    bl = lerp(0x19, 0x43, k);
+    r = lerp(ramp[3], ramp[6], k);
+    g = lerp(ramp[4], ramp[7], k);
+    bl = lerp(ramp[5], ramp[8], k);
   }
   return `rgb(${r},${g},${bl})`;
 }
@@ -731,7 +738,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
                   y1={sy(na.y)}
                   x2={sx(nb.x)}
                   y2={sy(nb.y)}
-                  stroke={slack ? beam.mat.color : stressColor(beam.stress)}
+                  stroke={slack ? beam.mat.color : stressColor(beam.stress, beam.strain < 0)}
                   strokeWidth={w}
                   strokeLinecap="round"
                   opacity={slack ? 0.35 : 1}
@@ -1011,7 +1018,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         <Text style={[styles.hint, level.sandbox && styles.hintHigh]}>💡 {level.hint}</Text>
       )}
       {phase === 'test' && (
-        <Text style={styles.hint}>Palkin väri kertoo kuorman: vihreä = kevyt, punainen = murtumassa</Text>
+        <Text style={styles.hint}>
+          Vihreä = kevyt kuorma · punainen = veto murtumassa · violetti = puristus murtumassa
+        </Text>
       )}
 
       {/* Lopputulokset */}

@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import GameScreen from './src/game/GameScreen';
 import LevelSelect from './src/game/LevelSelect';
+import RotateHint from './src/game/RotateHint';
 import { LEVELS, SANDBOX, SANDBOX2, SANDBOX_TOWER, TOWER_LEVELS } from './src/game/levels';
 
 type Selection = number | { tower: number } | 'sandbox' | 'sandbox2' | 'sandboxTower' | null;
@@ -73,6 +74,7 @@ export default function App() {
           onExit={() => setSel(null)}
         />
       )}
+      <RotateHint />
     </>
   );
 }

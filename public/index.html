@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- maximum-scale=1 + user-scalable=no estää pinsettizoomin, joka muuten
+         häiritsee palkkien vetämistä; viewport-fit=cover ulottaa taustan
+         iPhonen "sarven" alle -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, shrink-to-fit=no"
+    />
+    <title>%WEB_TITLE%</title>
+
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#173049" />
+
+    <!-- iOS: "Lisää Koti-valikkoon" avautuu omana täysruutuisena sovelluksena -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Sillanrakentaja" />
+    <!-- Android/Chrome: sama täysruutuinen tila asennettuna -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+    <style id="mobile-touch-fixes">
+      /* Estää selaimen omat kosketuseleet (vetovieritys, pull-to-refresh,
+         tekstinvalinta, pitkän painalluksen valikko) kaappaamasta
+         rakennusvetoa kesken pelin. */
+      html,
+      body {
+        touch-action: none;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        background: #173049;
+      }
+      /* Turvavara iPhonen sarvea/kotipalkkia varten vaakasuunnassa */
+      #root {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  </body>
+</html>

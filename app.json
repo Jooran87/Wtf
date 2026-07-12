@@ -15,7 +15,10 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "name": "Sillanrakentaja"
+      "name": "Sillanrakentaja",
+      "description": "Rakenna silta tai torni ja testaa kestääkö se.",
+      "themeColor": "#173049",
+      "lang": "fi"
     },
     "extra": {
       "eas": {

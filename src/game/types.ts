@@ -201,6 +201,20 @@ export interface BuildBeam {
 
 export type VehicleId = 'car' | 'van' | 'truck' | 'train0' | 'train1' | 'train2' | 'train3' | 'train4';
 
+/** Puuskittainen tuulikuorma: voima newtoneina per solmu */
+export interface WindSpec {
+  base: number;
+  gust: number;
+  period: number;
+}
+
+/** Maanjäristys: perustusten vaakaheilutus */
+export interface QuakeSpec {
+  amp: number;
+  freq: number;
+  start: number;
+}
+
 export interface LevelDef {
   id: number;
   name: string;
@@ -230,6 +244,19 @@ export interface LevelDef {
   theme: ThemeId;
   /** Vetovoiman kerroin (esim. jäinen kansi talvella < 1) */
   driveFactor?: number;
+  /** Pelimuoto: silta (oletus) tai torni */
+  mode?: 'tower';
+  /** Tornin tavoitekorkeuden y-taso */
+  targetY?: number;
+  /** Tornin kestoaika sekunteina */
+  duration?: number;
+  wind?: WindSpec;
+  quake?: QuakeSpec;
+  /** Rakennusalueen x-rajat (tornitontti) */
+  lot?: [number, number];
+  /** Rakennusalueen y-rajat (oletus: silta 1..7) */
+  buildTop?: number;
+  buildBottom?: number;
 }
 
 // --- Fysiikkavakiot ---

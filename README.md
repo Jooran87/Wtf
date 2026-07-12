@@ -7,6 +7,12 @@ kanjonit ja yhä raskaammat junat aina 24,8 tonnin tuplaveturijunaan asti.
 Kaksi vapaata testikenttää (yksi jänne ja saarellinen kaksoisjänne)
 ilman kustannusrajaa, testiajoneuvo valittavissa.
 
+Pelissä on myös **Tornit-välilehti**: rakenna torni tavoitekorkeuteen ja
+pidä se pystyssä määräajan puuskittaisessa tuulessa — ylimmillä tasoilla
+myös maanjäristyksessä. Sama fysiikka, samat materiaalit: kolmiot
+jäykistävät, harukset vaijerista, ja väri kertoo vedon (lämmin) ja
+puristuksen (kylmä).
+
 ## Pelaaminen
 
 - **Rakenna**: vedä sormella ruudukkopisteestä toiseen luodaksesi palkin.

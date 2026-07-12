@@ -53,12 +53,12 @@ interface DragState {
   valid: boolean;
 }
 
-const BUILD_TOP = 1;
-const BUILD_BOTTOM = 7;
-
 function isValidPoint(level: LevelDef, x: number, y: number): boolean {
   if (level.anchors.some((a) => a.x === x && a.y === y)) return true;
-  if (x < 1 || x > level.worldW - 1 || y < BUILD_TOP || y > BUILD_BOTTOM) return false;
+  const top = level.buildTop ?? 1;
+  const bottom = level.buildBottom ?? 7;
+  if (x < 1 || x > level.worldW - 1 || y < top || y > bottom) return false;
+  if (level.lot && (x < level.lot[0] || x > level.lot[1])) return false;
   for (const box of level.terrain) {
     if (x > box.minX + 0.01 && x < box.maxX - 0.01 && y > box.minY + 0.01 && y < box.maxY) {
       return false;
@@ -123,9 +123,12 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const stateRef = useRef({ level, beams, tool, phase, vehicle, scale: 1, ox: 0, oy: 0, budget: level.budget });
   const cost = useMemo(() => beams.reduce((s, b) => s + beamCost(b), 0), [beams]);
 
-  const scale = Math.min(winW / level.worldW, winH / level.worldH);
+  // Työkalurivi varaa alareunan — maailma skaalataan sen yläpuolelle,
+  // jottei maanpinnan pisteitä jää nappien alle
+  const TOOLBAR_H = 64;
+  const scale = Math.min(winW / level.worldW, (winH - TOOLBAR_H) / level.worldH);
   const ox = (winW - level.worldW * scale) / 2;
-  const oy = (winH - level.worldH * scale) / 2;
+  const oy = (winH - TOOLBAR_H - level.worldH * scale) / 2;
   stateRef.current = { level, beams, tool, phase, vehicle, scale, ox, oy, budget: level.budget };
   const costRef = useRef(cost);
   costRef.current = cost;
@@ -139,6 +142,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
     setPhase('build');
     setDrag(null);
     setVehicle(level.vehicle);
+    setTool(level.mode === 'tower' ? 'steel' : 'road');
     stopLoop();
     engineRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -159,7 +163,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const startTest = useCallback(() => {
     const st = stateRef.current;
     const engine = buildEngine(st.level, st.beams);
-    spawnVehicle(engine, st.vehicle, st.level.leftEdge - 0.8, st.level.deckY);
+    if (st.level.mode !== 'tower') {
+      spawnVehicle(engine, st.vehicle, st.level.leftEdge - 0.8, st.level.deckY);
+    }
     engineRef.current = engine;
     progressRef.current = { maxX: -Infinity, at: 0 };
     brokenSeenRef.current = new Set();
@@ -185,7 +191,24 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         }
       });
 
-      if (phaseRef.current === 'test') {
+      if (phaseRef.current === 'test' && stateRef.current.level.mode === 'tower') {
+        // Torni: pysyttävä tavoitekorkeuden yllä kentän keston ajan
+        const lvl = stateRef.current.level;
+        const top = eng.structureMinY();
+        if (eng.time > 1.5 && top > (lvl.targetY ?? 0) + 0.3) {
+          setFailReason('Torni painui alle tavoitekorkeuden!');
+          setPhase('failed');
+          phaseRef.current = 'failed';
+        } else if (eng.time >= (lvl.duration ?? 20)) {
+          const ratio = costRef.current / lvl.budget;
+          const s = ratio <= 0.7 ? 3 : ratio <= 0.9 ? 2 : 1;
+          wonTimeRef.current = eng.time;
+          setStars(s);
+          setPhase('won');
+          phaseRef.current = 'won';
+          onComplete(lvl.id, s);
+        }
+      } else if (phaseRef.current === 'test') {
         const lvl = stateRef.current.level;
         if (eng.vehicleMinX() > lvl.rightEdge + 0.3) {
           const ratio = costRef.current / lvl.budget;
@@ -433,7 +456,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const gridDots = useMemo(() => {
     const dots: { x: number; y: number; ground: boolean }[] = [];
     for (let x = 1; x <= level.worldW - 1; x++) {
-      for (let y = BUILD_TOP; y <= BUILD_BOTTOM; y++) {
+      for (let y = level.buildTop ?? 1; y <= (level.buildBottom ?? 7); y++) {
         if (isValidPoint(level, x, y)) {
           dots.push({ x, y, ground: isTerrainPoint(level.terrain, x, y) });
         }
@@ -615,21 +638,70 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
               />
             </G>
           ))}
-          {/* Maali­lippu oikealla kalliolla */}
-          <Line
-            x1={sx(level.rightEdge + 1.5)}
-            y1={sy(level.deckY)}
-            x2={sx(level.rightEdge + 1.5)}
-            y2={sy(level.deckY - 0.9)}
-            stroke="#333"
-            strokeWidth={2}
-          />
-          <Polygon
-            points={`${sx(level.rightEdge + 1.5)},${sy(level.deckY - 0.9)} ${sx(level.rightEdge + 2.1)},${sy(
-              level.deckY - 0.72
-            )} ${sx(level.rightEdge + 1.5)},${sy(level.deckY - 0.54)}`}
-            fill="#d8483b"
-          />
+          {/* Maali­lippu oikealla kalliolla (siltakentät) */}
+          {level.mode !== 'tower' && (
+            <G>
+              <Line
+                x1={sx(level.rightEdge + 1.5)}
+                y1={sy(level.deckY)}
+                x2={sx(level.rightEdge + 1.5)}
+                y2={sy(level.deckY - 0.9)}
+                stroke="#333"
+                strokeWidth={2}
+              />
+              <Polygon
+                points={`${sx(level.rightEdge + 1.5)},${sy(level.deckY - 0.9)} ${sx(
+                  level.rightEdge + 2.1
+                )},${sy(level.deckY - 0.72)} ${sx(level.rightEdge + 1.5)},${sy(level.deckY - 0.54)}`}
+                fill="#d8483b"
+              />
+            </G>
+          )}
+
+          {/* Tornin tavoitekorkeus */}
+          {level.mode === 'tower' && level.targetY != null && (
+            <G>
+              <Line
+                x1={sx(0)}
+                y1={sy(level.targetY)}
+                x2={sx(level.worldW)}
+                y2={sy(level.targetY)}
+                stroke="#d8483b"
+                strokeWidth={2}
+                strokeDasharray="8,6"
+                opacity={0.8}
+              />
+              <Polygon
+                points={`${sx(0.4)},${sy(level.targetY)} ${sx(1.0)},${sy(level.targetY + 0.18)} ${sx(
+                  0.4
+                )},${sy(level.targetY + 0.36)}`}
+                fill="#d8483b"
+              />
+              {/* Tontin rajat */}
+              {level.lot && phase === 'build' && (
+                <G opacity={0.5}>
+                  <Line
+                    x1={sx(level.lot[0])}
+                    y1={sy(level.buildTop ?? 1)}
+                    x2={sx(level.lot[0])}
+                    y2={sy(level.deckY)}
+                    stroke={theme.gridDot}
+                    strokeWidth={1.5}
+                    strokeDasharray="3,5"
+                  />
+                  <Line
+                    x1={sx(level.lot[1])}
+                    y1={sy(level.buildTop ?? 1)}
+                    x2={sx(level.lot[1])}
+                    y2={sy(level.deckY)}
+                    stroke={theme.gridDot}
+                    strokeWidth={1.5}
+                    strokeDasharray="3,5"
+                  />
+                </G>
+              )}
+            </G>
+          )}
 
           {/* Ruudukko rakennustilassa */}
           {phase === 'build' && (
@@ -945,11 +1017,14 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         </TouchableOpacity>
         <View style={styles.titleBox}>
           <Text style={[styles.title, { color: theme.text }]}>
-            {level.id}. {level.name}
+            {level.mode === 'tower' ? `${level.id - 100}. ${level.name}` : `${level.id}. ${level.name}`}
           </Text>
           <Text style={[styles.subtitle, { color: theme.text, opacity: 0.8 }]}>
-            {info.emoji} {info.name} · {(info.totalMass / 1000).toFixed(1).replace('.', ',')} t
-            {level.driveFactor != null && level.driveFactor < 1 ? ' · ❄ jäinen kansi' : ''}
+            {level.mode === 'tower'
+              ? `🏗 Tavoite ${level.deckY - (level.targetY ?? 0)} m · kesto ${level.duration} s${level.quake ? ' · 〰 järistys' : ''}${(level.wind?.gust ?? 0) > 300 ? ' · 🌬 myrsky' : ''}`
+              : `${info.emoji} ${info.name} · ${(info.totalMass / 1000).toFixed(1).replace('.', ',')} t${
+                  level.driveFactor != null && level.driveFactor < 1 ? ' · ❄ jäinen kansi' : ''
+                }`}
           </Text>
         </View>
         <Text style={[styles.budget, budgetFlash && styles.budgetOver]}>
@@ -971,7 +1046,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
       {/* Työkalurivi */}
       {phase === 'build' && (
         <View style={styles.toolBar} pointerEvents="box-none">
-          {(['road', 'steel', 'cable'] as MaterialId[]).map((m) => (
+          {((level.mode === 'tower' ? ['steel', 'cable'] : ['road', 'steel', 'cable']) as MaterialId[]).map((m) => (
             <TouchableOpacity
               key={m}
               style={[styles.tool, tool === m && styles.toolActive]}
@@ -1017,7 +1092,13 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
       {phase === 'build' && level.hint != null && (
         <Text style={[styles.hint, level.sandbox && styles.hintHigh]}>💡 {level.hint}</Text>
       )}
-      {phase === 'test' && (
+      {phase === 'test' && level.mode === 'tower' && engine && (
+        <Text style={styles.hint}>
+          ⏱ {Math.max(0, Math.ceil((level.duration ?? 20) - engine.time))} s · tuuli{' '}
+          {'→'.repeat(Math.min(5, 1 + Math.floor(engine.currentWind / 150)))} {Math.round(engine.currentWind)} N
+        </Text>
+      )}
+      {phase === 'test' && level.mode !== 'tower' && (
         <Text style={styles.hint}>
           Vihreä = kevyt kuorma · punainen = veto murtumassa · violetti = puristus murtumassa
         </Text>
@@ -1027,7 +1108,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
       {phase === 'won' && (
         <View style={styles.overlay} pointerEvents="box-none">
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Silta kesti! 🎉</Text>
+            <Text style={styles.cardTitle}>
+              {level.mode === 'tower' ? 'Torni kesti! 🎉' : 'Silta kesti! 🎉'}
+            </Text>
             {!level.sandbox && (
               <Text style={styles.cardStars}>{'★'.repeat(stars) + '☆'.repeat(3 - stars)}</Text>
             )}
@@ -1062,7 +1145,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
       {phase === 'failed' && (
         <View style={styles.overlayTop} pointerEvents="box-none">
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Silta petti 💥</Text>
+            <Text style={styles.cardTitle}>
+              {level.mode === 'tower' ? 'Torni sortui 💥' : 'Silta petti 💥'}
+            </Text>
             <Text style={styles.cardText}>{failReason}</Text>
             {brokenCount > 0 && (
               <Text style={styles.cardText}>Murtuneita palkkeja: {brokenCount}</Text>

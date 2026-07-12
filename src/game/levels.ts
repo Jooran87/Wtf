@@ -1,4 +1,4 @@
-import { Box, BuildBeam, LevelDef, ThemeId, VehicleId, isTerrainPoint } from './types';
+import { Box, BuildBeam, LevelDef, QuakeSpec, ThemeId, VehicleId, WindSpec, isTerrainPoint } from './types';
 
 /**
  * Jakaa 2 m:n suorat palkit kahtia, jos niiden keskikohdassa on liitos
@@ -110,6 +110,106 @@ function makeLevel(id: number, p: LevelParams): LevelDef {
     driveFactor: p.driveFactor,
   };
 }
+
+// --- Tornikentät ---
+const T_GROUND = 10;
+const T_WORLD_H = 11;
+
+interface TowerParams {
+  name: string;
+  budget: number;
+  /** Tavoitekorkeus metreinä maanpinnasta */
+  height: number;
+  /** Kuinka kauan tornin on seistävä (s) */
+  duration: number;
+  wind?: WindSpec;
+  quake?: QuakeSpec;
+  /** Tontin leveys metreinä (keskitetään) */
+  lotWidth?: number;
+  hint?: string;
+  theme?: ThemeId;
+}
+
+function makeTowerLevel(id: number, p: TowerParams): LevelDef {
+  const worldW = 16;
+  const lotW = p.lotWidth ?? 10;
+  const lotX0 = Math.round((worldW - lotW) / 2);
+  return {
+    id,
+    name: p.name,
+    gap: 0,
+    budget: p.budget,
+    vehicle: 'car',
+    worldW,
+    worldH: T_WORLD_H,
+    deckY: T_GROUND,
+    leftEdge: 0,
+    rightEdge: 0,
+    terrain: [{ minX: -60, maxX: worldW + 60, minY: T_GROUND, maxY: 99 }],
+    anchors: [],
+    failY: 99,
+    waterY: 99,
+    hint: p.hint,
+    theme: p.theme ?? 'summer',
+    mode: 'tower',
+    targetY: T_GROUND - p.height,
+    duration: p.duration,
+    wind: p.wind,
+    quake: p.quake,
+    lot: [lotX0, lotX0 + lotW],
+    buildTop: 1,
+    buildBottom: T_GROUND,
+  };
+}
+
+export const TOWER_LEVELS: LevelDef[] = [
+  makeTowerLevel(101, {
+    name: 'Näkötorni',
+    budget: 7000,
+    height: 5,
+    duration: 12,
+    wind: { base: 60, gust: 120, period: 3 },
+    hint: 'Rakenna maasta tavoiteviivan yli ja pidä torni pystyssä. Kolmiot jäykistävät!',
+  }),
+  makeTowerLevel(102, {
+    name: 'Mastotorni',
+    budget: 10000,
+    height: 7,
+    duration: 15,
+    wind: { base: 120, gust: 260, period: 3 },
+    theme: 'autumn',
+    hint: 'Tuuli voimistuu ylöspäin — leveä perusta ja ristikkäistuet auttavat.',
+  }),
+  makeTowerLevel(103, {
+    name: 'Kapea tontti',
+    budget: 11000,
+    height: 7,
+    duration: 15,
+    wind: { base: 200, gust: 420, period: 2.6 },
+    lotWidth: 4,
+    theme: 'autumn',
+    hint: 'Tonttia on vain 4 metriä — hoikka torni kaipaa vaijeriharuksia maahan.',
+  }),
+  makeTowerLevel(104, {
+    name: 'Myrsky',
+    budget: 14000,
+    height: 8,
+    duration: 18,
+    wind: { base: 420, gust: 880, period: 2.2 },
+    theme: 'winter',
+    hint: '❄ Myrskypuuskat iskevät aalloissa. Seuraa värejä: violetti = puristus.',
+  }),
+  makeTowerLevel(105, {
+    name: 'Järistys',
+    budget: 16000,
+    height: 8,
+    duration: 20,
+    wind: { base: 100, gust: 200, period: 3 },
+    quake: { amp: 0.1, freq: 2.2, start: 6 },
+    theme: 'night',
+    hint: 'Maa alkaa järistä 6 sekunnin kohdalla. Jäykkä perusta ja leveä haara-asento!',
+  }),
+];
 
 /** Testikenttä: vapaa rakentelu ilman kustannusrajaa, ajoneuvon saa valita */
 export const SANDBOX: LevelDef = {

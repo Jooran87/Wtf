@@ -19,8 +19,10 @@ import {
   MATERIALS,
   Material,
   PBD_ITERS,
+  QuakeSpec,
   SUBSTEPS,
   WHEEL_PAD,
+  WindSpec,
   isTerrainPoint,
 } from './types';
 
@@ -29,6 +31,8 @@ export interface SimNode {
   y: number;
   px: number;
   py: number;
+  /** Alkuperäinen x (maanjäristys liikuttaa kiinteitä solmuja tämän ympärillä) */
+  baseX: number;
   fx: number;
   fy: number;
   mass: number;
@@ -91,6 +95,14 @@ export class Engine {
   driveAccel = DRIVE_ACCEL;
   /** Murtuiko jokin palkki viimeisimmällä askeleella */
   brokeThisStep = false;
+  /** Tuulikuorma (tornikentät): puuskittainen vaakavoima solmuille */
+  wind?: WindSpec;
+  /** Maanjäristys (tornikentät): kiinteiden solmujen vaakaheilutus */
+  quake?: QuakeSpec;
+  /** Maanpinnan y tuulen korkeusskaalausta varten */
+  windGroundY = 10;
+  /** Tämänhetkinen tuulivoima newtoneina (näyttöä varten) */
+  currentWind = 0;
 
   constructor(terrain: Box[]) {
     this.terrain = terrain;
@@ -102,6 +114,7 @@ export class Engine {
       y,
       px: x,
       py: y,
+      baseX: x,
       fx: 0,
       fy: 0,
       mass,
@@ -154,10 +167,24 @@ export class Engine {
   private substep(h: number) {
     const nodes = this.nodes;
 
-    // 1) Voimat: painovoima + palkkijouset
+    // 1) Voimat: painovoima + tuuli + palkkijouset
     for (const n of nodes) {
       n.fx = 0;
       n.fy = GRAVITY * n.mass;
+    }
+    if (this.wind) {
+      const t = this.time;
+      const osc =
+        0.6 * Math.sin((2 * Math.PI * t) / this.wind.period) +
+        0.4 * Math.sin((2 * Math.PI * t) / (this.wind.period * 0.37) + 1.7);
+      const w = this.wind.base + this.wind.gust * Math.max(0, osc);
+      this.currentWind = w;
+      for (const n of nodes) {
+        if (n.fixed || n.vehicle) continue;
+        // Tuuli voimistuu korkeuden myötä
+        const hf = Math.min(1, Math.max(0.1, (this.windGroundY - n.y) / 6));
+        n.fx += w * hf;
+      }
     }
     for (const beam of this.beams) {
       if (beam.broken) continue;
@@ -190,6 +217,15 @@ export class Engine {
       n.py = n.y;
       n.x += vx + n.fx * n.invMass * h * h;
       n.y += vy + n.fy * n.invMass * h * h;
+    }
+    // Maanjäristys: perustukset heiluvat vaakasuunnassa
+    if (this.quake && this.time > this.quake.start) {
+      const off = this.quake.amp * Math.sin(2 * Math.PI * this.quake.freq * (this.time - this.quake.start));
+      for (const n of nodes) {
+        if (!n.fixed) continue;
+        n.px = n.x;
+        n.x = n.baseX + off;
+      }
     }
 
     // 3) Vetopyörät: kiihdytys pinnan tangentin suuntaan.
@@ -423,12 +459,22 @@ export class Engine {
     for (const n of this.nodes) if (n.vehicle && n.y > max) max = n.y;
     return max;
   }
+
+  /** Rakenteen korkein piste (pienin y) — tornikenttien tavoitetarkastelu */
+  structureMinY(): number {
+    let min = Infinity;
+    for (const n of this.nodes) if (!n.vehicle && n.y < min) min = n.y;
+    return min;
+  }
 }
 
 /** Kokoaa rakennetusta sillasta ja kentästä simulaation. */
 export function buildEngine(level: LevelDef, beams: BuildBeam[]): Engine {
   const engine = new Engine(level.terrain);
   engine.driveAccel = DRIVE_ACCEL * (level.driveFactor ?? 1);
+  engine.wind = level.wind;
+  engine.quake = level.quake;
+  engine.windGroundY = level.deckY;
   const nodeIdx = new Map<string, number>();
   const key = (x: number, y: number) => `${x},${y}`;
 

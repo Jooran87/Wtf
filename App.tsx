@@ -2,10 +2,10 @@ import React, { useCallback, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import GameScreen from './src/game/GameScreen';
 import LevelSelect from './src/game/LevelSelect';
-import { LEVELS, SANDBOX } from './src/game/levels';
+import { LEVELS, SANDBOX, SANDBOX2 } from './src/game/levels';
 
 export default function App() {
-  const [levelIndex, setLevelIndex] = useState<number | 'sandbox' | null>(null);
+  const [levelIndex, setLevelIndex] = useState<number | 'sandbox' | 'sandbox2' | null>(null);
   /** Kentän id → parhaat tähdet */
   const [progress, setProgress] = useState<Record<number, number>>({});
   /** Suurin avattu kenttäindeksi */
@@ -26,16 +26,17 @@ export default function App() {
           unlocked={unlocked}
           onPick={setLevelIndex}
           onPickSandbox={() => setLevelIndex('sandbox')}
+          onPickSandbox2={() => setLevelIndex('sandbox2')}
         />
       ) : (
         <GameScreen
-          level={levelIndex === 'sandbox' ? SANDBOX : LEVELS[levelIndex]}
-          hasNext={levelIndex !== 'sandbox' && levelIndex < LEVELS.length - 1}
+          level={
+            levelIndex === 'sandbox' ? SANDBOX : levelIndex === 'sandbox2' ? SANDBOX2 : LEVELS[levelIndex]
+          }
+          hasNext={typeof levelIndex === 'number' && levelIndex < LEVELS.length - 1}
           onComplete={handleComplete}
           onNext={() =>
-            setLevelIndex((i) =>
-              i === null || i === 'sandbox' ? i : Math.min(i + 1, LEVELS.length - 1)
-            )
+            setLevelIndex((i) => (typeof i === 'number' ? Math.min(i + 1, LEVELS.length - 1) : i))
           }
           onExit={() => setLevelIndex(null)}
         />

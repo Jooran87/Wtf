@@ -24,7 +24,7 @@ import {
   isTerrainPoint,
 } from './types';
 
-const SANDBOX_VEHICLES: VehicleId[] = ['car', 'van', 'truck', 'train0', 'train1', 'train2'];
+const SANDBOX_VEHICLES: VehicleId[] = ['car', 'van', 'truck', 'train0', 'train1', 'train2', 'train3', 'train4'];
 
 /** Deterministinen pseudosatunnaisluku koristeille */
 const rnd01 = (i: number) => {

@@ -199,7 +199,7 @@ export interface BuildBeam {
   material: MaterialId;
 }
 
-export type VehicleId = 'car' | 'van' | 'truck' | 'train0' | 'train1' | 'train2';
+export type VehicleId = 'car' | 'van' | 'truck' | 'train0' | 'train1' | 'train2' | 'train3' | 'train4';
 
 export interface LevelDef {
   id: number;

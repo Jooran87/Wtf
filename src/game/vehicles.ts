@@ -48,6 +48,10 @@ function unitsFor(id: VehicleId): UnitSpec[] {
       return [UNITS.loco, UNITS.wagon];
     case 'train2':
       return [UNITS.loco, UNITS.wagon, UNITS.wagon];
+    case 'train3':
+      return [UNITS.loco, UNITS.wagon, UNITS.wagon, UNITS.wagon];
+    case 'train4':
+      return [UNITS.loco, UNITS.loco, UNITS.wagon, UNITS.wagon, UNITS.wagon];
   }
 }
 
@@ -61,6 +65,8 @@ export function vehicleInfo(id: VehicleId): VehicleInfo {
     train0: ['Veturi', '🚂'],
     train1: ['Juna + 1 vaunu', '🚂'],
     train2: ['Juna + 2 vaunua', '🚂'],
+    train3: ['Malmijuna', '🚆'],
+    train4: ['Tuplaveturijuna', '🚄'],
   };
   return { name: names[id][0], emoji: names[id][1], totalMass };
 }

@@ -10,9 +10,10 @@ interface Props {
   unlocked: number;
   onPick: (index: number) => void;
   onPickSandbox: () => void;
+  onPickSandbox2: () => void;
 }
 
-export default function LevelSelect({ progress, unlocked, onPick, onPickSandbox }: Props) {
+export default function LevelSelect({ progress, unlocked, onPick, onPickSandbox, onPickSandbox2 }: Props) {
   return (
     <View style={styles.root}>
       <LinearGradient colors={['#173049', '#2c5578']} style={StyleSheet.absoluteFill} />
@@ -52,6 +53,15 @@ export default function LevelSelect({ progress, unlocked, onPick, onPickSandbox 
             <Text style={styles.cardNum}>🧪</Text>
             <Text style={styles.cardName}>Testikenttä</Text>
             <Text style={styles.cardMeta}>vapaa rakentelu · {SANDBOX.gap} m</Text>
+            <Text style={styles.cardMeta}>ei kustannusrajaa</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.card, styles.cardSandbox]}
+            onPress={onPickSandbox2}
+          >
+            <Text style={styles.cardNum}>🏝️</Text>
+            <Text style={styles.cardName}>Testikenttä II</Text>
+            <Text style={styles.cardMeta}>saari · 2 × 6 m jänteet</Text>
             <Text style={styles.cardMeta}>ei kustannusrajaa</Text>
           </TouchableOpacity>
         </View>

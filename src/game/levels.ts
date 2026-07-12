@@ -51,6 +51,10 @@ interface LevelParams {
   vehicle: VehicleId;
   /** Keskipilari (vain leveimmät kentät) */
   pillar?: boolean;
+  /** Pilareita halutuissa x-kohdissa (huippu 2 m kannen alla) */
+  pillarsAt?: number[];
+  /** Saaria rotkon keskellä: maa-alue kannen tasossa [x0, x1] */
+  islands?: [number, number][];
   hint?: string;
   theme?: ThemeId;
   driveFactor?: number;
@@ -72,10 +76,18 @@ function makeLevel(id: number, p: LevelParams): LevelDef {
     { x: rightEdge, y: DECK_Y + 2 },
   ];
 
-  if (p.pillar) {
-    const mid = Math.round(leftEdge + p.gap / 2);
-    terrain.push({ minX: mid - 0.55, maxX: mid + 0.55, minY: DECK_Y + 2, maxY: 99 });
-    anchors.push({ x: mid, y: DECK_Y + 2 });
+  const pillarXs = [...(p.pillarsAt ?? [])];
+  if (p.pillar) pillarXs.push(Math.round(leftEdge + p.gap / 2));
+  for (const px of pillarXs) {
+    terrain.push({ minX: px - 0.55, maxX: px + 0.55, minY: DECK_Y + 2, maxY: 99 });
+    anchors.push({ x: px, y: DECK_Y + 2 });
+  }
+
+  // Saaret: maa-alue kannen tasossa rotkon keskellä; reunoihin ankkurit
+  for (const [x0, x1] of p.islands ?? []) {
+    terrain.push({ minX: x0, maxX: x1, minY: DECK_Y, maxY: 99 });
+    anchors.push({ x: x0, y: DECK_Y }, { x: x1, y: DECK_Y });
+    anchors.push({ x: x0, y: DECK_Y + 2 }, { x: x1, y: DECK_Y + 2 });
   }
 
   return {
@@ -108,6 +120,19 @@ export const SANDBOX: LevelDef = {
     budget: 9999999,
     vehicle: 'truck',
     hint: 'Vapaa rakentelu: ei kustannusrajaa. Valitse testiajoneuvo alhaalta.',
+  }),
+  sandbox: true,
+};
+
+/** Testikenttä II: kaksi jännettä ja saari — uusien kenttien tapaan */
+export const SANDBOX2: LevelDef = {
+  ...makeLevel(-1, {
+    name: 'Testikenttä II',
+    gap: 14,
+    budget: 9999999,
+    vehicle: 'train1',
+    islands: [[9, 11]],
+    hint: 'Vapaa rakentelu saarella: kaksi 6 m jännettä. Saaren pinta on ankkuroitavissa.',
   }),
   sandbox: true,
 };
@@ -193,5 +218,50 @@ export const LEVELS: LevelDef[] = [
     theme: 'night',
     pillar: true,
     hint: 'Keskipilari on kaksi metriä kannen alapuolella — hyödynnä se.',
+  }),
+  makeLevel(11, {
+    name: 'Saaristotie',
+    gap: 12,
+    budget: 10000,
+    vehicle: 'truck',
+    islands: [[8, 10]],
+    hint: 'Saari jakaa ylityksen kahteen jänteeseen — sen pintaan voi ankkuroida.',
+  }),
+  makeLevel(12, {
+    name: 'Kaksoisrotko',
+    gap: 14,
+    budget: 14500,
+    vehicle: 'train0',
+    theme: 'autumn',
+    islands: [[9, 11]],
+    hint: 'Veturi ylittää molemmat rotkot — muista tukea myös saaren reunat.',
+  }),
+  makeLevel(13, {
+    name: 'Malmijuna',
+    gap: 12,
+    budget: 16000,
+    vehicle: 'train3',
+    theme: 'winter',
+    driveFactor: 0.75,
+    pillar: true,
+    hint: '17,8 tonnia jäisellä kannella. Pilari kantaa vain jos rakennat sen varaan.',
+  }),
+  makeLevel(14, {
+    name: 'Suurkanjoni',
+    gap: 16,
+    budget: 23000,
+    vehicle: 'train2',
+    theme: 'night',
+    pillarsAt: [8, 14],
+    hint: 'Kaksi pilaria jakaa 16 metrin jänteen kolmeen osaan.',
+  }),
+  makeLevel(15, {
+    name: 'Jättiläinen',
+    gap: 17,
+    budget: 18500,
+    vehicle: 'train4',
+    theme: 'night',
+    islands: [[10, 13]],
+    hint: 'Tuplaveturijuna painaa 24,8 tonnia. Saari on ainoa liittolaisesi.',
   }),
 ];

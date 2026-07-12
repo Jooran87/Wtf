@@ -1,9 +1,11 @@
 # 🌉 Sillanrakentaja
 
 Klassinen sillanrakennuspeli: rakenna palkeista silta rotkon yli ja testaa,
-kestääkö se ajoneuvon painon. Jokainen kenttä on edellistä vaativampi —
-leveämpi rotko, raskaampi ajoneuvo ja suhteessa tiukempi budjetti.
-Viimeisissä kentissä sillan yli jyrää juna vaunuineen.
+kestääkö se ajoneuvon painon. 15 kenttää, joissa vaikeus kasvaa —
+leveämmät rotkot, saarelliset ylitykset, pilarien varaan rakennettavat
+kanjonit ja yhä raskaammat junat aina 24,8 tonnin tuplaveturijunaan asti.
+Kaksi vapaata testikenttää (yksi jänne ja saarellinen kaksoisjänne)
+ilman kustannusrajaa, testiajoneuvo valittavissa.
 
 ## Pelaaminen
 

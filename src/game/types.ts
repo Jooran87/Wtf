@@ -1,6 +1,6 @@
 // Yhteiset tyypit, materiaalit ja fysiikkavakiot.
 
-export type MaterialId = 'road' | 'steel' | 'cable';
+export type MaterialId = 'road' | 'wood' | 'steel' | 'cable';
 
 export interface Material {
   id: MaterialId;
@@ -34,6 +34,18 @@ export const MATERIALS: Record<MaterialId, Material> = {
     collidable: true,
     width: 0.16,
     color: '#6e5138',
+  },
+  wood: {
+    id: 'wood',
+    name: 'Puu',
+    costPerM: 100,
+    massPerM: 11,
+    EA: 3.5e6,
+    breakStrain: 0.022,
+    tensionOnly: false,
+    collidable: false,
+    width: 0.12,
+    color: '#a97c50',
   },
   steel: {
     id: 'steel',
@@ -254,6 +266,8 @@ export interface LevelDef {
   quake?: QuakeSpec;
   /** Tornin huipulle nostettava kuorma kiloina */
   towerLoad?: number;
+  /** Vaadittu perustuksen leveys metreinä (maatasossa olevien solmujen jänne) */
+  minWidth?: number;
   /** Sallittu huipun vaakahuojunta metreinä (oletus 1.5) */
   swayLimit?: number;
   /** Rakennusalueen x-rajat (tornitontti) */

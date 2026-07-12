@@ -55,6 +55,8 @@ interface LevelParams {
   pillarsAt?: number[];
   /** Saaria rotkon keskellä: maa-alue kannen tasossa [x0, x1] */
   islands?: [number, number][];
+  /** Matalia saaria: pinta syvyydellä kannen alla [x0, x1, syvyys] */
+  lowIslands?: [number, number, number][];
   hint?: string;
   theme?: ThemeId;
   driveFactor?: number;
@@ -88,6 +90,13 @@ function makeLevel(id: number, p: LevelParams): LevelDef {
     terrain.push({ minX: x0, maxX: x1, minY: DECK_Y, maxY: 99 });
     anchors.push({ x: x0, y: DECK_Y }, { x: x1, y: DECK_Y });
     anchors.push({ x: x0, y: DECK_Y + 2 }, { x: x1, y: DECK_Y + 2 });
+  }
+
+  // Matalat saaret: pinta kannen alapuolella — tukialusta, ei ajettavissa
+  for (const [x0, x1, depth] of p.lowIslands ?? []) {
+    const top = DECK_Y + depth;
+    terrain.push({ minX: x0, maxX: x1, minY: top, maxY: 99 });
+    anchors.push({ x: x0, y: top }, { x: x1, y: top });
   }
 
   return {
@@ -126,6 +135,8 @@ interface TowerParams {
   quake?: QuakeSpec;
   /** Huipulle nostettava kuorma kiloina */
   load?: number;
+  /** Vaadittu perustuksen leveys metreinä */
+  minWidth?: number;
   /** Tontin leveys metreinä (keskitetään) */
   lotWidth?: number;
   hint?: string;
@@ -133,6 +144,7 @@ interface TowerParams {
 }
 
 function makeTowerLevel(id: number, p: TowerParams): LevelDef {
+  const swayLimit = p.height >= 9 ? 2.0 : 1.5;
   const worldW = 16;
   const lotW = p.lotWidth ?? 10;
   const lotX0 = Math.round((worldW - lotW) / 2);
@@ -159,6 +171,8 @@ function makeTowerLevel(id: number, p: TowerParams): LevelDef {
     wind: p.wind,
     quake: p.quake,
     towerLoad: p.load,
+    minWidth: p.minWidth,
+    swayLimit,
     lot: [lotX0, lotX0 + lotW],
     buildTop: 1,
     buildBottom: T_GROUND,
@@ -168,7 +182,7 @@ function makeTowerLevel(id: number, p: TowerParams): LevelDef {
 export const TOWER_LEVELS: LevelDef[] = [
   makeTowerLevel(101, {
     name: 'Näkötorni',
-    budget: 6000,
+    budget: 8000,
     height: 5,
     duration: 12,
     wind: { base: 60, gust: 130, period: 3 },
@@ -177,7 +191,7 @@ export const TOWER_LEVELS: LevelDef[] = [
   }),
   makeTowerLevel(102, {
     name: 'Mastotorni',
-    budget: 8600,
+    budget: 11000,
     height: 7,
     duration: 15,
     wind: { base: 130, gust: 280, period: 3 },
@@ -187,7 +201,7 @@ export const TOWER_LEVELS: LevelDef[] = [
   }),
   makeTowerLevel(103, {
     name: 'Kapea tontti',
-    budget: 8400,
+    budget: 12500,
     height: 7,
     duration: 15,
     wind: { base: 180, gust: 380, period: 2.6 },
@@ -198,24 +212,49 @@ export const TOWER_LEVELS: LevelDef[] = [
   }),
   makeTowerLevel(104, {
     name: 'Myrsky',
-    budget: 11000,
+    budget: 15500,
     height: 9,
     duration: 18,
-    wind: { base: 300, gust: 640, period: 2.2 },
+    wind: { base: 240, gust: 520, period: 2.2 },
     load: 1500,
+    minWidth: 3,
     theme: 'winter',
-    hint: '❄ Myrskypuuskat iskevät aalloissa. Seuraa värejä: violetti = puristus.',
+    hint: '❄ Puuskat iskevät molemmista suunnista. Perustuksen oltava vähintään 3 m leveä!',
   }),
   makeTowerLevel(105, {
     name: 'Järistys',
-    budget: 11500,
+    budget: 15500,
     height: 9,
     duration: 20,
     wind: { base: 100, gust: 220, period: 3 },
     quake: { amp: 0.16, freq: 2.2, start: 6 },
     load: 2000,
+    minWidth: 3,
     theme: 'night',
-    hint: 'Kaksi tonnia huipulla ja maa järisee 6 s kohdalla. Leveä haara-asento!',
+    hint: 'Kaksi tonnia huipulla ja maa järisee 6 s kohdalla. Perustus vähintään 3 m!',
+  }),
+  makeTowerLevel(106, {
+    name: 'Hirmumyrsky',
+    budget: 17000,
+    height: 9,
+    duration: 20,
+    wind: { base: 330, gust: 700, period: 1.9 },
+    load: 2000,
+    minWidth: 4,
+    theme: 'winter',
+    hint: '🌪 Kovin tuuli molemmista suunnista. Perustus vähintään 4 m — harukset auttavat.',
+  }),
+  makeTowerLevel(107, {
+    name: 'Suurjäristys',
+    budget: 17500,
+    height: 9,
+    duration: 22,
+    wind: { base: 150, gust: 300, period: 2.8 },
+    quake: { amp: 0.18, freq: 2.4, start: 5 },
+    load: 2500,
+    minWidth: 4,
+    theme: 'night',
+    hint: 'Raju järistys 5 s kohdalla ja 2,5 t huipulla. Jäykistä joka kerros!',
   }),
 ];
 
@@ -383,5 +422,24 @@ export const LEVELS: LevelDef[] = [
     theme: 'night',
     islands: [[10, 13]],
     hint: 'Tuplaveturijuna painaa 24,8 tonnia. Saari on ainoa liittolaisesi.',
+  }),
+  makeLevel(16, {
+    name: 'Vuono',
+    gap: 15,
+    budget: 21000,
+    vehicle: 'train2',
+    theme: 'winter',
+    driveFactor: 0.75,
+    lowIslands: [[8, 13, 2]],
+    hint: 'Matala luoto on 2 m kannen alla — silta ylittää sen, mutta tukijalat kantavat.',
+  }),
+  makeLevel(17, {
+    name: 'Meriväylä',
+    gap: 18,
+    budget: 26000,
+    vehicle: 'train3',
+    theme: 'night',
+    lowIslands: [[10, 15, 3]],
+    hint: 'Pisin jänne: 18 m. Kari on vain metrin vedenpinnan yllä — 3 m kannen alla.',
   }),
 ];

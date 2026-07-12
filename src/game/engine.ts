@@ -177,9 +177,12 @@ export class Engine {
       const osc =
         0.6 * Math.sin((2 * Math.PI * t) / this.wind.period) +
         0.4 * Math.sin((2 * Math.PI * t) / (this.wind.period * 0.37) + 1.7);
+      // Puuskarintamat vaihtavat suuntaa — rakenteen on kestettävä
+      // molempiin suuntiin (ja molempien puolten harusten on toimittava)
+      const dir = Math.sin((2 * Math.PI * t) / (this.wind.period * 4.7) + 0.6) >= 0 ? 1 : -1;
       // Tuulivoima N per palkkimetri: rakenne on purje, jonka pinta-ala
       // kasvaa palkkien määrän mukana
-      const w = this.wind.base + this.wind.gust * Math.max(0, osc);
+      const w = dir * (this.wind.base + this.wind.gust * Math.max(0, osc));
       this.currentWind = w;
       for (const beam of this.beams) {
         if (beam.broken) continue;

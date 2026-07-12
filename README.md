@@ -1,7 +1,7 @@
 # 🌉 Sillanrakentaja
 
 Klassinen sillanrakennuspeli: rakenna palkeista silta rotkon yli ja testaa,
-kestääkö se ajoneuvon painon. 15 kenttää, joissa vaikeus kasvaa —
+kestääkö se ajoneuvon painon. 17 kenttää, joissa vaikeus kasvaa —
 leveämmät rotkot, saarelliset ylitykset, pilarien varaan rakennettavat
 kanjonit ja yhä raskaammat junat aina 24,8 tonnin tuplaveturijunaan asti.
 Kaksi vapaata testikenttää (yksi jänne ja saarellinen kaksoisjänne)
@@ -16,8 +16,9 @@ puristuksen (kylmä).
 ## Pelaaminen
 
 - **Rakenna**: vedä sormella ruudukkopisteestä toiseen luodaksesi palkin.
-  Materiaalit: **Tie** (ajettava kansi), **Palkki** (teräsristikko) ja
-  **Vaijeri** (halpa, vedossa vahva, menee puristuksessa löysäksi).
+  Materiaalit: **Tie** (ajettava kansi), **Puu** (halpa mutta heikko),
+  **Palkki** (teräs) ja **Vaijeri** (vedossa vahva, puristuksessa löysä;
+  torneissa pitkät harukset jopa 6 m).
 - Tien voi vetää yhdellä vedolla vaikka koko rotkon yli — se jakautuu
   metrin paloihin, joiden jokainen liitos on aito nivel. Palkit ja
   vaijerit liittyvät toisiinsa vain päistään; 2 m:n palkki jakautuu

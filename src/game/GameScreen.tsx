@@ -196,6 +196,30 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
     if (st.level.mode !== 'tower') {
       spawnVehicle(engine, st.vehicle, st.level.leftEdge - 0.8, st.level.deckY);
     } else {
+      // Perustuksen leveysvaatimus: maatason solmujen jänne
+      if (st.level.minWidth != null) {
+        let minX = Infinity;
+        let maxX = -Infinity;
+        for (const b of st.beams) {
+          for (const [x, y] of [
+            [b.ax, b.ay],
+            [b.bx, b.by],
+          ] as const) {
+            if (y === st.level.deckY) {
+              minX = Math.min(minX, x);
+              maxX = Math.max(maxX, x);
+            }
+          }
+        }
+        if (maxX - minX < st.level.minWidth) {
+          setFailReason(
+            `Perustus on liian kapea: vaaditaan vähintään ${st.level.minWidth} m leveä tukipinta maassa.`
+          );
+          setPhase('failed');
+          phaseRef.current = 'failed';
+          return;
+        }
+      }
       // Tornitestikentässä kuormitukset tulevat säätimistä
       let effLoad = st.level.towerLoad ?? 0;
       if (st.level.sandbox) {
@@ -402,6 +426,8 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         const p = snapPoint(wx, wy) ?? { x: Math.round(wx), y: Math.round(wy) };
         const len = Math.hypot(p.x - start.x0, p.y - start.y0);
         const totalCost = st.beams.reduce((s, b) => s + beamCost(b), 0);
+        // Torneissa vaijerin saa vetää pitkänä haruksena — ketju ei jäykistä
+        const maxLen = st.tool === 'cable' && st.level.mode === 'tower' ? 6 : MAX_BEAM_LEN;
         let valid: boolean;
         let price: number;
         if (st.tool === 'road') {
@@ -415,7 +441,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
           price = Math.round(len * MATERIALS[st.tool as MaterialId].costPerM);
           valid =
             len >= 0.99 &&
-            len <= MAX_BEAM_LEN &&
+            len <= maxLen &&
             isValidPoint(st.level, p.x, p.y) &&
             !hasBeam(st.beams, start.x0, start.y0, p.x, p.y) &&
             totalCost + price <= st.budget;
@@ -1129,7 +1155,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
       {/* Työkalurivi */}
       {phase === 'build' && (
         <View style={styles.toolBar} pointerEvents="box-none">
-          {((level.mode === 'tower' ? ['steel', 'cable'] : ['road', 'steel', 'cable']) as MaterialId[]).map((m) => (
+          {((level.mode === 'tower'
+            ? ['wood', 'steel', 'cable']
+            : ['road', 'wood', 'steel', 'cable']) as MaterialId[]).map((m) => (
             <TouchableOpacity
               key={m}
               style={[styles.tool, tool === m && styles.toolActive]}
@@ -1220,7 +1248,10 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
       {phase === 'test' && level.mode === 'tower' && engine && (
         <Text style={styles.hint}>
           ⏱ {Math.max(0, Math.ceil((level.duration ?? 20) - engine.time))} s · tuuli{' '}
-          {'→'.repeat(Math.min(5, 1 + Math.floor(engine.currentWind / 150)))} {Math.round(engine.currentWind)} N
+          {(engine.currentWind < 0 ? '←' : '→').repeat(
+            Math.min(5, 1 + Math.floor(Math.abs(engine.currentWind) / 150))
+          )}{' '}
+          {Math.round(Math.abs(engine.currentWind))} N/m
         </Text>
       )}
       {phase === 'test' && level.mode !== 'tower' && (

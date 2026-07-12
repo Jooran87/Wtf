@@ -1,0 +1,33 @@
+name: Julkaise GitHub Pagesiin
+
+on:
+  push:
+    branches:
+      - claude/bridge-building-game-rcjmw7
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Vie web-build (alipolku /Wtf)
+        run: npx expo export --platform web
+        env:
+          GH_PAGES_BASE: /Wtf
+
+      - name: Julkaise gh-pages-haaraan
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist

@@ -156,9 +156,15 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   // Työkalurivi varaa alareunan — maailma skaalataan sen yläpuolelle,
   // jottei maanpinnan pisteitä jää nappien alle
   const TOOLBAR_H = 64;
-  const scale = Math.min(winW / level.worldW, (winH - TOOLBAR_H) / level.worldH);
+  // Silloilla näytetään vain kiinnostava pystyvyöhyke (vähän taivasta,
+  // rakennusalue ja vesiraja) — ei koko 8,4 m maailmaa. Näin skaala kasvaa
+  // ja kenttä täyttää leveän puhelinnäytön paremmin. Tornit tarvitsevat
+  // koko korkeuden (tavoiteviiva on ylhäällä), joten ne pidetään ennallaan.
+  const viewTop = level.mode === 'tower' ? 0 : 0.8;
+  const viewH = level.mode === 'tower' ? level.worldH : 7.0;
+  const scale = Math.min(winW / level.worldW, (winH - TOOLBAR_H) / viewH);
   const ox = (winW - level.worldW * scale) / 2;
-  const oy = (winH - TOOLBAR_H - level.worldH * scale) / 2;
+  const oy = (winH - TOOLBAR_H - viewH * scale) / 2 - viewTop * scale;
   stateRef.current = { level, beams, tool, phase, vehicle, windIdx, quakeOn, loadIdx, scale, ox, oy, budget: level.budget };
   const costRef = useRef(cost);
   costRef.current = cost;

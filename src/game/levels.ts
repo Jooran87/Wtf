@@ -124,6 +124,8 @@ interface TowerParams {
   duration: number;
   wind?: WindSpec;
   quake?: QuakeSpec;
+  /** Huipulle nostettava kuorma kiloina */
+  load?: number;
   /** Tontin leveys metreinä (keskitetään) */
   lotWidth?: number;
   hint?: string;
@@ -156,6 +158,7 @@ function makeTowerLevel(id: number, p: TowerParams): LevelDef {
     duration: p.duration,
     wind: p.wind,
     quake: p.quake,
+    towerLoad: p.load,
     lot: [lotX0, lotX0 + lotW],
     buildTop: 1,
     buildBottom: T_GROUND,
@@ -165,51 +168,68 @@ function makeTowerLevel(id: number, p: TowerParams): LevelDef {
 export const TOWER_LEVELS: LevelDef[] = [
   makeTowerLevel(101, {
     name: 'Näkötorni',
-    budget: 7000,
+    budget: 6000,
     height: 5,
     duration: 12,
-    wind: { base: 60, gust: 120, period: 3 },
-    hint: 'Rakenna maasta tavoiteviivan yli ja pidä torni pystyssä. Kolmiot jäykistävät!',
+    wind: { base: 60, gust: 130, period: 3 },
+    load: 500,
+    hint: 'Nosta 500 kg laite 5 metriin. Kolmiot jäykistävät — huojunta yli 1,5 m hylätään!',
   }),
   makeTowerLevel(102, {
     name: 'Mastotorni',
-    budget: 10000,
+    budget: 8600,
     height: 7,
     duration: 15,
-    wind: { base: 120, gust: 260, period: 3 },
+    wind: { base: 130, gust: 280, period: 3 },
+    load: 1000,
     theme: 'autumn',
-    hint: 'Tuuli voimistuu ylöspäin — leveä perusta ja ristikkäistuet auttavat.',
+    hint: 'Tonni huipulle 7 metriin. Tuuli voimistuu ylöspäin — leveä perusta auttaa.',
   }),
   makeTowerLevel(103, {
     name: 'Kapea tontti',
-    budget: 11000,
+    budget: 8400,
     height: 7,
     duration: 15,
-    wind: { base: 200, gust: 420, period: 2.6 },
+    wind: { base: 180, gust: 380, period: 2.6 },
+    load: 1200,
     lotWidth: 4,
     theme: 'autumn',
     hint: 'Tonttia on vain 4 metriä — hoikka torni kaipaa vaijeriharuksia maahan.',
   }),
   makeTowerLevel(104, {
     name: 'Myrsky',
-    budget: 14000,
-    height: 8,
+    budget: 11000,
+    height: 9,
     duration: 18,
-    wind: { base: 420, gust: 880, period: 2.2 },
+    wind: { base: 300, gust: 640, period: 2.2 },
+    load: 1500,
     theme: 'winter',
     hint: '❄ Myrskypuuskat iskevät aalloissa. Seuraa värejä: violetti = puristus.',
   }),
   makeTowerLevel(105, {
     name: 'Järistys',
-    budget: 16000,
-    height: 8,
+    budget: 11500,
+    height: 9,
     duration: 20,
-    wind: { base: 100, gust: 200, period: 3 },
-    quake: { amp: 0.1, freq: 2.2, start: 6 },
+    wind: { base: 100, gust: 220, period: 3 },
+    quake: { amp: 0.16, freq: 2.2, start: 6 },
+    load: 2000,
     theme: 'night',
-    hint: 'Maa alkaa järistä 6 sekunnin kohdalla. Jäykkä perusta ja leveä haara-asento!',
+    hint: 'Kaksi tonnia huipulla ja maa järisee 6 s kohdalla. Leveä haara-asento!',
   }),
 ];
+
+/** Tornitestikenttä: ei budjettia, tuuli/järistys/kuorma säädettävissä */
+export const SANDBOX_TOWER: LevelDef = {
+  ...makeTowerLevel(-2, {
+    name: 'Tornitestikenttä',
+    budget: 9999999,
+    height: 7,
+    duration: 20,
+    hint: 'Vapaa rakentelu: valitse tuuli, kuorma ja järistys alhaalta.',
+  }),
+  sandbox: true,
+};
 
 /** Testikenttä: vapaa rakentelu ilman kustannusrajaa, ajoneuvon saa valita */
 export const SANDBOX: LevelDef = {

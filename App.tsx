@@ -2,9 +2,9 @@ import React, { useCallback, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import GameScreen from './src/game/GameScreen';
 import LevelSelect from './src/game/LevelSelect';
-import { LEVELS, SANDBOX, SANDBOX2, TOWER_LEVELS } from './src/game/levels';
+import { LEVELS, SANDBOX, SANDBOX2, SANDBOX_TOWER, TOWER_LEVELS } from './src/game/levels';
 
-type Selection = number | { tower: number } | 'sandbox' | 'sandbox2' | null;
+type Selection = number | { tower: number } | 'sandbox' | 'sandbox2' | 'sandboxTower' | null;
 
 export default function App() {
   const [sel, setSel] = useState<Selection>(null);
@@ -27,11 +27,13 @@ export default function App() {
       ? SANDBOX
       : sel === 'sandbox2'
         ? SANDBOX2
-        : typeof sel === 'number'
-          ? LEVELS[sel]
-          : sel && typeof sel === 'object'
-            ? TOWER_LEVELS[sel.tower]
-            : null;
+        : sel === 'sandboxTower'
+          ? SANDBOX_TOWER
+          : typeof sel === 'number'
+            ? LEVELS[sel]
+            : sel && typeof sel === 'object'
+              ? TOWER_LEVELS[sel.tower]
+              : null;
 
   const hasNext =
     typeof sel === 'number'
@@ -52,6 +54,7 @@ export default function App() {
           onPickTower={(i) => setSel({ tower: i })}
           onPickSandbox={() => setSel('sandbox')}
           onPickSandbox2={() => setSel('sandbox2')}
+          onPickSandboxTower={() => setSel('sandboxTower')}
         />
       ) : (
         <GameScreen

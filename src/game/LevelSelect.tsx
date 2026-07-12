@@ -15,6 +15,7 @@ interface Props {
   onPickTower: (index: number) => void;
   onPickSandbox: () => void;
   onPickSandbox2: () => void;
+  onPickSandboxTower: () => void;
 }
 
 export default function LevelSelect({
@@ -25,6 +26,7 @@ export default function LevelSelect({
   onPickTower,
   onPickSandbox,
   onPickSandbox2,
+  onPickSandboxTower,
 }: Props) {
   const [tab, setTab] = useState<Tab>('bridges');
 
@@ -108,7 +110,8 @@ export default function LevelSelect({
                   <Text style={styles.cardNum}>{locked ? '🔒' : i + 1}</Text>
                   <Text style={styles.cardName}>{lvl.name}</Text>
                   <Text style={styles.cardMeta}>
-                    🏗 {height} m · {lvl.duration} s{(lvl.wind?.gust ?? 0) > 300 ? ' · 🌬' : ''}
+                    🏗 {height} m{(lvl.towerLoad ?? 0) > 0 ? ` · 📦 ${((lvl.towerLoad ?? 0) / 1000).toFixed(1).replace('.', ',')} t` : ''}
+                    {(lvl.wind?.gust ?? 0) > 300 ? ' · 🌬' : ''}
                     {lvl.quake ? ' · 〰' : ''}
                     {lvl.theme === 'autumn' ? ' · 🍂' : lvl.theme === 'winter' ? ' · ❄️' : lvl.theme === 'night' ? ' · 🌙' : ''}
                   </Text>
@@ -118,6 +121,14 @@ export default function LevelSelect({
                 </TouchableOpacity>
               );
             })}
+          {tab === 'towers' && (
+            <TouchableOpacity style={[styles.card, styles.cardSandbox]} onPress={onPickSandboxTower}>
+              <Text style={styles.cardNum}>🧪</Text>
+              <Text style={styles.cardName}>Tornitestikenttä</Text>
+              <Text style={styles.cardMeta}>säädettävä tuuli, kuorma</Text>
+              <Text style={styles.cardMeta}>ja järistys · ei budjettia</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </View>

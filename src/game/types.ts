@@ -252,6 +252,10 @@ export interface LevelDef {
   duration?: number;
   wind?: WindSpec;
   quake?: QuakeSpec;
+  /** Tornin huipulle nostettava kuorma kiloina */
+  towerLoad?: number;
+  /** Sallittu huipun vaakahuojunta metreinä (oletus 1.5) */
+  swayLimit?: number;
   /** Rakennusalueen x-rajat (tornitontti) */
   lot?: [number, number];
   /** Rakennusalueen y-rajat (oletus: silta 1..7) */

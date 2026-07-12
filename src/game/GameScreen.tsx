@@ -26,6 +26,15 @@ import {
 
 const SANDBOX_VEHICLES: VehicleId[] = ['car', 'van', 'truck', 'train0', 'train1', 'train2', 'train3', 'train4'];
 
+/** Tornitestikentän säädettävät tuuliasetukset */
+const TOWER_WINDS: { label: string; spec?: { base: number; gust: number; period: number } }[] = [
+  { label: 'Tyyni' },
+  { label: '💨 Tuulinen', spec: { base: 130, gust: 280, period: 3 } },
+  { label: '🌬 Myrsky', spec: { base: 300, gust: 640, period: 2.2 } },
+  { label: '🌪 Hirmumyrsky', spec: { base: 500, gust: 1050, period: 1.9 } },
+];
+const TOWER_LOADS = [0, 1000, 2500];
+
 /** Deterministinen pseudosatunnaisluku koristeille */
 const rnd01 = (i: number) => {
   const s = Math.sin(i * 127.1 + 311.7) * 43758.5453;
@@ -103,6 +112,10 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const [beams, setBeams] = useState<BuildBeam[]>([]);
   const [tool, setTool] = useState<Tool>('road');
   const [vehicle, setVehicle] = useState<VehicleId>(level.vehicle);
+  // Tornitestikentän säätimet
+  const [windIdx, setWindIdx] = useState(1);
+  const [quakeOn, setQuakeOn] = useState(false);
+  const [loadIdx, setLoadIdx] = useState(1);
   const [phase, setPhase] = useState<Phase>('build');
   const [drag, setDrag] = useState<DragState | null>(null);
   const [failReason, setFailReason] = useState('');
@@ -118,9 +131,26 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const brokenSeenRef = useRef<Set<number>>(new Set());
   const burstsRef = useRef<{ x: number; y: number; t0: number }[]>([]);
   const wonTimeRef = useRef<number | null>(null);
+  // Tornin huippusolmu huojuntaseurantaan + kiinnitetty kuorma
+  const topIdxRef = useRef<number | null>(null);
+  const topX0Ref = useRef(0);
+  const loadKgRef = useRef(0);
 
   // Ajantasaiset arvot PanResponderin käyttöön (luodaan vain kerran)
-  const stateRef = useRef({ level, beams, tool, phase, vehicle, scale: 1, ox: 0, oy: 0, budget: level.budget });
+  const stateRef = useRef({
+    level,
+    beams,
+    tool,
+    phase,
+    vehicle,
+    windIdx,
+    quakeOn,
+    loadIdx,
+    scale: 1,
+    ox: 0,
+    oy: 0,
+    budget: level.budget,
+  });
   const cost = useMemo(() => beams.reduce((s, b) => s + beamCost(b), 0), [beams]);
 
   // Työkalurivi varaa alareunan — maailma skaalataan sen yläpuolelle,
@@ -129,7 +159,7 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
   const scale = Math.min(winW / level.worldW, (winH - TOOLBAR_H) / level.worldH);
   const ox = (winW - level.worldW * scale) / 2;
   const oy = (winH - TOOLBAR_H - level.worldH * scale) / 2;
-  stateRef.current = { level, beams, tool, phase, vehicle, scale, ox, oy, budget: level.budget };
+  stateRef.current = { level, beams, tool, phase, vehicle, windIdx, quakeOn, loadIdx, scale, ox, oy, budget: level.budget };
   const costRef = useRef(cost);
   costRef.current = cost;
 
@@ -165,6 +195,17 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
     const engine = buildEngine(st.level, st.beams);
     if (st.level.mode !== 'tower') {
       spawnVehicle(engine, st.vehicle, st.level.leftEdge - 0.8, st.level.deckY);
+    } else {
+      // Tornitestikentässä kuormitukset tulevat säätimistä
+      let effLoad = st.level.towerLoad ?? 0;
+      if (st.level.sandbox) {
+        engine.wind = TOWER_WINDS[st.windIdx].spec;
+        engine.quake = st.quakeOn ? { amp: 0.13, freq: 2.2, start: 4 } : undefined;
+        effLoad = TOWER_LOADS[st.loadIdx];
+      }
+      topIdxRef.current = engine.attachTopLoad(effLoad);
+      topX0Ref.current = topIdxRef.current != null ? engine.nodes[topIdxRef.current].x : 0;
+      loadKgRef.current = effLoad;
     }
     engineRef.current = engine;
     progressRef.current = { maxX: -Infinity, at: 0 };
@@ -195,8 +236,14 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         // Torni: pysyttävä tavoitekorkeuden yllä kentän keston ajan
         const lvl = stateRef.current.level;
         const top = eng.structureMinY();
+        const sway =
+          topIdxRef.current != null ? Math.abs(eng.nodes[topIdxRef.current].x - topX0Ref.current) : 0;
         if (eng.time > 1.5 && top > (lvl.targetY ?? 0) + 0.3) {
           setFailReason('Torni painui alle tavoitekorkeuden!');
+          setPhase('failed');
+          phaseRef.current = 'failed';
+        } else if (sway > (lvl.swayLimit ?? 1.5)) {
+          setFailReason('Torni huojui liikaa!');
           setPhase('failed');
           phaseRef.current = 'failed';
         } else if (eng.time >= (lvl.duration ?? 20)) {
@@ -934,6 +981,38 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
               );
             })}
 
+          {/* Tornin huippukuorma */}
+          {testing && level.mode === 'tower' && topIdxRef.current != null && loadKgRef.current > 0 && (
+            <G>
+              {(() => {
+                const n = engine!.nodes[topIdxRef.current!];
+                return (
+                  <G>
+                    <Rect
+                      x={sx(n.x - 0.4)}
+                      y={sy(n.y - 0.62)}
+                      width={0.8 * scale}
+                      height={0.55 * scale}
+                      rx={3}
+                      fill="#c9963d"
+                      stroke="#2b2b2b"
+                      strokeWidth={1}
+                    />
+                    <Line
+                      x1={sx(n.x)}
+                      y1={sy(n.y - 0.62)}
+                      x2={sx(n.x)}
+                      y2={sy(n.y - 1.05)}
+                      stroke="#2b2b2b"
+                      strokeWidth={1.5}
+                    />
+                    <Circle cx={sx(n.x)} cy={sy(n.y - 1.05)} r={2.5} fill="#d8483b" />
+                  </G>
+                );
+              })()}
+            </G>
+          )}
+
           {/* Lumisade (talvi) */}
           {theme.snow && (
             <G>
@@ -1017,11 +1096,15 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         </TouchableOpacity>
         <View style={styles.titleBox}>
           <Text style={[styles.title, { color: theme.text }]}>
-            {level.mode === 'tower' ? `${level.id - 100}. ${level.name}` : `${level.id}. ${level.name}`}
+            {level.sandbox
+              ? level.name
+              : level.mode === 'tower'
+                ? `${level.id - 100}. ${level.name}`
+                : `${level.id}. ${level.name}`}
           </Text>
           <Text style={[styles.subtitle, { color: theme.text, opacity: 0.8 }]}>
             {level.mode === 'tower'
-              ? `🏗 Tavoite ${level.deckY - (level.targetY ?? 0)} m · kesto ${level.duration} s${level.quake ? ' · 〰 järistys' : ''}${(level.wind?.gust ?? 0) > 300 ? ' · 🌬 myrsky' : ''}`
+              ? `🏗 Tavoite ${level.deckY - (level.targetY ?? 0)} m · ${level.duration} s${(level.towerLoad ?? 0) > 0 ? ` · 📦 ${level.towerLoad} kg` : ''}${level.quake ? ' · 〰 järistys' : ''}${(level.wind?.gust ?? 0) > 300 ? ' · 🌬 myrsky' : ''}`
               : `${info.emoji} ${info.name} · ${(info.totalMass / 1000).toFixed(1).replace('.', ',')} t${
                   level.driveFactor != null && level.driveFactor < 1 ? ' · ❄ jäinen kansi' : ''
                 }`}
@@ -1069,8 +1152,42 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
         </View>
       )}
 
+      {/* Tornitestikentän säätimet */}
+      {phase === 'build' && level.sandbox && level.mode === 'tower' && (
+        <>
+          <View style={[styles.vehBar, { bottom: 92 }]} pointerEvents="box-none">
+            {TOWER_WINDS.map((w, i) => (
+              <TouchableOpacity
+                key={w.label}
+                style={[styles.tool, windIdx === i && styles.toolActive]}
+                onPress={() => setWindIdx(i)}
+              >
+                <Text style={styles.toolText}>{w.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.vehBar} pointerEvents="box-none">
+            {TOWER_LOADS.map((kg, i) => (
+              <TouchableOpacity
+                key={kg}
+                style={[styles.tool, loadIdx === i && styles.toolActive]}
+                onPress={() => setLoadIdx(i)}
+              >
+                <Text style={styles.toolText}>📦 {kg === 0 ? 'ei kuormaa' : `${kg} kg`}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.tool, quakeOn && styles.toolDeleteActive]}
+              onPress={() => setQuakeOn((q) => !q)}
+            >
+              <Text style={styles.toolText}>〰 Järistys {quakeOn ? 'päällä' : 'pois'}</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
       {/* Hiekkalaatikon ajoneuvovalitsin */}
-      {phase === 'build' && level.sandbox && (
+      {phase === 'build' && level.sandbox && level.mode !== 'tower' && (
         <View style={styles.vehBar} pointerEvents="box-none">
           {SANDBOX_VEHICLES.map((v) => {
             const vi = vehicleInfo(v);
@@ -1090,7 +1207,15 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
       )}
 
       {phase === 'build' && level.hint != null && (
-        <Text style={[styles.hint, level.sandbox && styles.hintHigh]}>💡 {level.hint}</Text>
+        <Text
+          style={[
+            styles.hint,
+            level.sandbox && styles.hintHigh,
+            level.sandbox && level.mode === 'tower' && styles.hintHigher,
+          ]}
+        >
+          💡 {level.hint}
+        </Text>
       )}
       {phase === 'test' && level.mode === 'tower' && engine && (
         <Text style={styles.hint}>
@@ -1240,6 +1365,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   hintHigh: { bottom: 96 },
+  hintHigher: { bottom: 138 },
   hint: {
     position: 'absolute',
     bottom: 52,

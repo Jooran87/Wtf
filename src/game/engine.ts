@@ -177,13 +177,20 @@ export class Engine {
       const osc =
         0.6 * Math.sin((2 * Math.PI * t) / this.wind.period) +
         0.4 * Math.sin((2 * Math.PI * t) / (this.wind.period * 0.37) + 1.7);
+      // Tuulivoima N per palkkimetri: rakenne on purje, jonka pinta-ala
+      // kasvaa palkkien määrän mukana
       const w = this.wind.base + this.wind.gust * Math.max(0, osc);
       this.currentWind = w;
-      for (const n of nodes) {
-        if (n.fixed || n.vehicle) continue;
+      for (const beam of this.beams) {
+        if (beam.broken) continue;
+        const na = nodes[beam.a];
+        const nb = nodes[beam.b];
         // Tuuli voimistuu korkeuden myötä
-        const hf = Math.min(1, Math.max(0.1, (this.windGroundY - n.y) / 6));
-        n.fx += w * hf;
+        const midY = (na.y + nb.y) / 2;
+        const hf = Math.min(1, Math.max(0.1, (this.windGroundY - midY) / 6));
+        const F = w * beam.restLen * hf * 0.5;
+        if (!na.fixed) na.fx += F;
+        if (!nb.fixed) nb.fx += F;
       }
     }
     for (const beam of this.beams) {
@@ -465,6 +472,29 @@ export class Engine {
     let min = Infinity;
     for (const n of this.nodes) if (!n.vehicle && n.y < min) min = n.y;
     return min;
+  }
+
+  /**
+   * Kiinnittää kuorman (kg) rakenteen korkeimpaan solmuun ja palauttaa
+   * solmun indeksin huojuntaseurantaa varten. Kuorma 0 palauttaa silti
+   * huippusolmun.
+   */
+  attachTopLoad(mass: number): number | null {
+    let idx = -1;
+    let best = Infinity;
+    this.nodes.forEach((n, i) => {
+      if (!n.fixed && !n.vehicle && n.y < best) {
+        best = n.y;
+        idx = i;
+      }
+    });
+    if (idx < 0) return null;
+    if (mass > 0) {
+      const n = this.nodes[idx];
+      n.mass += mass;
+      n.invMass = 1 / n.mass;
+    }
+    return idx;
   }
 }
 

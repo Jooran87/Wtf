@@ -1126,7 +1126,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
             </Text>
             <View style={styles.cardRow}>
               <TouchableOpacity style={styles.btn} onPress={backToBuild}>
-                <Text style={styles.btnText}>Paranna siltaa</Text>
+                <Text style={styles.btnText}>
+                  {level.mode === 'tower' ? 'Paranna tornia' : 'Paranna siltaa'}
+                </Text>
               </TouchableOpacity>
               {hasNext && (
                 <TouchableOpacity style={[styles.btn, styles.btnGo]} onPress={onNext}>
@@ -1154,7 +1156,9 @@ export default function GameScreen({ level, hasNext, onComplete, onNext, onExit 
             )}
             <View style={styles.cardRow}>
               <TouchableOpacity style={[styles.btn, styles.btnGo]} onPress={backToBuild}>
-                <Text style={styles.btnText}>Korjaa siltaa</Text>
+                <Text style={styles.btnText}>
+                  {level.mode === 'tower' ? 'Korjaa tornia' : 'Korjaa siltaa'}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.btn} onPress={onExit}>
                 <Text style={styles.btnText}>Kentät</Text>

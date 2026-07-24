@@ -211,6 +211,20 @@ async function main() {
     await page.keyboard.press('Escape'); await page.waitForTimeout(300);
     ok('lightbox sulkeutuu Esc:llä', !(await page.isVisible('.lightbox.open')));
 
+    // Tärkeät numerot: oma sivu navigaatiossa + etusivun vieritettävä lista
+    await page.goto(base + '#/'); await page.waitForTimeout(400);
+    const cs = await page.$eval('.contact-scroll', (el) => ({ sh: el.scrollHeight, ch: el.clientHeight }));
+    ok('etusivun numerolista on vieritettävä (7 numeroa)', cs.sh > cs.ch, JSON.stringify(cs));
+    await page.click('.nav-link[data-nav="contacts"]'); await page.waitForTimeout(400);
+    ok('Tärkeät numerot -sivu avautuu navigaatiosta',
+      (await page.$eval('#content', (e) => e.textContent)).includes('Yhteystiedot (7)'));
+    await page.click('#addContactBtn'); await page.waitForTimeout(200);
+    await page.fill('#cfLabel', 'Testinumero Oy');
+    await page.fill('#cfPhone', '040 999 8877');
+    await page.click('#cfSave'); await page.waitForTimeout(500);
+    const cTxt = await page.$eval('#content', (e) => e.textContent);
+    ok('yhteystieto lisätään numerosivulta', cTxt.includes('Testinumero Oy') && cTxt.includes('Yhteystiedot (8)'));
+
     // Etusivun uusi järjestys: banneri, Viimeksi päivitetyt ja pikahuomio
     await page.goto(base + '#/'); await page.waitForTimeout(500);
     ok('kiinnitetty tiedote bannerina etusivulla',

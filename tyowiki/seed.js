@@ -193,6 +193,9 @@ insContact.run('Tekninen tuki (24/7)', '040 123 4567', 'järjestelmä- ja laiteh
 insContact.run('Vuoroesihenkilö', '040 234 5678', 'ympäri vuorokauden', 2);
 insContact.run('Kiinteistöpäivystys', '040 345 6789', 'kiinteistöjen viat ja huolto', 3);
 insContact.run('Hätäkeskus', '112', 'henkeä uhkaavat tilanteet', 4);
+insContact.run('Vartiointiliike', '040 456 7890', 'piirivartiointi ja hälytyskäynnit', 5);
+insContact.run('Sähköpäivystys', '040 567 8901', 'sähköverkon viat', 6);
+insContact.run('Hissihuolto', '0800 456 789', 'hissiviat ja jumitukset (24/7)', 7);
 
 // Esimerkkilinkit
 const insLink = db.prepare('INSERT INTO links (label, url, note, sort_order) VALUES (?, ?, ?, ?)');

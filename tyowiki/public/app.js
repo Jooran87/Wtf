@@ -451,7 +451,7 @@ function setActiveNav(nav) {
 // Reititys hash-osoitteilla: #/, #/kohde/:id, #/sivu/:id, #/muokkaa/:id, #/uusi, #/vuoroloki, #/haku?q=
 // Oikean reunan kiinnitetty vuoroloki-palsta: näkyy leveillä näytöillä
 // muilla sivuilla kuin etusivulla ja vuorolokissa (niissä huomiot ovat jo esillä).
-const RAIL_ROUTES = ['kohde', 'sivu', 'tiedotteet', 'termipankki', 'linkit', 'haku', 'historia', 'versio', 'kayttajat'];
+const RAIL_ROUTES = ['kohde', 'sivu', 'tiedotteet', 'numerot', 'termipankki', 'linkit', 'haku', 'historia', 'versio', 'kayttajat'];
 
 function railNoteHtml(n) {
   return `<div class="rail-note">
@@ -499,6 +499,7 @@ async function router() {
   try {
     if (parts.length === 0) { setActiveNav('home'); return await viewHome(); }
     if (parts[0] === 'vuoroloki') { setActiveNav('shiftlog'); return await viewShiftLog(); }
+    if (parts[0] === 'numerot') { setActiveNav('contacts'); return await viewContacts(); }
     if (parts[0] === 'tiedotteet') { setActiveNav('announcements'); return await viewAnnouncements(); }
     if (parts[0] === 'termipankki') { setActiveNav('terms'); return await viewTerms(); }
     if (parts[0] === 'linkit') { setActiveNav('links'); return await viewLinks(); }
@@ -542,10 +543,11 @@ async function viewHome() {
       <div class="hg-num">
         <div class="card">
           <div class="spread"><h3 style="margin:0">${icon('contact')} Tärkeät numerot</h3>
-            <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">＋</button></div>
+            <a class="btn small secondary" href="#/numerot">Kaikki (${contacts.length})</a></div>
           <div id="contactFormWrap"></div>
-          <ul class="contact-list">
+          <ul class="contact-list contact-scroll">
             ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä.</li>'}
+            ${contacts.length > 6 ? '<li class="contact-fade" aria-hidden="true"></li>' : ''}
           </ul>
         </div>
       </div>
@@ -605,21 +607,45 @@ async function viewHome() {
     catch (err) { toast(err.message, true); }
   };
   bindNoteDelete(viewHome);
-  $('#addContactBtn').onclick = () => editContact(null);
+  bindContactHandlers(contacts, viewHome);
+}
+
+// Yhteystietorivien käsittelijät (etusivu JA Tärkeät numerot -sivu).
+function bindContactHandlers(contacts, refresh) {
+  const addBtn = $('#addContactBtn');
+  if (addBtn) addBtn.onclick = () => editContact(null, refresh);
   document.querySelectorAll('[data-editcontact]').forEach((b) => b.onclick = () => {
-    editContact(contacts.find((c) => String(c.id) === b.dataset.editcontact));
+    editContact(contacts.find((c) => String(c.id) === b.dataset.editcontact), refresh);
   });
   document.querySelectorAll('[data-delcontact]').forEach((b) => b.onclick = async () => {
-    if (confirm('Poistetaanko yhteystieto?')) { await Store.contacts.remove(b.dataset.delcontact); viewHome(); }
+    if (confirm('Poistetaanko yhteystieto?')) { await Store.contacts.remove(b.dataset.delcontact); refresh(); }
   });
   document.querySelectorAll('[data-cmove]').forEach((b) => b.onclick = async () => {
     const ids = moveInList(contacts.map((c) => c.id), +b.dataset.cmove, +b.dataset.dir);
-    if (ids) { await Store.contacts.reorder(ids); viewHome(); }
+    if (ids) { await Store.contacts.reorder(ids); refresh(); }
   });
 }
 
+// Oma sivu tärkeille numeroille: koko lista + hallinta yhdessä paikassa.
+async function viewContacts() {
+  const contacts = await Store.contacts.list();
+  content.innerHTML = `
+    <h2>${icon('contact', 'ic-lg')} Tärkeät numerot</h2>
+    <p class="muted">Hälytyskeskuksen yhteystiedot. Numerot näkyvät myös etusivulla
+      ja puhelimeen ladattavassa offline-versiossa. Järjestä ▲▼-napeilla.</p>
+    <div class="card">
+      <div class="spread"><h3 style="margin:0">Yhteystiedot (${contacts.length})</h3>
+        <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">${icon('add')}</button></div>
+      <div id="contactFormWrap"></div>
+      <ul class="contact-list">
+        ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä. Lisää ensimmäinen ＋-napista.</li>'}
+      </ul>
+    </div>`;
+  bindContactHandlers(contacts, viewContacts);
+}
+
 // Yhteystiedon lisäys/muokkaus: lomake kortin sisään (ei prompt-ikkunoita).
-function editContact(existing) {
+function editContact(existing, refresh) {
   const wrap = $('#contactFormWrap');
   if (!wrap) return;
   if (wrap.innerHTML && !existing) { wrap.innerHTML = ''; return; }
@@ -638,7 +664,7 @@ function editContact(existing) {
     try {
       if (existing) await Store.contacts.update(existing.id, data);
       else await Store.contacts.create(data);
-      toast('Tallennettu'); viewHome();
+      toast('Tallennettu'); (refresh || viewHome)();
     } catch (err) { toast(err.message, true); }
   };
   $('#cfCancel').onclick = () => { wrap.innerHTML = ''; };
@@ -1535,7 +1561,7 @@ document.addEventListener('click', async (e) => {
   if (cat) { location.hash = '#/kohde/' + cat.dataset.cat; return; }
   const nav = e.target.closest('[data-nav]');
   if (nav) {
-    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet', terms: '#/termipankki', links: '#/linkit', users: '#/kayttajat' };
+    const routes = { home: '#/', shiftlog: '#/vuoroloki', contacts: '#/numerot', announcements: '#/tiedotteet', terms: '#/termipankki', links: '#/linkit', users: '#/kayttajat' };
     location.hash = routes[nav.dataset.nav] || '#/';
     return;
   }

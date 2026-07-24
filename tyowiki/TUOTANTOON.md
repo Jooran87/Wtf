@@ -10,7 +10,7 @@ tekijän mukaan: **[Sinä]**, **[ICT]** tai **[Yhdessä]**.
 
 | Vaihe | Tekijä | Tila |
 |---|---|---|
-| Sovellus valmis ja testattu (135 testiä, 0 haavoittuvuutta) | – | ✅ Valmis |
+| Sovellus valmis ja testattu (138 testiä, 0 haavoittuvuutta) | – | ✅ Valmis |
 | Sisältö kirjoitettu omalla koneella | Sinä | 🔶 Työn alla |
 | Palvelinkone + verkko-osoite | ICT | ⬜ |
 | Asennus palvelimelle + datan siirto | Yhdessä | ⬜ |
@@ -160,7 +160,7 @@ vuosia koskematta. Päivityksiä tarvitaan vain kahdesta syystä:
 3. Nimeä vanha kansio talteen (tyowiki-vanha), pura uusi paketti tilalle
 4. Kopioi data-kansio vanhasta uuteen
 5. npm install
-6. npm test                        # 135 testiä – kaikki vihreää?
+6. npm test                        # 138 testiä – kaikki vihreää?
 7. Käynnistä palvelu
 ```
 

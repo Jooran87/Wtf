@@ -344,6 +344,9 @@ function defaultContacts() {
     { id: nextId(), label: 'Vuoroesihenkilö', phone: '040 234 5678', note: 'ympäri vuorokauden', sort_order: 2 },
     { id: nextId(), label: 'Kiinteistöpäivystys', phone: '040 345 6789', note: 'kiinteistöjen viat ja huolto', sort_order: 3 },
     { id: nextId(), label: 'Hätäkeskus', phone: '112', note: 'henkeä uhkaavat tilanteet', sort_order: 4 },
+    { id: nextId(), label: 'Vartiointiliike', phone: '040 456 7890', note: 'piirivartiointi ja hälytyskäynnit', sort_order: 5 },
+    { id: nextId(), label: 'Sähköpäivystys', phone: '040 567 8901', note: 'sähköverkon viat', sort_order: 6 },
+    { id: nextId(), label: 'Hissihuolto', phone: '0800 456 789', note: 'hissiviat ja jumitukset (24/7)', sort_order: 7 },
   ];
 }
 

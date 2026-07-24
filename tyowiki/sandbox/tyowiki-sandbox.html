@@ -549,6 +549,20 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
 
 /* Contacts */
 .contact-list { list-style: none; margin: 0; padding: 0; }
+/* Etusivun numerolista: näyttää ~6 riviä, loput vierittämällä. Alareunan
+   häivytys vihjaa, että listaa voi rullata. */
+.contact-scroll {
+  max-height: 430px; overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; padding-right: 4px;
+}
+.contact-scroll::-webkit-scrollbar { width: 8px; }
+.contact-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.contact-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.hg-num .card:has(.contact-scroll) { position: relative; }
+.contact-fade {
+  position: sticky; bottom: 0; height: 28px; margin-top: -28px; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--panel));
+}
 .contact { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
   padding: 10px 0; border-bottom: 1px solid var(--border); }
 .contact:last-child { border-bottom: none; }
@@ -704,6 +718,7 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
         <button class="nav-link" data-nav="home" data-icon="home"><span>Etusivu</span></button>
         <button class="nav-link" data-nav="announcements" data-icon="announce"><span>Tiedotteet</span></button>
         <button class="nav-link" data-nav="shiftlog" data-icon="note"><span>Vuoroloki</span></button>
+        <button class="nav-link" data-nav="contacts" data-icon="contact"><span>Tärkeät numerot</span></button>
         <button class="nav-link" data-nav="terms" data-icon="terms"><span>Termipankki</span></button>
         <button class="nav-link" data-nav="links" data-icon="link"><span>Linkit</span></button>
         <button class="nav-link" data-nav="users" id="usersNav" data-icon="users" style="display:none"><span>Käyttäjät</span></button>
@@ -1325,6 +1340,9 @@ function defaultContacts() {
     { id: nextId(), label: 'Vuoroesihenkilö', phone: '040 234 5678', note: 'ympäri vuorokauden', sort_order: 2 },
     { id: nextId(), label: 'Kiinteistöpäivystys', phone: '040 345 6789', note: 'kiinteistöjen viat ja huolto', sort_order: 3 },
     { id: nextId(), label: 'Hätäkeskus', phone: '112', note: 'henkeä uhkaavat tilanteet', sort_order: 4 },
+    { id: nextId(), label: 'Vartiointiliike', phone: '040 456 7890', note: 'piirivartiointi ja hälytyskäynnit', sort_order: 5 },
+    { id: nextId(), label: 'Sähköpäivystys', phone: '040 567 8901', note: 'sähköverkon viat', sort_order: 6 },
+    { id: nextId(), label: 'Hissihuolto', phone: '0800 456 789', note: 'hissiviat ja jumitukset (24/7)', sort_order: 7 },
   ];
 }
 
@@ -2211,7 +2229,7 @@ function setActiveNav(nav) {
 // Reititys hash-osoitteilla: #/, #/kohde/:id, #/sivu/:id, #/muokkaa/:id, #/uusi, #/vuoroloki, #/haku?q=
 // Oikean reunan kiinnitetty vuoroloki-palsta: näkyy leveillä näytöillä
 // muilla sivuilla kuin etusivulla ja vuorolokissa (niissä huomiot ovat jo esillä).
-const RAIL_ROUTES = ['kohde', 'sivu', 'tiedotteet', 'termipankki', 'linkit', 'haku', 'historia', 'versio', 'kayttajat'];
+const RAIL_ROUTES = ['kohde', 'sivu', 'tiedotteet', 'numerot', 'termipankki', 'linkit', 'haku', 'historia', 'versio', 'kayttajat'];
 
 function railNoteHtml(n) {
   return `<div class="rail-note">
@@ -2259,6 +2277,7 @@ async function router() {
   try {
     if (parts.length === 0) { setActiveNav('home'); return await viewHome(); }
     if (parts[0] === 'vuoroloki') { setActiveNav('shiftlog'); return await viewShiftLog(); }
+    if (parts[0] === 'numerot') { setActiveNav('contacts'); return await viewContacts(); }
     if (parts[0] === 'tiedotteet') { setActiveNav('announcements'); return await viewAnnouncements(); }
     if (parts[0] === 'termipankki') { setActiveNav('terms'); return await viewTerms(); }
     if (parts[0] === 'linkit') { setActiveNav('links'); return await viewLinks(); }
@@ -2302,10 +2321,11 @@ async function viewHome() {
       <div class="hg-num">
         <div class="card">
           <div class="spread"><h3 style="margin:0">${icon('contact')} Tärkeät numerot</h3>
-            <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">＋</button></div>
+            <a class="btn small secondary" href="#/numerot">Kaikki (${contacts.length})</a></div>
           <div id="contactFormWrap"></div>
-          <ul class="contact-list">
+          <ul class="contact-list contact-scroll">
             ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä.</li>'}
+            ${contacts.length > 6 ? '<li class="contact-fade" aria-hidden="true"></li>' : ''}
           </ul>
         </div>
       </div>
@@ -2365,21 +2385,45 @@ async function viewHome() {
     catch (err) { toast(err.message, true); }
   };
   bindNoteDelete(viewHome);
-  $('#addContactBtn').onclick = () => editContact(null);
+  bindContactHandlers(contacts, viewHome);
+}
+
+// Yhteystietorivien käsittelijät (etusivu JA Tärkeät numerot -sivu).
+function bindContactHandlers(contacts, refresh) {
+  const addBtn = $('#addContactBtn');
+  if (addBtn) addBtn.onclick = () => editContact(null, refresh);
   document.querySelectorAll('[data-editcontact]').forEach((b) => b.onclick = () => {
-    editContact(contacts.find((c) => String(c.id) === b.dataset.editcontact));
+    editContact(contacts.find((c) => String(c.id) === b.dataset.editcontact), refresh);
   });
   document.querySelectorAll('[data-delcontact]').forEach((b) => b.onclick = async () => {
-    if (confirm('Poistetaanko yhteystieto?')) { await Store.contacts.remove(b.dataset.delcontact); viewHome(); }
+    if (confirm('Poistetaanko yhteystieto?')) { await Store.contacts.remove(b.dataset.delcontact); refresh(); }
   });
   document.querySelectorAll('[data-cmove]').forEach((b) => b.onclick = async () => {
     const ids = moveInList(contacts.map((c) => c.id), +b.dataset.cmove, +b.dataset.dir);
-    if (ids) { await Store.contacts.reorder(ids); viewHome(); }
+    if (ids) { await Store.contacts.reorder(ids); refresh(); }
   });
 }
 
+// Oma sivu tärkeille numeroille: koko lista + hallinta yhdessä paikassa.
+async function viewContacts() {
+  const contacts = await Store.contacts.list();
+  content.innerHTML = `
+    <h2>${icon('contact', 'ic-lg')} Tärkeät numerot</h2>
+    <p class="muted">Hälytyskeskuksen yhteystiedot. Numerot näkyvät myös etusivulla
+      ja puhelimeen ladattavassa offline-versiossa. Järjestä ▲▼-napeilla.</p>
+    <div class="card">
+      <div class="spread"><h3 style="margin:0">Yhteystiedot (${contacts.length})</h3>
+        <button class="icon-btn small" id="addContactBtn" title="Lisää yhteystieto">${icon('add')}</button></div>
+      <div id="contactFormWrap"></div>
+      <ul class="contact-list">
+        ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä. Lisää ensimmäinen ＋-napista.</li>'}
+      </ul>
+    </div>`;
+  bindContactHandlers(contacts, viewContacts);
+}
+
 // Yhteystiedon lisäys/muokkaus: lomake kortin sisään (ei prompt-ikkunoita).
-function editContact(existing) {
+function editContact(existing, refresh) {
   const wrap = $('#contactFormWrap');
   if (!wrap) return;
   if (wrap.innerHTML && !existing) { wrap.innerHTML = ''; return; }
@@ -2398,7 +2442,7 @@ function editContact(existing) {
     try {
       if (existing) await Store.contacts.update(existing.id, data);
       else await Store.contacts.create(data);
-      toast('Tallennettu'); viewHome();
+      toast('Tallennettu'); (refresh || viewHome)();
     } catch (err) { toast(err.message, true); }
   };
   $('#cfCancel').onclick = () => { wrap.innerHTML = ''; };
@@ -3295,7 +3339,7 @@ document.addEventListener('click', async (e) => {
   if (cat) { location.hash = '#/kohde/' + cat.dataset.cat; return; }
   const nav = e.target.closest('[data-nav]');
   if (nav) {
-    const routes = { home: '#/', shiftlog: '#/vuoroloki', announcements: '#/tiedotteet', terms: '#/termipankki', links: '#/linkit', users: '#/kayttajat' };
+    const routes = { home: '#/', shiftlog: '#/vuoroloki', contacts: '#/numerot', announcements: '#/tiedotteet', terms: '#/termipankki', links: '#/linkit', users: '#/kayttajat' };
     location.hash = routes[nav.dataset.nav] || '#/';
     return;
   }

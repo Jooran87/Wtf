@@ -18,6 +18,8 @@ Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
   päivitetyt ohjeet; kapealla näytöllä numerot nousevat ensimmäiseksi
 - **Vuoroloki** – juokseva aikaleimattu lista vuoron huomioista; pikakirjaus
   suoraan etusivulta, ja leveällä näytöllä loki kulkee mukana oikeassa reunassa
+- **Tärkeät numerot** – oma sivu päänavigaatiossa (lisäys, muokkaus, järjestys);
+  etusivun laatikko näyttää ~6 numeroa kerralla ja loput rullaamalla
 - **Tiedotteet** – oma sivu + nosto etusivulle; tärkeät tiedotteet voi 📌-kiinnittää,
   jolloin ne näkyvät bannerina etusivun ylälaidassa
 - **Versiohistoria** – jokainen muokkaus tallentaa edellisen version talteen;

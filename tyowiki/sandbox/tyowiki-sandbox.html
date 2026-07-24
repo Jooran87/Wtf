@@ -660,6 +660,19 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
 /* Tiedote- ja huomiokortit lasikortin päällä: kevyt läpikuultava kerros */
 .ann, .note { background: var(--glass-highlight); }
 .ann.pinned { background: var(--brand-soft); }
+/* Tiedotekortti: värillinen liquid glass -kehys, joka erottuu ohjeista */
+.ann-card {
+  border: 1px solid var(--pin-border);
+  border-top: 3px solid var(--brand);
+  padding-top: 13px;
+  background:
+    linear-gradient(180deg, var(--brand-soft) 0%, transparent 82px),
+    var(--glass-bg);
+}
+.ann-card h3 { color: var(--brand-ink); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ann-card { background: linear-gradient(180deg, var(--brand-soft) 0%, transparent 82px), var(--panel); }
+}
 /* Vanhat selaimet ilman backdrop-filteriä: kiinteät paneelit */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .topbar, .sidebar, .card, .cat-card { background: var(--panel); }
@@ -2452,6 +2465,11 @@ async function viewHome() {
         </div>
       </div>
       <div class="home-main">
+        ${otherAnns.length ? `<div class="card ann-card">
+          <div class="spread"><h3 style="margin:0">${icon('announce')} Tiedotteet</h3>
+            <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
+          ${otherAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
+        </div>` : ''}
         <div class="cat-grid">
           ${topCategories().map((c) => {
             const subs = subCategories(c.id);
@@ -2463,11 +2481,6 @@ async function viewHome() {
           </a>`;
           }).join('')}
         </div>
-        ${otherAnns.length ? `<div class="card">
-          <div class="spread"><h3 style="margin:0">${icon('announce')} Tiedotteet</h3>
-            <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
-          ${otherAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
-        </div>` : ''}
         <div class="card">
           <div class="spread"><h3 style="margin:0">${icon('popular')} Suosituimmat ohjeet</h3></div>
           <ol class="rank-list">

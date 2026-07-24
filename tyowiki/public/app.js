@@ -630,6 +630,11 @@ async function viewHome() {
         </div>
       </div>
       <div class="home-main">
+        ${otherAnns.length ? `<div class="card ann-card">
+          <div class="spread"><h3 style="margin:0">${icon('announce')} Tiedotteet</h3>
+            <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
+          ${otherAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
+        </div>` : ''}
         <div class="cat-grid">
           ${topCategories().map((c) => {
             const subs = subCategories(c.id);
@@ -641,11 +646,6 @@ async function viewHome() {
           </a>`;
           }).join('')}
         </div>
-        ${otherAnns.length ? `<div class="card">
-          <div class="spread"><h3 style="margin:0">${icon('announce')} Tiedotteet</h3>
-            <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
-          ${otherAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
-        </div>` : ''}
         <div class="card">
           <div class="spread"><h3 style="margin:0">${icon('popular')} Suosituimmat ohjeet</h3></div>
           <ol class="rank-list">

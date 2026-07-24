@@ -541,12 +541,23 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
   max-height: 430px; overflow-y: auto; overscroll-behavior: contain;
   scrollbar-width: thin; padding-right: 4px;
 }
-.contact-scroll::-webkit-scrollbar { width: 8px; }
-.contact-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-.contact-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+/* Yhteinen vieritettävä lista (numerot, vuorohuomiot etusivulla, rail-loki) */
+.contact-scroll, .notes-scroll, .rail-scroll {
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: 4px;
+}
+.contact-scroll { max-height: 430px; }
+.notes-scroll { max-height: 440px; }
+.rail-scroll { max-height: 46vh; }
+.contact-scroll::-webkit-scrollbar, .notes-scroll::-webkit-scrollbar,
+.rail-scroll::-webkit-scrollbar { width: 8px; }
+.contact-scroll::-webkit-scrollbar-thumb, .notes-scroll::-webkit-scrollbar-thumb,
+.rail-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.contact-scroll::-webkit-scrollbar-thumb:hover, .notes-scroll::-webkit-scrollbar-thumb:hover,
+.rail-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .hg-num .card:has(.contact-scroll) { position: relative; }
-.contact-fade {
-  position: sticky; bottom: 0; height: 28px; margin-top: -28px; pointer-events: none;
+/* Alareunan häivytys vihjaa, että listaa voi vierittää */
+.contact-fade, .scroll-fade {
+  position: sticky; bottom: 0; height: 26px; margin-top: -26px; pointer-events: none;
   background: linear-gradient(to bottom, transparent, var(--panel));
 }
 .contact { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;

@@ -235,6 +235,9 @@ async function main() {
     await page.click('#homeNoteAdd'); await page.waitForTimeout(500);
     ok('pikahuomio tallentuu etusivulta',
       (await page.$eval('#content', (e) => e.textContent)).includes('Pikahuomio etusivulta'));
+    // Vuorohuomiot-laatikko näyttää monta kirjausta ja vierii
+    const ns = await page.$eval('.notes-scroll', (el) => ({ sh: el.scrollHeight, ch: el.clientHeight, n: el.querySelectorAll('.note').length }));
+    ok('etusivun vuorohuomiot vierittyvät (monta kirjausta)', ns.n >= 6 && ns.sh > ns.ch, JSON.stringify(ns));
 
     // Oikean reunan vuoroloki-palsta leveällä näytöllä (>= 1400 px)
     const wide = await browser.newPage({ viewport: { width: 1600, height: 900 } });
@@ -242,6 +245,8 @@ async function main() {
     await wide.goto(fileUrl + '#/termipankki'); await wide.waitForTimeout(900);
     const railText = await wide.$eval('#rail', (e) => e.textContent).catch(() => '');
     ok('vuoroloki-palsta näkyy leveällä näytöllä', railText.includes('Vuoroloki'));
+    const rs = await wide.$eval('.rail-scroll', (el) => ({ sh: el.scrollHeight, ch: el.clientHeight, n: el.querySelectorAll('.rail-note').length }));
+    ok('reunapalstan loki vierittyy (monta kirjausta)', rs.n >= 6 && rs.sh > rs.ch, JSON.stringify(rs));
     await wide.fill('#railNoteText', 'Huomio reunapalstasta');
     await wide.click('#railNoteAdd'); await wide.waitForTimeout(500);
     ok('huomio tallentuu reunapalstasta',

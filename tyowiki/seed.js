@@ -188,6 +188,11 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
 insNote.run(halytyskeskus, 'Anna', 'Aamuvuoro rauhallinen. Kohteessa 4021 toistuva tekninen ilmoitus – huolto tilattu.', now());
 insNote.run(kipa, 'Jukka', 'Kipa: kohteen 5510 ulko-oven lukitus temppuili, huoltopyyntö tehty.', now());
 insNote.run(null, 'Anna', 'Yleinen: uudet ISM-ohjeet päivitetty järjestelmään.', now());
+insNote.run(hairiot, 'Mikko', 'Sähkökatko kohteessa 3300 klo 02:15–02:40, varavoima toimi. Ei hälytyksiä.', now());
+insNote.run(halytyskeskus, 'Sari', 'Paloilmoitin 4021: kokouskerroksen ilmaisin herkkä, ilmoitettu huoltoon.', now());
+insNote.run(kipa, 'Jukka', 'Kipa 5510: lumityöt tehty, piha-alue liukas – hiekoitus pyydetty.', now());
+insNote.run(null, 'Anna', 'Vuoronvaihto: avaimet ja radiopuhelin luovutettu iltavuorolle.', now());
+insNote.run(halytyskeskus, 'Mikko', 'Testihälytys järjestelmästä klo 14:00, kuitattu ja kirjattu.', now());
 
 insContact.run('Tekninen tuki (24/7)', '040 123 4567', 'järjestelmä- ja laitehäiriöt', 1);
 insContact.run('Vuoroesihenkilö', '040 234 5678', 'ympäri vuorokauden', 2);

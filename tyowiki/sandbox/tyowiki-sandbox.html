@@ -555,12 +555,23 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
   max-height: 430px; overflow-y: auto; overscroll-behavior: contain;
   scrollbar-width: thin; padding-right: 4px;
 }
-.contact-scroll::-webkit-scrollbar { width: 8px; }
-.contact-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-.contact-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+/* Yhteinen vieritettävä lista (numerot, vuorohuomiot etusivulla, rail-loki) */
+.contact-scroll, .notes-scroll, .rail-scroll {
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: 4px;
+}
+.contact-scroll { max-height: 430px; }
+.notes-scroll { max-height: 440px; }
+.rail-scroll { max-height: 46vh; }
+.contact-scroll::-webkit-scrollbar, .notes-scroll::-webkit-scrollbar,
+.rail-scroll::-webkit-scrollbar { width: 8px; }
+.contact-scroll::-webkit-scrollbar-thumb, .notes-scroll::-webkit-scrollbar-thumb,
+.rail-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.contact-scroll::-webkit-scrollbar-thumb:hover, .notes-scroll::-webkit-scrollbar-thumb:hover,
+.rail-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .hg-num .card:has(.contact-scroll) { position: relative; }
-.contact-fade {
-  position: sticky; bottom: 0; height: 28px; margin-top: -28px; pointer-events: none;
+/* Alareunan häivytys vihjaa, että listaa voi vierittää */
+.contact-fade, .scroll-fade {
+  position: sticky; bottom: 0; height: 26px; margin-top: -26px; pointer-events: none;
   background: linear-gradient(to bottom, transparent, var(--panel));
 }
 .contact { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
@@ -1288,6 +1299,11 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
   mkNote(halytyskeskus.id, 'Anna', 'Aamuvuoro rauhallinen. Kohteessa 4021 toistuva tekninen ilmoitus – huolto tilattu.');
   mkNote(kipa.id, 'Jukka', 'Kipa: kohteen 5510 ulko-oven lukitus temppuili, huoltopyyntö tehty.');
   mkNote(null, 'Anna', 'Yleinen: uudet ISM-ohjeet päivitetty järjestelmään.');
+  mkNote(hairiot.id, 'Mikko', 'Sähkökatko kohteessa 3300 klo 02:15–02:40, varavoima toimi. Ei hälytyksiä.');
+  mkNote(halytyskeskus.id, 'Sari', 'Paloilmoitin 4021: kokouskerroksen ilmaisin herkkä, ilmoitettu huoltoon.');
+  mkNote(kipa.id, 'Jukka', 'Kipa 5510: lumityöt tehty, piha-alue liukas – hiekoitus pyydetty.');
+  mkNote(null, 'Anna', 'Vuoronvaihto: avaimet ja radiopuhelin luovutettu iltavuorolle.');
+  mkNote(halytyskeskus.id, 'Mikko', 'Testihälytys järjestelmästä klo 14:00, kuitattu ja kirjattu.');
 
   // Esimerkkinä katselukertoja, jotta "Suosituimmat ohjeet" näkyy heti.
   const seedViews = [12, 9, 34, 58, 41, 29, 18, 25, 22];
@@ -2243,7 +2259,7 @@ async function updateRail(section) {
   if (!rail) return;
   if (!RAIL_ROUTES.includes(section)) { rail.innerHTML = ''; return; }
   try {
-    const notes = await Store.notes.list({ limit: 5 });
+    const notes = await Store.notes.list({ limit: 30 });
     rail.innerHTML = `<div class="card">
       <div class="spread"><h3 style="margin:0">${icon('note')} Vuoroloki</h3>
         <a class="btn small secondary" href="#/vuoroloki">Kaikki</a></div>
@@ -2251,7 +2267,10 @@ async function updateRail(section) {
         <textarea id="railNoteText" placeholder="Kirjaa huomio…"></textarea>
         <button class="btn small" id="railNoteAdd">Lisää huomio</button>
       </div>
-      ${notes.map(railNoteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+      <div class="rail-scroll">
+        ${notes.map(railNoteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+        ${notes.length > 5 ? '<div class="scroll-fade" aria-hidden="true"></div>' : ''}
+      </div>
     </div>`;
     $('#railNoteAdd').onclick = async () => {
       const text = $('#railNoteText').value;
@@ -2300,7 +2319,7 @@ async function viewHome() {
   currentCategoryId = null; renderSidebar();
   const [pages, recentNotes, popular, contacts, anns] = await Promise.all([
     Store.pages.list(),
-    Store.notes.list({ limit: 5 }),
+    Store.notes.list({ limit: 30 }),
     Store.pages.popular(10),
     Store.contacts.list(),
     Store.announcements.list(),
@@ -2373,7 +2392,10 @@ async function viewHome() {
             <textarea id="homeNoteText" placeholder="Kirjaa huomio vuorolokiin…"></textarea>
             <button class="btn small" id="homeNoteAdd">Lisää huomio</button>
           </div>
-          ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+          <div class="notes-scroll">
+            ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+            ${recentNotes.length > 5 ? '<div class="scroll-fade" aria-hidden="true"></div>' : ''}
+          </div>
         </div>
       </div>
     </div>`;

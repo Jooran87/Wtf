@@ -465,7 +465,7 @@ async function updateRail(section) {
   if (!rail) return;
   if (!RAIL_ROUTES.includes(section)) { rail.innerHTML = ''; return; }
   try {
-    const notes = await Store.notes.list({ limit: 5 });
+    const notes = await Store.notes.list({ limit: 30 });
     rail.innerHTML = `<div class="card">
       <div class="spread"><h3 style="margin:0">${icon('note')} Vuoroloki</h3>
         <a class="btn small secondary" href="#/vuoroloki">Kaikki</a></div>
@@ -473,7 +473,10 @@ async function updateRail(section) {
         <textarea id="railNoteText" placeholder="Kirjaa huomio…"></textarea>
         <button class="btn small" id="railNoteAdd">Lisää huomio</button>
       </div>
-      ${notes.map(railNoteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+      <div class="rail-scroll">
+        ${notes.map(railNoteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+        ${notes.length > 5 ? '<div class="scroll-fade" aria-hidden="true"></div>' : ''}
+      </div>
     </div>`;
     $('#railNoteAdd').onclick = async () => {
       const text = $('#railNoteText').value;
@@ -522,7 +525,7 @@ async function viewHome() {
   currentCategoryId = null; renderSidebar();
   const [pages, recentNotes, popular, contacts, anns] = await Promise.all([
     Store.pages.list(),
-    Store.notes.list({ limit: 5 }),
+    Store.notes.list({ limit: 30 }),
     Store.pages.popular(10),
     Store.contacts.list(),
     Store.announcements.list(),
@@ -595,7 +598,10 @@ async function viewHome() {
             <textarea id="homeNoteText" placeholder="Kirjaa huomio vuorolokiin…"></textarea>
             <button class="btn small" id="homeNoteAdd">Lisää huomio</button>
           </div>
-          ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+          <div class="notes-scroll">
+            ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
+            ${recentNotes.length > 5 ? '<div class="scroll-fade" aria-hidden="true"></div>' : ''}
+          </div>
         </div>
       </div>
     </div>`;

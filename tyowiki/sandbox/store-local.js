@@ -292,6 +292,11 @@ ISM-ohjeet kokoavat toimintajärjestelmän mukaiset menettelyt.
   mkNote(halytyskeskus.id, 'Anna', 'Aamuvuoro rauhallinen. Kohteessa 4021 toistuva tekninen ilmoitus – huolto tilattu.');
   mkNote(kipa.id, 'Jukka', 'Kipa: kohteen 5510 ulko-oven lukitus temppuili, huoltopyyntö tehty.');
   mkNote(null, 'Anna', 'Yleinen: uudet ISM-ohjeet päivitetty järjestelmään.');
+  mkNote(hairiot.id, 'Mikko', 'Sähkökatko kohteessa 3300 klo 02:15–02:40, varavoima toimi. Ei hälytyksiä.');
+  mkNote(halytyskeskus.id, 'Sari', 'Paloilmoitin 4021: kokouskerroksen ilmaisin herkkä, ilmoitettu huoltoon.');
+  mkNote(kipa.id, 'Jukka', 'Kipa 5510: lumityöt tehty, piha-alue liukas – hiekoitus pyydetty.');
+  mkNote(null, 'Anna', 'Vuoronvaihto: avaimet ja radiopuhelin luovutettu iltavuorolle.');
+  mkNote(halytyskeskus.id, 'Mikko', 'Testihälytys järjestelmästä klo 14:00, kuitattu ja kirjattu.');
 
   // Esimerkkinä katselukertoja, jotta "Suosituimmat ohjeet" näkyy heti.
   const seedViews = [12, 9, 34, 58, 41, 29, 18, 25, 22];

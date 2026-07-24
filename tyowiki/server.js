@@ -35,7 +35,7 @@ app.use((req, res, next) => {
 const FIELD_LIMITS = {
   title: 300, content: 500000, keywords: 500, author: 100, name: 200,
   label: 200, note: 500, phone: 60, url: 2000, term: 150, definition: 2000,
-  icon: 8, color: 16,
+  icon: 24, color: 16,
 };
 
 // Kategorian väri: sallitaan vain #rrggbb tai tyhjä (estää CSS-injektion,

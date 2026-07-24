@@ -169,6 +169,16 @@ async function main() {
     await page.goto(base + '#/'); await page.waitForTimeout(400);
     ok('kategorioilla väriaksentti sivupalkissa', (await page.$$('#categoryList .cat-btn.has-accent')).length >= 5);
     ok('väriaksentti korteissa etusivulla', (await page.$$('.cat-card.has-accent')).length >= 5);
+    // Kategoriakuvakkeet ovat siistejä SVG-viivakuvakkeita (ei emojia)
+    ok('kategoriakuvakkeet ovat SVG sivupalkissa', (await page.$$('#categoryList .cat-ico svg.ic')).length >= 5);
+    ok('kategoriakuvakkeet ovat SVG korteissa', (await page.$$('.cat-card .cc-ico svg.ic')).length >= 5);
+    // Kuvakevalitsimella luotu kategoria saa valitun SVG-kuvakkeen
+    await page.click('#addCategoryBtn'); await page.waitForTimeout(200);
+    await page.fill('#newCatName', 'Turvakategoria');
+    await page.click('#newCatIcon .ic-opt[data-i="svg:shield"]'); await page.waitForTimeout(150);
+    await page.click('#newCatSave'); await page.waitForTimeout(500);
+    ok('uuden kategorian kuvake renderöityy SVG:nä',
+      (await page.$$('#categoryList .cat-btn .cat-ico svg.ic')).length >= 6);
 
     // Live-haku: pudotusvalikko näyttää osumat ja rivin klikkaus vie ohjeeseen
     await page.fill('#searchInput', 'palo'); await page.waitForTimeout(400);

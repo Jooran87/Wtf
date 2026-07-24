@@ -226,12 +226,33 @@ h2 .ic, h3 .ic { margin-right: 7px; }
   display: flex; align-items: center; justify-content: center;
 }
 
+/* Kuvakevalitsin: siistit SVG-viivakuvakkeet napeiksi */
+.icon-picker { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; padding: 2px 0; }
+.ic-opt {
+  width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel); color: var(--muted); cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ic-opt:hover { border-color: var(--brand); color: var(--brand-ink); }
+.ic-opt.sel { border-color: var(--brand); color: var(--brand-ink); background: var(--brand-soft); }
+.ic-opt .ic { width: 20px; height: 20px; }
+
+/* Kategoriakuvakkeiden koko sivupalkissa ja korteissa (SVG tai emoji) */
+.cat-ico { display: inline-flex; align-items: center; color: var(--muted); }
+.cat-ico .ic { width: 19px; height: 19px; }
+.category-list .cat-btn.subcat .cat-ico .ic { width: 16px; height: 16px; }
+.cat-btn.active .cat-ico { color: var(--brand-ink); }
+.cc-ico { display: inline-flex; align-items: center; color: var(--muted); }
+.cc-ico .ic { width: 26px; height: 26px; }
+.cat-emoji { font-size: inherit; line-height: 1; }
+.cc-ico .cat-emoji { font-size: 26px; }
+
 /* Kategorian lisäyslomake sivupalkissa */
 .cat-form { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px 10px; align-items: center; }
 .cat-form .row { display: flex; gap: 6px; align-items: center; }
 .cat-form select { padding: 7px 4px; border: 1px solid var(--border); border-radius: 6px; }
-.cat-form #newCatIcon, .cat-form #subCatIcon, .cat-form #editCatIcon { width: 58px; }
 .cat-form .parent-select { width: 100%; }
+.picker-label { width: 100%; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; margin: 4px 0 0; }
 .cat-form input { min-width: 0; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; outline: none; }
 .cat-form input:focus { border-color: var(--brand); }
 .parent-select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); }
@@ -1104,16 +1125,16 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [], links: [] };
-  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', color: '#7c3aed', sort_order: 0, parent_id: null };
+  const pereh = { id: nextId(), name: 'Perehdytys', icon: 'svg:graduation', color: '#7c3aed', sort_order: 0, parent_id: null };
   DB.categories.push(pereh);
-  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', color: '#c2410c', sort_order: 1, parent_id: null };
-  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', color: '#9d174d', sort_order: 2, parent_id: null };
-  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', color: '#b45309', sort_order: 3, parent_id: null };
-  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', color: '#0369a1', sort_order: 4, parent_id: null };
+  const kipa = { id: nextId(), name: 'Kipa', icon: 'svg:building', color: '#c2410c', sort_order: 1, parent_id: null };
+  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: 'svg:siren', color: '#9d174d', sort_order: 2, parent_id: null };
+  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: 'svg:bolt', color: '#b45309', sort_order: 3, parent_id: null };
+  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: 'svg:book', color: '#0369a1', sort_order: 4, parent_id: null };
   DB.categories.push(kipa, halytyskeskus, hairiot, ism);
   // Esimerkki alakategorioista: Kipan alle asiakkuuksittain.
-  const kipaAsA = { id: nextId(), name: 'Asiakas A – Toimistotalo', icon: '🏢', sort_order: 1, parent_id: kipa.id };
-  const kipaAsB = { id: nextId(), name: 'Asiakas B – Kauppakeskus', icon: '🏬', sort_order: 2, parent_id: kipa.id };
+  const kipaAsA = { id: nextId(), name: 'Asiakas A – Toimistotalo', icon: 'svg:building', sort_order: 1, parent_id: kipa.id };
+  const kipaAsB = { id: nextId(), name: 'Asiakas B – Kauppakeskus', icon: 'svg:store', sort_order: 2, parent_id: kipa.id };
   DB.categories.push(kipaAsA, kipaAsB);
 
   mkPage(pereh.id, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
@@ -2119,8 +2140,49 @@ async function loadCategories() {
   renderSidebar();
 }
 
-const CAT_ICONS = ['📄', '🎓', '🏢', '🏬', '🚨', '⚡', '📘', '🧰', '🧹', '🔧', '🛡️', '🗂️', '🏥'];
-const catIcon = (c) => (c && c.icon) ? c.icon : '📄';
+// Kategorioiden siistit SVG-viivakuvakkeet (sama tyyli kuin navigaatiossa).
+// Tallennetaan muodossa "svg:<nimi>". Vanhat emoji-valinnat toimivat yhä.
+const CAT_ICON_PATHS = {
+  doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/>',
+  graduation: '<path d="M2.5 8.5 12 4l9.5 4.5L12 13z"/><path d="M6 10.5V16c0 1.3 2.7 2.5 6 2.5s6-1.2 6-2.5v-5.5"/><path d="M21.5 8.5v5"/>',
+  building: '<path d="M5 21V4.5A1.5 1.5 0 0 1 6.5 3h8A1.5 1.5 0 0 1 16 4.5V21"/><path d="M16 9h3.5A1.5 1.5 0 0 1 21 10.5V21"/><path d="M8 7h2M8 11h2M8 15h2M12 7h1M12 11h1M12 15h1M3 21h18"/>',
+  store: '<path d="M4 9.5 5.5 4h13L20 9.5"/><path d="M4 9.5a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0"/><path d="M5 11v9h14v-9"/><path d="M9.5 20v-5h5v5"/>',
+  siren: '<path d="M6 20v-6a6 6 0 0 1 12 0v6z"/><path d="M4 20h16"/><path d="M12 4V2M5 7 3.5 5.5M19 7l1.5-1.5"/>',
+  bolt: '<path d="M13 2 4 14h6l-1 8 9-12h-6z"/>',
+  book: '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 1 6.5 18H19v3H6.5A1.5 1.5 0 0 1 5 19.5z"/>',
+  shield: '<path d="M12 3l7 2.5V11c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V5.5z"/><path d="M9 12l2 2 4-4"/>',
+  wrench: '<path d="M15 6a4 4 0 0 0-5 5L4 17l3 3 6-6a4 4 0 0 0 5-5l-2.5 2.5L14 11l-.5-2z"/>',
+  fire: '<path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-1.5.6-2.8 1.3-3.8C9 10 9.5 12 11 12c1 0 1-1.2.5-3C11 7.5 12 4.5 12 3z"/>',
+  key: '<circle cx="8" cy="8" r="4"/><path d="M11 11l9 9M17 17l2-2M15 15l1.5-1.5"/>',
+  folder: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h7A1.5 1.5 0 0 1 19 9v8.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 3 17.5z"/>',
+  clipboard: '<path d="M8 4.5h8V7H8z"/><path d="M8 5.5H6v14h12v-14h-2"/><path d="M9 11h6M9 15h6"/>',
+  phone: '<path d="M6 3.5h3l1.5 4.5-2 1.3a11 11 0 0 0 5 5l1.3-2 4.5 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4 6a2 2 0 0 1 2-2.5z"/>',
+  droplet: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  snow: '<path d="M12 2v20M4 7l16 10M20 7 4 17"/><path d="M12 2l-2 2m2-2 2 2M4 7v2.5M4 7l2.2.5M20 17v-2.5M20 17l-2.2-.5M4 17l2.2-.5M4 17v-2.5M20 7v2.5M20 7l-2.2.5M12 22l-2-2m2 2 2-2"/>',
+  plug: '<path d="M9 3v5M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/>',
+  heart: '<path d="M12 20S4 15 4 9.5A3.5 3.5 0 0 1 12 7a3.5 3.5 0 0 1 8 2.5C20 15 12 20 12 20z"/>',
+};
+// Valittavissa oleva ikonisto (nimet CAT_ICON_PATHSista).
+const CAT_ICONS = ['doc', 'graduation', 'building', 'store', 'siren', 'bolt', 'book',
+  'shield', 'wrench', 'fire', 'key', 'folder', 'clipboard', 'phone', 'droplet', 'snow', 'plug', 'heart'];
+
+function catSvg(name, cls) {
+  const p = CAT_ICON_PATHS[name];
+  if (!p) return '';
+  return `<svg class="ic${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" `
+    + `stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+}
+// Raaka tallennettu arvo (token tai emoji) – valinnan vertailuun.
+const catIcon = (c) => (c && c.icon) ? c.icon : 'svg:folder';
+// Render-valmis HTML: SVG-token → viivakuvake, muuten emoji tekstinä.
+function catIconHtml(c, cls) {
+  const v = (c && c.icon) ? c.icon : 'svg:folder';
+  if (v.indexOf('svg:') === 0) {
+    const s = catSvg(v.slice(4), cls);
+    if (s) return s;
+  }
+  return `<span class="cat-emoji">${esc(v)}</span>`;
+}
 
 // Kategorian väriaksentti: rauhallinen, erottuva paletti. Vältetään kirkasta
 // punaista/vihreää, jotka sekoittuvat vaara/ok-merkityksiin. Heksavalidointi
@@ -2162,7 +2224,7 @@ function catRowHtml(c, i, total, isSub, hiddenSubs) {
   const chip = hiddenSubs ? `<span class="subs-chip" title="${hiddenSubs} alakategoriaa piilotettu">▸${hiddenSubs}</span>` : '';
   return `<li>
       <button class="cat-btn ${isSub ? 'subcat' : ''}${accent} ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}"${accentStyle(c)}>
-        <span class="cat-ico">${esc(catIcon(c))}</span>
+        <span class="cat-ico">${catIconHtml(c)}</span>
         <span class="cat-name">${esc(c.name)}</span>
         ${chip}
         <span class="count-badge">${c.page_count != null ? c.page_count : ''}</span>
@@ -2211,9 +2273,16 @@ function moveInList(ids, id, dir) {
   return ids;
 }
 
+// Kuvakevalitsin: siistit SVG-viivakuvakkeet napeiksi. Valinta luetaan
+// elementin data-icon-kentästä (muoto "svg:<nimi>").
 function iconSelectHtml(id, selected) {
-  return `<select id="${id}" title="Ikoni">${CAT_ICONS.map((i) =>
-    `<option ${i === selected ? 'selected' : ''}>${i}</option>`).join('')}</select>`;
+  const sel = selected || 'svg:folder';
+  return `<div class="icon-picker" id="${id}" data-icon="${esc(sel)}">
+    ${CAT_ICONS.map((n) => {
+      const token = 'svg:' + n;
+      return `<button type="button" class="ic-opt ${token === sel ? 'sel' : ''}" data-i="${token}" title="${n}" aria-label="Kuvake ${n}">${catSvg(n)}</button>`;
+    }).join('')}
+  </div>`;
 }
 
 // Kategoriavalinnan optiot hierarkiassa: pääkategoria ja sen alakategoriat
@@ -2233,7 +2302,7 @@ function parentSelectHtml(id, selected, excludeId) {
   const opts = topCategories().filter((c) => c.id !== excludeId);
   return `<select id="${id}" class="parent-select" title="Yläkategoria">
     <option value="">— Pääkategoria (ei yläkategoriaa) —</option>
-    ${opts.map((c) => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${esc(catIcon(c))} ${esc(c.name)}</option>`).join('')}
+    ${opts.map((c) => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
   </select>`;
 }
 
@@ -2354,7 +2423,7 @@ async function viewHome() {
             const subs = subCategories(c.id);
             const total = totalPageCount(c);
             return `<a class="cat-card${catColor(c) ? ' has-accent' : ''}" href="#/kohde/${c.id}"${accentStyle(c)}>
-            <span class="cc-ico">${esc(catIcon(c))}</span>
+            <span class="cc-ico">${catIconHtml(c, 'cc-svg')}</span>
             <span class="cc-name">${esc(c.name)}</span>
             <span class="cc-count">${total} ohjetta${subs.length ? ` · ${subs.length} alakategoriaa` : ''}</span>
           </a>`;
@@ -2491,7 +2560,7 @@ async function viewCategory(id) {
   content.innerHTML = `
     <div class="crumbs">${crumbs}</div>
     <div class="spread">
-      <h2 style="margin:0">${esc(catIcon(cat))} ${esc(cat.name)}</h2>
+      <h2 style="margin:0">${catIconHtml(cat, 'ic-lg')} ${esc(cat.name)}</h2>
       <div class="row">
         <button class="btn small" id="newPageBtn">＋ Uusi ohje</button>
         ${!parent ? '<button class="btn small secondary" id="newSubBtn">＋ Alakategoria</button>' : ''}
@@ -2502,7 +2571,7 @@ async function viewCategory(id) {
     <div id="catEditRow"></div>
     ${subs.length ? `<div class="cat-grid">
       ${subs.map((s) => `<a class="cat-card${catColor(s) ? ' has-accent' : ''}" href="#/kohde/${s.id}"${accentStyle(s)}>
-        <span class="cc-ico">${esc(catIcon(s))}</span>
+        <span class="cc-ico">${catIconHtml(s, 'cc-svg')}</span>
         <span class="cc-name">${esc(s.name)}</span>
         <span class="cc-count">${s.page_count || 0} ohjetta</span>
       </a>`).join('')}
@@ -2537,11 +2606,12 @@ async function viewCategory(id) {
     row.dataset.mode = 'sub';
     row.innerHTML = `<div class="card">
       <div class="row" style="flex-wrap:wrap">
-        ${iconSelectHtml('subCatIcon', '🏢')}
         <input type="text" id="subCatName" placeholder="Alakategorian nimi (esim. asiakas)"
           style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
         <button class="btn small" id="subCatSave">Lisää alakategoria</button>
       </div>
+      <label class="muted" style="display:block;margin:10px 0 4px">Kuvake</label>
+      ${iconSelectHtml('subCatIcon', 'svg:store')}
       <label class="muted" style="display:block;margin:10px 0 4px">Väri</label>
       ${colorPickerHtml('subCatColor', '')}
     </div>`;
@@ -2549,7 +2619,7 @@ async function viewCategory(id) {
       const name = $('#subCatName').value.trim();
       if (!name) return toast('Anna nimi', true);
       try {
-        const c = await Store.categories.create({ name, icon: $('#subCatIcon').value, color: $('#subCatColor').dataset.color, parent_id: id });
+        const c = await Store.categories.create({ name, icon: $('#subCatIcon').dataset.icon, color: $('#subCatColor').dataset.color, parent_id: id });
         row.innerHTML = ''; row.dataset.mode = '';
         await loadCategories(); location.hash = '#/kohde/' + c.id; toast('Alakategoria lisätty');
       } catch (err) { toast(err.message, true); }
@@ -2566,11 +2636,12 @@ async function viewCategory(id) {
     row.dataset.mode = 'edit';
     row.innerHTML = `<div class="card">
       <div class="row" style="flex-wrap:wrap">
-        ${iconSelectHtml('editCatIcon', catIcon(cat))}
         <input type="text" id="editCatName" value="${esc(cat.name)}"
           style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
         <button class="btn small" id="editCatSave">Tallenna</button>
       </div>
+      <label class="muted" style="display:block;margin:10px 0 4px">Kuvake</label>
+      ${iconSelectHtml('editCatIcon', catIcon(cat))}
       <label class="muted" style="display:block;margin:10px 0 4px">Väri</label>
       ${colorPickerHtml('editCatColor', cat.color || '')}
       ${hasChildren
@@ -2580,7 +2651,7 @@ async function viewCategory(id) {
     $('#editCatSave').onclick = async () => {
       const name = $('#editCatName').value.trim();
       if (!name) return toast('Anna nimi', true);
-      const data = { name, icon: $('#editCatIcon').value, color: $('#editCatColor').dataset.color };
+      const data = { name, icon: $('#editCatIcon').dataset.icon, color: $('#editCatColor').dataset.color };
       if (!hasChildren) data.parent_id = $('#editCatParent').value || null;
       try {
         await Store.categories.update(id, data);
@@ -3345,6 +3416,15 @@ document.addEventListener('click', async (e) => {
     picker.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('sel', s === swatch));
     return;
   }
+  // Kuvakevalitsin: valitse SVG-kuvake ja tallenna token pickerin data-icon-kenttään.
+  const icOpt = e.target.closest('.icon-picker .ic-opt');
+  if (icOpt) {
+    e.preventDefault();
+    const picker = icOpt.closest('.icon-picker');
+    picker.dataset.icon = icOpt.dataset.i || 'svg:folder';
+    picker.querySelectorAll('.ic-opt').forEach((o) => o.classList.toggle('sel', o === icOpt));
+    return;
+  }
   const catMove = e.target.closest('[data-catmove]');
   if (catMove) {
     // Järjestys vaihdetaan vain sisarusten (saman yläkategorian) kesken.
@@ -3381,11 +3461,11 @@ $('#addCategoryBtn').onclick = () => {
   if (existing) { existing.remove(); return; }
   const wrap = document.createElement('div');
   wrap.id = 'catForm'; wrap.className = 'cat-form';
-  wrap.innerHTML = `<div class="row" style="width:100%">
-      ${iconSelectHtml('newCatIcon', '📄')}
-      <input id="newCatName" type="text" placeholder="Kategorian nimi" style="flex:1;min-width:0" />
-    </div>
+  wrap.innerHTML = `<input id="newCatName" type="text" placeholder="Kategorian nimi" style="width:100%" />
+    <label class="picker-label">Kuvake</label>
+    ${iconSelectHtml('newCatIcon', 'svg:folder')}
     ${parentSelectHtml('newCatParent', null, null)}
+    <label class="picker-label">Väri</label>
     ${colorPickerHtml('newCatColor', '')}
     <button class="btn small" id="newCatSave" style="width:100%">Lisää kategoria</button>`;
   $('#categoryList').before(wrap);
@@ -3393,7 +3473,7 @@ $('#addCategoryBtn').onclick = () => {
     const name = $('#newCatName').value.trim();
     if (!name) return toast('Anna nimi', true);
     try {
-      const c = await Store.categories.create({ name, icon: $('#newCatIcon').value, color: $('#newCatColor').dataset.color, parent_id: $('#newCatParent').value || null });
+      const c = await Store.categories.create({ name, icon: $('#newCatIcon').dataset.icon, color: $('#newCatColor').dataset.color, parent_id: $('#newCatParent').value || null });
       wrap.remove(); await loadCategories();
       location.hash = '#/kohde/' + c.id; toast('Kategoria lisätty');
     } catch (err) { toast(err.message, true); }

@@ -19,15 +19,15 @@ const insAnn = db.prepare('INSERT INTO announcements (title, content, pinned, cr
 const insTerm = db.prepare('INSERT INTO terms (term, definition, updated_at, updated_by) VALUES (?, ?, ?, ?)');
 
 // Kategoriat asiakkuuksittain / aihealueittain (Palmia – kiinteistöhoito)
-const pereh = insCat.run('Perehdytys', '🎓', '#7c3aed', 0).lastInsertRowid;
-const kipa = insCat.run('Kipa', '🏢', '#c2410c', 1).lastInsertRowid;
-const halytyskeskus = insCat.run('Hälytyskeskus', '🚨', '#9d174d', 2).lastInsertRowid;
-const hairiot = insCat.run('Häiriötilanteet', '⚡', '#b45309', 3).lastInsertRowid;
-const ism = insCat.run('ISM-ohjeet', '📘', '#0369a1', 4).lastInsertRowid;
+const pereh = insCat.run('Perehdytys', 'svg:graduation', '#7c3aed', 0).lastInsertRowid;
+const kipa = insCat.run('Kipa', 'svg:building', '#c2410c', 1).lastInsertRowid;
+const halytyskeskus = insCat.run('Hälytyskeskus', 'svg:siren', '#9d174d', 2).lastInsertRowid;
+const hairiot = insCat.run('Häiriötilanteet', 'svg:bolt', '#b45309', 3).lastInsertRowid;
+const ism = insCat.run('ISM-ohjeet', 'svg:book', '#0369a1', 4).lastInsertRowid;
 
 // Esimerkki alakategorioista: Kipan alle asiakkuuksittain.
-const kipaAsA = insSubCat.run('Asiakas A – Toimistotalo', '🏢', 1, kipa).lastInsertRowid;
-const kipaAsB = insSubCat.run('Asiakas B – Kauppakeskus', '🏬', 2, kipa).lastInsertRowid;
+const kipaAsA = insSubCat.run('Asiakas A – Toimistotalo', 'svg:building', 1, kipa).lastInsertRowid;
+const kipaAsB = insSubCat.run('Asiakas B – Kauppakeskus', 'svg:store', 2, kipa).lastInsertRowid;
 
 insPage.run(kipaAsA, 'Asiakas A – kohdekohtaiset ohjeet', `# Asiakas A – Toimistotalo
 

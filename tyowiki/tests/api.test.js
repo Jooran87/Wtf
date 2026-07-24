@@ -96,7 +96,10 @@ async function main() {
     // --- Kategoriat ---
     const cats = await jget('/api/categories');
     const topCats = cats.filter((c) => !c.parent_id);
-    ok('seed-pääkategoriat ikoneineen', topCats.length === 5 && topCats[0].icon === '🎓', JSON.stringify(topCats[0]));
+    ok('seed-pääkategoriat SVG-kuvakkeineen', topCats.length === 5 && topCats[0].icon === 'svg:graduation', JSON.stringify(topCats[0]));
+    const svgCat = await jsend('POST', '/api/categories', { name: 'SVG-testi', icon: 'svg:clipboard' });
+    ok('SVG-kuvaketunniste ei katkea (raja 24)', svgCat.icon === 'svg:clipboard', svgCat.icon);
+    await delCat(svgCat.id, 'salasana123');
     ok('kategorioiden artikkelimäärät', cats.every((c) => typeof c.page_count === 'number'));
     const newCat = await jsend('POST', '/api/categories', { name: 'Testikategoria', icon: '🧰' });
     ok('kategorian luonti', newCat.id > 0 && newCat.icon === '🧰' && newCat.parent_id === null);

@@ -97,16 +97,16 @@ const ready = ensureSeeded();
 async function ensureSeeded() {
   if (DB) { migrateExisting(); return; }
   DB = { seq: 0, categories: [], pages: [], notes: [], attachments: [], contacts: [], revisions: [], announcements: [], terms: [], links: [] };
-  const pereh = { id: nextId(), name: 'Perehdytys', icon: '🎓', color: '#7c3aed', sort_order: 0, parent_id: null };
+  const pereh = { id: nextId(), name: 'Perehdytys', icon: 'svg:graduation', color: '#7c3aed', sort_order: 0, parent_id: null };
   DB.categories.push(pereh);
-  const kipa = { id: nextId(), name: 'Kipa', icon: '🏢', color: '#c2410c', sort_order: 1, parent_id: null };
-  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: '🚨', color: '#9d174d', sort_order: 2, parent_id: null };
-  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: '⚡', color: '#b45309', sort_order: 3, parent_id: null };
-  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: '📘', color: '#0369a1', sort_order: 4, parent_id: null };
+  const kipa = { id: nextId(), name: 'Kipa', icon: 'svg:building', color: '#c2410c', sort_order: 1, parent_id: null };
+  const halytyskeskus = { id: nextId(), name: 'Hälytyskeskus', icon: 'svg:siren', color: '#9d174d', sort_order: 2, parent_id: null };
+  const hairiot = { id: nextId(), name: 'Häiriötilanteet', icon: 'svg:bolt', color: '#b45309', sort_order: 3, parent_id: null };
+  const ism = { id: nextId(), name: 'ISM-ohjeet', icon: 'svg:book', color: '#0369a1', sort_order: 4, parent_id: null };
   DB.categories.push(kipa, halytyskeskus, hairiot, ism);
   // Esimerkki alakategorioista: Kipan alle asiakkuuksittain.
-  const kipaAsA = { id: nextId(), name: 'Asiakas A – Toimistotalo', icon: '🏢', sort_order: 1, parent_id: kipa.id };
-  const kipaAsB = { id: nextId(), name: 'Asiakas B – Kauppakeskus', icon: '🏬', sort_order: 2, parent_id: kipa.id };
+  const kipaAsA = { id: nextId(), name: 'Asiakas A – Toimistotalo', icon: 'svg:building', sort_order: 1, parent_id: kipa.id };
+  const kipaAsB = { id: nextId(), name: 'Asiakas B – Kauppakeskus', icon: 'svg:store', sort_order: 2, parent_id: kipa.id };
   DB.categories.push(kipaAsA, kipaAsB);
 
   mkPage(pereh.id, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!

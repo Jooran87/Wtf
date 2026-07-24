@@ -286,17 +286,20 @@ app.get('/api/categories', (req, res) => {
   res.json(rows);
 });
 
-// Tarkistaa annetun yläkategorian: sen on oltava olemassa ja pääkategoria
-// (yksi taso). Palauttaa virheviestin tai null jos kelpaa.
-function validateParent(parentId) {
-  const parent = db.prepare('SELECT parent_id FROM categories WHERE id = ?').get(parentId);
-  if (!parent) return 'Yläkategoriaa ei löydy';
-  if (parent.parent_id != null) return 'Alakategorialle ei voi luoda omaa alakategoriaa';
-  return null;
-}
-
 function parseParentId(raw) {
   return (raw != null && raw !== '') ? Number(raw) : null;
+}
+
+// Kaikkien alenevien (lasten, lastenlasten, ...) id:t – käytetään sekä
+// poistoketjuun että silmukan estoon siirrossa.
+function descendantIds(id) {
+  const out = [];
+  const stack = [id];
+  const stmt = db.prepare('SELECT id FROM categories WHERE parent_id = ?');
+  while (stack.length) {
+    for (const r of stmt.all(stack.pop())) { out.push(r.id); stack.push(r.id); }
+  }
+  return out;
 }
 
 app.post('/api/categories', (req, res) => {
@@ -304,9 +307,8 @@ app.post('/api/categories', (req, res) => {
   if (!name) return res.status(400).json({ error: 'Nimi puuttuu' });
   const icon = (req.body.icon || '').trim();
   const parentId = parseParentId(req.body.parent_id);
-  if (parentId != null) {
-    const err = validateParent(parentId);
-    if (err) return res.status(400).json({ error: err });
+  if (parentId != null && !db.prepare('SELECT 1 FROM categories WHERE id = ?').get(parentId)) {
+    return res.status(400).json({ error: 'Yläkategoriaa ei löydy' });
   }
   // Järjestysnumero lasketaan sisarusten (saman yläkategorian) kesken.
   const sort = db.prepare('SELECT COALESCE(MAX(sort_order),0)+1 AS s FROM categories WHERE parent_id IS ?').get(parentId).s;
@@ -327,11 +329,11 @@ app.put('/api/categories/:id', (req, res) => {
     parentId = parseParentId(req.body.parent_id);
     if (parentId != null) {
       if (parentId === id) return res.status(400).json({ error: 'Kategoria ei voi olla oma yläkategoriansa' });
-      const err = validateParent(parentId);
-      if (err) return res.status(400).json({ error: err });
-      // Jos kategorialla on omia alakategorioita, sitä ei voi siirtää alle (syntyisi 3 tasoa).
-      if (db.prepare('SELECT 1 FROM categories WHERE parent_id = ? LIMIT 1').get(id))
-        return res.status(400).json({ error: 'Kategorialla on alakategorioita – siirrä ne ensin' });
+      if (!db.prepare('SELECT 1 FROM categories WHERE id = ?').get(parentId))
+        return res.status(400).json({ error: 'Yläkategoriaa ei löydy' });
+      // Silmukan esto: uusi yläkategoria ei saa olla tämän kategorian aleneva.
+      if (descendantIds(id).includes(parentId))
+        return res.status(400).json({ error: 'Kategoriaa ei voi siirtää oman alakategoriansa alle' });
     }
   }
   const color = ('color' in req.body) ? cleanColor(req.body.color) : (cur.color || '');
@@ -349,10 +351,10 @@ app.delete('/api/categories/:id', (req, res) => {
   if (!u || !verifyPassword(String(req.body.password || ''), u.pass_salt, u.pass_hash)) {
     return res.status(403).json({ error: 'Väärä salasana – kategoriaa ei poistettu' });
   }
-  // Poistaa kategorian, sen alakategoriat sekä kaikkien sivut ja liitteet (levyltä).
+  // Poistaa kategorian, KAIKKI sen alenevat alakategoriat sekä niiden
+  // sivut ja liitteet (levyltä).
   const id = Number(req.params.id);
-  const childIds = db.prepare('SELECT id FROM categories WHERE parent_id = ?').all(id).map((r) => r.id);
-  const allCatIds = [id, ...childIds];
+  const allCatIds = [id, ...descendantIds(id)];
   const placeholders = allCatIds.map(() => '?').join(',');
   const pages = db.prepare(`SELECT id FROM pages WHERE category_id IN (${placeholders})`).all(...allCatIds);
   for (const p of pages) deletePageFiles(p.id);

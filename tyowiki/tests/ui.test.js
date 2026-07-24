@@ -69,9 +69,10 @@ async function main() {
     ok('sovellus käynnistyy, pääkategoriat näkyvät', cats.length === 5, JSON.stringify(cats));
     ok('kategoriakortit etusivulla (vain pääkategoriat)', (await page.$$('.cat-card')).length === 5);
 
-    // Alakategoriat: Kipan alla sisennetyt alakategoriat sivupalkissa
+    // Alakategoriat: sisennetyt alakategoriat sivupalkissa (myös useampi taso)
     const subs = await page.$$eval('#categoryList .cat-btn.subcat .cat-name', (els) => els.map((e) => e.textContent.trim()));
-    ok('alakategoriat näkyvät sivupalkissa', subs.length === 2 && subs.some((s) => s.includes('Asiakas A')), JSON.stringify(subs));
+    ok('alakategoriat näkyvät sivupalkissa', subs.length >= 2 && subs.some((s) => s.includes('Asiakas A')), JSON.stringify(subs));
+    ok('kolmas taso näkyy sivupalkissa (DSC)', subs.some((s) => s.includes('DSC')), JSON.stringify(subs));
 
     // XSS: hyökkäävä otsikko näkyy tekstinä eikä suoritu
     await page.fill('#authorInput', 'Testaaja');
@@ -154,6 +155,13 @@ async function main() {
     ok('uusi alakategoria luotu ja avattu', crumb2.includes('Kipa') && crumb2.includes('Asiakas C'), crumb2);
     ok('uusi alakategoria näkyy sivupalkissa',
       (await page.$$eval('#categoryList .cat-btn.subcat .cat-name', (els) => els.map((e) => e.textContent))).some((t) => t.includes('Asiakas C')));
+    // Kolmas taso: luo alakategoria juuri luodun alakategorian (Asiakas C) alle
+    await page.click('#newSubBtn'); await page.waitForTimeout(200);
+    await page.fill('#subCatName', 'Kerros 3');
+    await page.click('#subCatSave'); await page.waitForTimeout(500);
+    const crumb3 = await page.$eval('.crumbs', (e) => e.textContent);
+    ok('kolmannen tason murupolku (Kipa › Asiakas C › Kerros 3)',
+      crumb3.includes('Kipa') && crumb3.includes('Asiakas C') && crumb3.includes('Kerros 3'), crumb3);
 
     // Alakategorioiden piilotusnappi: piilottaa alakategoriat + näyttää merkin, muistetaan
     const subsBefore = (await page.$$('#categoryList .cat-btn.subcat')).length;

@@ -3,10 +3,10 @@
 Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
 
 - **Ohjeet ja kategoriat** – Wikipedia-tyylinen sivupalkki ja hakukenttä
-- **Alakategoriat** – kategorian alle voi luoda alakategorioita (yksi taso),
-  esim. Kipa → asiakkuuksittain; alakategoriat näkyvät sivupalkissa sisennettyinä
-  ja kategorian sivulla kortteina. Sivupalkin **▾-napista** alakategoriat voi
-  piilottaa siistimmän näkymän saamiseksi (valinta muistetaan)
+- **Alakategoriat (monta tasoa)** – kategorian alle voi luoda alakategorioita
+  useassa tasossa, esim. Hälytyskeskus → Hälytysjärjestelmien ohjeet → DSC/Ajax/HHL.
+  Alakategoriat näkyvät sivupalkissa sisennettyinä ja kategorian sivulla kortteina.
+  Sivupalkin **▾-napista** alakategoriat voi piilottaa siistimmän näkymän saamiseksi
 - **Väriaksentit kategorioille** – kategorialle voi valita värin, joka näkyy
   sivupalkissa ja korteissa (nopeampi silmäys)
 - **Live-haku** – parhaat osumat (ohjeet, termit, liitteet) ilmestyvät

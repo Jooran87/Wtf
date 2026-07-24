@@ -23,6 +23,15 @@ function nextId() { DB.seq += 1; return DB.seq; }
 function catName(id) { const c = DB.categories.find((x) => x.id === id); return c ? c.name : null; }
 // Väri sallitaan vain heksana (#rrggbb), muuten tyhjä – sama sääntö kuin palvelimella.
 function cleanColor(v) { v = String(v || '').trim().toLowerCase(); return /^#[0-9a-f]{6}$/.test(v) ? v : ''; }
+// Kaikkien alenevien alakategorioiden id:t (poistoketju + silmukan esto).
+function localDescendantIds(id) {
+  const out = []; const stack = [id];
+  while (stack.length) {
+    const cur = stack.pop();
+    for (const c of DB.categories.filter((x) => x.parent_id === cur)) { out.push(c.id); stack.push(c.id); }
+  }
+  return out;
+}
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
 // ---------- IndexedDB blobit ----------
@@ -108,6 +117,14 @@ async function ensureSeeded() {
   const kipaAsA = { id: nextId(), name: 'Asiakas A – Toimistotalo', icon: 'svg:building', sort_order: 1, parent_id: kipa.id };
   const kipaAsB = { id: nextId(), name: 'Asiakas B – Kauppakeskus', icon: 'svg:store', sort_order: 2, parent_id: kipa.id };
   DB.categories.push(kipaAsA, kipaAsB);
+  // Esimerkki useasta tasosta: Hälytyskeskus > Hälytysjärjestelmien ohjeet > laitemerkit.
+  const halytysJarj = { id: nextId(), name: 'Hälytysjärjestelmien ohjeet', icon: 'svg:siren', sort_order: 3, parent_id: halytyskeskus.id };
+  DB.categories.push(halytysJarj);
+  DB.categories.push(
+    { id: nextId(), name: 'DSC', icon: 'svg:shield', sort_order: 1, parent_id: halytysJarj.id },
+    { id: nextId(), name: 'Ajax', icon: 'svg:shield', sort_order: 2, parent_id: halytysJarj.id },
+    { id: nextId(), name: 'HHL', icon: 'svg:shield', sort_order: 3, parent_id: halytysJarj.id }
+  );
 
   mkPage(pereh.id, 'Tervetuloa taloon – ensimmäinen työviikko', `# Tervetuloa taloon!
 
@@ -430,11 +447,7 @@ const Store = {
       const name = (data.name || '').trim();
       if (!name) throw new Error('Nimi puuttuu');
       const parentId = (data.parent_id != null && data.parent_id !== '') ? Number(data.parent_id) : null;
-      if (parentId != null) {
-        const parent = DB.categories.find((x) => x.id === parentId);
-        if (!parent) throw new Error('Yläkategoriaa ei löydy');
-        if (parent.parent_id != null) throw new Error('Alakategorialle ei voi luoda omaa alakategoriaa');
-      }
+      if (parentId != null && !DB.categories.find((x) => x.id === parentId)) throw new Error('Yläkategoriaa ei löydy');
       const siblings = DB.categories.filter((x) => (x.parent_id || null) === parentId);
       const c = { id: nextId(), name, icon: (data.icon || '').trim(), color: cleanColor(data.color), parent_id: parentId,
         sort_order: (Math.max(0, ...siblings.map((x) => x.sort_order)) + 1) };
@@ -450,10 +463,8 @@ const Store = {
         const parentId = (data.parent_id != null && data.parent_id !== '') ? Number(data.parent_id) : null;
         if (parentId != null) {
           if (parentId === id) throw new Error('Kategoria ei voi olla oma yläkategoriansa');
-          const parent = DB.categories.find((x) => x.id === parentId);
-          if (!parent) throw new Error('Yläkategoriaa ei löydy');
-          if (parent.parent_id != null) throw new Error('Alakategorialle ei voi luoda omaa alakategoriaa');
-          if (DB.categories.some((x) => x.parent_id === id)) throw new Error('Kategorialla on alakategorioita – siirrä ne ensin');
+          if (!DB.categories.find((x) => x.id === parentId)) throw new Error('Yläkategoriaa ei löydy');
+          if (localDescendantIds(id).includes(parentId)) throw new Error('Kategoriaa ei voi siirtää oman alakategoriansa alle');
         }
         c.parent_id = parentId;
       }
@@ -463,8 +474,7 @@ const Store = {
     },
     async remove(id) {
       await ready; id = Number(id);
-      const childIds = DB.categories.filter((c) => c.parent_id === id).map((c) => c.id);
-      const allCatIds = [id, ...childIds];
+      const allCatIds = [id, ...localDescendantIds(id)];
       const pageIds = DB.pages.filter((p) => allCatIds.includes(p.category_id)).map((p) => p.id);
       for (const pid of pageIds) await removePageInternal(pid);
       DB.categories = DB.categories.filter((c) => !allCatIds.includes(c.id));

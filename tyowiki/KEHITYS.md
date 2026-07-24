@@ -44,7 +44,7 @@ jolloin app.js ohittaa kirjautumisen).
    seed-dataan – tee näin vain kun uusi seed-sisältö on demolle tärkeä).
 5. **Ulkoasu-/logiikkamuutoksen jälkeen aina** `node sandbox/build-single.js`
    ja committaa syntynyt tyowiki-sandbox.html.
-6. **`npm test` vihreänä (144 testiä) ennen jokaista committia.** Testit ajavat
+6. **`npm test` vihreänä (146 testiä) ennen jokaista committia.** Testit ajavat
    palvelimen eristetyssä TYOWIKI_DATA_DIR-hakemistossa – eivät koske oikeaa dataa.
 7. **Tekijätieto tulee AINA istunnosta** (`req.user.name`) – älä koskaan luota
    selaimen author-kenttään.
@@ -83,15 +83,20 @@ jolloin app.js ohittaa kirjautumisen).
 - **Haun LIKE-kyselyt** escapetaan (`% _ \` → `ESCAPE '\'`), jotta haku on
   kirjaimellinen. Sandbox käyttää substring-hakua, joten se on jo kirjaimellinen.
 
-## Alakategoriat (yksi taso)
+## Alakategoriat (monta tasoa)
 
-- `categories.parent_id` (NULL = pääkategoria). **Yksi taso:** alakategorialle
-  ei voi luoda omaa alakategoriaa – validointi `validateParent()`:ssa (server.js)
-  ja vastaava sandboxissa. Yläkategorian poisto vie alakategoriat ja kaikkien
-  sivut/liitteet mukanaan.
+- `categories.parent_id` (NULL = pääkategoria). **Mielivaltainen syvyys**
+  (esim. Hälytyskeskus → Hälytysjärjestelmien ohjeet → DSC/Ajax/HHL).
+- **Silmukan esto:** uudeksi yläkategoriaksi ei kelpaa kategoria itse eikä sen
+  aleneva – `descendantIds()` (server.js) / `localDescendantIds()` (sandbox);
+  UI:n yläkategoriavalitsin jättää nämä pois.
+- **Poistoketju rekursiivinen:** `descendantIds` kerää koko alipuun, jonka
+  sivut+liitteet poistetaan (edelleen vain admin + salasana).
 - Järjestys (`sort_order`) lasketaan **sisarusten kesken** (sama `parent_id`);
-  reorder-napit siirtävät vain saman tason sisällä (app.js catmove-käsittelijä).
-- Client rakentaa puun litteästä listasta: `topCategories()` / `subCategories()`.
+  reorder-napit siirtävät vain saman tason sisällä.
+- Client rakentaa puun rekursiivisesti: `catTreeHtml()` (sivupalkki),
+  `ancestorsOf()` (murupolku), `descendantsOf()` (silmukan esto, ohjemäärät).
+  Sisennys kompoundaa CSS:ssä (`.subcat-list` padding + border-left per taso).
 
 ## Roolit ja oikeudet (server.js:n portti-middleware)
 
@@ -123,7 +128,7 @@ jolloin app.js ohittaa kirjautumisen).
 
 ```bash
 npm start                      # palvelin (PORT=xxxx vaihtaa portin)
-npm test                       # 144 testiä eristetyssä ympäristössä
+npm test                       # 146 testiä eristetyssä ympäristössä
 npm run backup                 # varmuuskopio backups/-kansioon
 node sandbox/build-single.js   # kokoa jaettava sandbox-tiedosto
 node reindex.js                # liitteiden hakuindeksin uudelleenajo

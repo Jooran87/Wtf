@@ -185,20 +185,17 @@ h2 .ic, h3 .ic { margin-right: 7px; }
 }
 .cat-btn.active .count-badge { background: var(--panel); color: var(--brand-ink); }
 
-/* Alakategoriat: sisennetty lista pääkategorian alla */
+/* Alakategoriat: sisennetty lista pääkategorian alla. Sisennys kompoundaa
+   jokaisella tasolla (subcat-list voi olla subcat-listin sisällä). */
 .category-list li.subcat-wrap { display: block; }
-.subcat-list { list-style: none; margin: 0 0 2px; padding: 0; }
+.subcat-list { list-style: none; margin: 2px 0 2px 9px; padding-left: 10px; border-left: 1px solid var(--border); }
 .subcat-list li { display: flex; align-items: center; }
-.category-list .cat-btn.subcat {
-  margin-left: 14px; padding: 6px 12px; font-size: 13px;
-  border-left: 2px solid var(--border); border-radius: 0 var(--radius) var(--radius) 0;
-}
-.category-list .cat-btn.subcat .cat-ico { font-size: 13px; }
+.category-list .cat-btn.subcat { padding: 6px 10px; font-size: 13px; }
+.category-list .cat-btn.subcat .cat-name { font-size: 13px; }
 .subcat-list li:hover .row-order { opacity: 1; }
 
 /* Väriaksentti sivupalkin kategorialle: värillinen vasen reuna */
 .category-list .cat-btn.has-accent { border-left: 4px solid var(--cat-accent); border-radius: 0 var(--radius) var(--radius) 0; padding-left: 9px; }
-.category-list .cat-btn.subcat.has-accent { border-left: 4px solid var(--cat-accent); }
 
 /* Värivalitsin (paletti) kategorialomakkeissa */
 .color-picker { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; padding: 2px 0; }

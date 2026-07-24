@@ -29,6 +29,12 @@ const ism = insCat.run('ISM-ohjeet', 'svg:book', '#0369a1', 4).lastInsertRowid;
 const kipaAsA = insSubCat.run('Asiakas A – Toimistotalo', 'svg:building', 1, kipa).lastInsertRowid;
 const kipaAsB = insSubCat.run('Asiakas B – Kauppakeskus', 'svg:store', 2, kipa).lastInsertRowid;
 
+// Esimerkki useasta tasosta: Hälytyskeskus > Hälytysjärjestelmien ohjeet > laitemerkit.
+const halytysJarj = insSubCat.run('Hälytysjärjestelmien ohjeet', 'svg:siren', 3, halytyskeskus).lastInsertRowid;
+insSubCat.run('DSC', 'svg:shield', 1, halytysJarj);
+insSubCat.run('Ajax', 'svg:shield', 2, halytysJarj);
+insSubCat.run('HHL', 'svg:shield', 3, halytysJarj);
+
 insPage.run(kipaAsA, 'Asiakas A – kohdekohtaiset ohjeet', `# Asiakas A – Toimistotalo
 
 ## Kulku ja avaimet

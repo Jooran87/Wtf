@@ -117,24 +117,30 @@ async function main() {
     ok('värin muokkaus', recolored.color === '#16a34a');
     await delCat(colored.id, 'salasana123'); await delCat(badColor.id, 'salasana123');
 
-    // --- Alakategoriat (yksi taso) ---
+    // --- Alakategoriat (monta tasoa) ---
     ok('seed-alakategoriat olemassa', cats.some((c) => c.parent_id != null));
     const sub = await jsend('POST', '/api/categories', { name: 'Asiakas X', icon: '🏬', parent_id: newCat.id });
     ok('alakategorian luonti', sub.parent_id === newCat.id);
     ok('olematon yläkategoria hylätään (400)', await status('POST', '/api/categories', { name: 'Y', parent_id: 999999 }) === 400);
-    ok('kolmas taso estetään (400)', await status('POST', '/api/categories', { name: 'Z', parent_id: sub.id }) === 400);
-    ok('yläkategoriaa ei voi siirtää alle (400)', await status('PUT', `/api/categories/${newCat.id}`, { name: 'Testi2', parent_id: 1 }) === 400);
+    // Kolmas taso on nyt SALLITTU (esim. Hälytyskeskus > Järjestelmät > DSC).
+    const sub3 = await jsend('POST', '/api/categories', { name: 'DSC', parent_id: sub.id });
+    ok('kolmas taso sallitaan', sub3.parent_id === sub.id);
+    ok('silmukka estetään: ei omaan alakategoriaan (400)',
+      await status('PUT', `/api/categories/${sub.id}`, { name: 'Asiakas X', parent_id: sub3.id }) === 400);
     ok('alakategorian voi siirtää pääkategoriaksi', (await jsend('PUT', `/api/categories/${sub.id}`, { name: 'Asiakas X', parent_id: null })).parent_id === null);
     await jsend('PUT', `/api/categories/${sub.id}`, { name: 'Asiakas X', parent_id: newCat.id }); // takaisin alle
-    // Erillinen väliaikainen yläkategoria cascade-poiston testaamiseksi.
+    // Kolmannen tason poisto ketjuna: poista väliaikainen puu newCat kokonaan lopuksi.
+    await delCat(sub3.id, 'salasana123');
+    // Kolmitasoinen cascade-poisto: parent > sub > subsub, poisto vie kaiken.
     const tmpParent = await jsend('POST', '/api/categories', { name: 'PoistoParent', icon: '🗂️' });
     const tmpSub = await jsend('POST', '/api/categories', { name: 'PoistoChild', parent_id: tmpParent.id });
-    const tmpPage = await jsend('POST', '/api/pages', { title: 'Alasivu', content: 'x', category_id: tmpSub.id });
-    ok('sivu alakategoriaan', tmpPage.category_id === tmpSub.id);
+    const tmpSub2 = await jsend('POST', '/api/categories', { name: 'PoistoLapsenlapsi', parent_id: tmpSub.id });
+    const tmpPage = await jsend('POST', '/api/pages', { title: 'Alasivu', content: 'x', category_id: tmpSub2.id });
+    ok('sivu kolmannen tason kategoriaan', tmpPage.category_id === tmpSub2.id);
     await delCat(tmpParent.id, 'salasana123');
     const afterDel = await jget('/api/categories');
-    ok('yläkategorian poisto vei alakategorian', !afterDel.some((c) => c.id === tmpSub.id));
-    ok('yläkategorian poisto vei alasivun', (await fetch(`${B}/api/pages/${tmpPage.id}`, { headers: H() })).status === 404);
+    ok('poisto vei koko alipuun (myös 3. taso)', !afterDel.some((c) => c.id === tmpSub2.id) && !afterDel.some((c) => c.id === tmpSub.id));
+    ok('poisto vei syvimmän alasivun', (await fetch(`${B}/api/pages/${tmpPage.id}`, { headers: H() })).status === 404);
 
     // --- Kategorian poiston suojaus: vain ylläpitäjä + salasana ---
     await jsend('POST', '/api/users', { name: 'Muokkaaja Matti', username: 'matti', password: 'salasana123', role: 'editor' });

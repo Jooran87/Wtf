@@ -141,8 +141,8 @@ if (!catCols.includes('icon')) {
 }
 
 // Migraatio: alakategoriat. parent_id viittaa yläkategoriaan (NULL = pääkategoria).
-// Tuetaan yhtä tasoa: pääkategoria voi saada alakategorioita, mutta alakategoria
-// ei voi saada omia alakategorioitaan (validointi palvelinpäässä).
+// Tuetaan mielivaltaista syvyyttä (kategoria → alakategoria → ...); silmukan
+// esto ja poistoketju hoidetaan palvelinpäässä (descendantIds).
 if (!catCols.includes('parent_id')) {
   db.exec('ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id) ON DELETE CASCADE');
 }

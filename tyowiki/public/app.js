@@ -387,15 +387,27 @@ function colorPickerHtml(id, selected) {
   </div>`;
 }
 
-// Alakategoriat: yksi taso. Pääkategoriat = parent_id tyhjä.
+// Alakategoriat: mielivaltainen syvyys. Pääkategoriat = parent_id tyhjä.
 const topCategories = () => categories.filter((c) => !c.parent_id);
 const subCategories = (parentId) => categories.filter((c) => c.parent_id === parentId);
 const parentOf = (c) => (c && c.parent_id) ? categories.find((x) => x.id === c.parent_id) : null;
+// Yläkategoriat juuresta lähtien (murupolkua varten).
+function ancestorsOf(c) {
+  const chain = []; let p = parentOf(c);
+  while (p) { chain.unshift(p); p = parentOf(p); }
+  return chain;
+}
+// Kaikki alenevat alakategoriat (silmukan esto lomakkeissa).
+function descendantsOf(id) {
+  const out = []; const stack = [id];
+  while (stack.length) { for (const k of subCategories(stack.pop())) { out.push(k); stack.push(k.id); } }
+  return out;
+}
 
-// Kategorian ja sen alakategorioiden yhteenlaskettu ohjemäärä.
+// Kategorian ja KAIKKIEN alenevien alakategorioiden yhteenlaskettu ohjemäärä.
 function totalPageCount(c) {
   let n = c.page_count || 0;
-  for (const k of subCategories(c.id)) n += (k.page_count || 0);
+  for (const k of descendantsOf(c.id)) n += (k.page_count || 0);
   return n;
 }
 
@@ -403,12 +415,12 @@ function totalPageCount(c) {
 let subcatsHidden = false;
 try { subcatsHidden = localStorage.getItem('tyowiki_hide_subcats') === '1'; } catch (_) {}
 
-function catRowHtml(c, i, total, isSub, hiddenSubs) {
+function catRowHtml(c, i, total, depth, hiddenSubs) {
   const accent = catColor(c) ? ' has-accent' : '';
   // Kun alakategoriat on piilotettu, pääkategoriassa näkyy pieni merkki niiden määrästä.
   const chip = hiddenSubs ? `<span class="subs-chip" title="${hiddenSubs} alakategoriaa piilotettu">▸${hiddenSubs}</span>` : '';
   return `<li>
-      <button class="cat-btn ${isSub ? 'subcat' : ''}${accent} ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}"${accentStyle(c)}>
+      <button class="cat-btn ${depth > 0 ? 'subcat' : ''}${accent} ${c.id === currentCategoryId ? 'active' : ''}" data-cat="${c.id}"${accentStyle(c)}>
         <span class="cat-ico">${catIconHtml(c)}</span>
         <span class="cat-name">${esc(c.name)}</span>
         ${chip}
@@ -421,18 +433,26 @@ function catRowHtml(c, i, total, isSub, hiddenSubs) {
     </li>`;
 }
 
+// Yksi kategoria + sen alipuu (rekursio mahdollistaa monta tasoa).
+function catTreeHtml(c, i, total, depth) {
+  const kids = subCategories(c.id);
+  let html = catRowHtml(c, i, total, depth, 0);
+  if (kids.length) {
+    html += `<li class="subcat-wrap"><ul class="subcat-list">${
+      kids.map((k, j) => catTreeHtml(k, j, kids.length, depth + 1)).join('')}</ul></li>`;
+  }
+  return html;
+}
+
 function renderSidebar() {
   const ul = $('#categoryList');
   const tops = topCategories();
   ul.innerHTML = tops.map((c, i) => {
-    const kids = subCategories(c.id);
     if (subcatsHidden) {
-      // Piilotettuna: vain pääkategoriat + merkki alakategorioiden määrästä.
-      return catRowHtml(c, i, tops.length, false, kids.length);
+      // Piilotettuna: vain pääkategoriat + merkki suorien alakategorioiden määrästä.
+      return catRowHtml(c, i, tops.length, 0, subCategories(c.id).length);
     }
-    return catRowHtml(c, i, tops.length, false, 0)
-      + (kids.length ? `<li class="subcat-wrap"><ul class="subcat-list">${
-          kids.map((k, j) => catRowHtml(k, j, kids.length, true, 0)).join('')}</ul></li>` : '');
+    return catTreeHtml(c, i, tops.length, 0);
   }).join('') || '<li class="muted" style="padding:8px 12px">Ei kategorioita vielä</li>';
   updateSubcatToggle();
 }
@@ -470,24 +490,31 @@ function iconSelectHtml(id, selected) {
   </div>`;
 }
 
-// Kategoriavalinnan optiot hierarkiassa: pääkategoria ja sen alakategoriat
-// sisennettynä. Käytetään ohjeen kategorian valintaan.
-function categoryOptionsHtml(selectedId) {
-  return topCategories().map((c) => {
-    const self = `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${esc(c.name)}</option>`;
-    const kids = subCategories(c.id).map((k) =>
-      `<option value="${k.id}" ${k.id === selectedId ? 'selected' : ''}>  ↳ ${esc(k.name)}</option>`).join('');
-    return self + kids;
+// Kategoriapuun optiot hierarkiassa (mikä tahansa syvyys). skip = joukko
+// id:itä jotka jätetään pois (esim. kategoria itse + sen alenevat).
+function categoryOptionRows(selectedId, skip, parentId, depth) {
+  return subCategories(parentId || null).filter((c) => !skip || !skip.has(c.id)).map((c) => {
+    const prefix = depth ? '  '.repeat(depth) + '↳ ' : '';
+    const row = `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${prefix}${esc(c.name)}</option>`;
+    return row + categoryOptionRows(selectedId, skip, c.id, depth + 1);
   }).join('');
 }
 
-// Yläkategorian valitsin: tyhjä = pääkategoria. Vain pääkategoriat kelpaavat
-// yläkategoriaksi (yksi taso). excludeId jätetään pois (kategoria itse).
+function categoryOptionsHtml(selectedId) {
+  return categoryOptionRows(selectedId, null, null, 0);
+}
+
+// Yläkategorian valitsin: tyhjä = pääkategoria. Kelpaavat kaikki PAITSI
+// kategoria itse ja sen alenevat (silmukan esto).
 function parentSelectHtml(id, selected, excludeId) {
-  const opts = topCategories().filter((c) => c.id !== excludeId);
+  const skip = new Set();
+  if (excludeId != null) {
+    skip.add(excludeId);
+    for (const d of descendantsOf(excludeId)) skip.add(d.id);
+  }
   return `<select id="${id}" class="parent-select" title="Yläkategoria">
     <option value="">— Pääkategoria (ei yläkategoriaa) —</option>
-    ${opts.map((c) => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+    ${categoryOptionRows(selected, skip, null, 0)}
   </select>`;
 }
 
@@ -739,16 +766,17 @@ async function viewCategory(id) {
   const pages = await Store.pages.list(id);
   const parent = parentOf(cat);
   const subs = subCategories(id);
-  const crumbs = parent
-    ? `<a href="#/">Etusivu</a><span class="sep">›</span><a href="#/kohde/${parent.id}">${esc(parent.name)}</a><span class="sep">›</span><span>${esc(cat.name)}</span>`
-    : `<a href="#/">Etusivu</a><span class="sep">›</span><span>${esc(cat.name)}</span>`;
+  // Murupolku koko ketjulla (Etusivu › isoisä › isä › nykyinen).
+  const crumbs = '<a href="#/">Etusivu</a>'
+    + ancestorsOf(cat).map((a) => `<span class="sep">›</span><a href="#/kohde/${a.id}">${esc(a.name)}</a>`).join('')
+    + `<span class="sep">›</span><span>${esc(cat.name)}</span>`;
   content.innerHTML = `
     <div class="crumbs">${crumbs}</div>
     <div class="spread">
       <h2 style="margin:0">${catIconHtml(cat, 'ic-lg')} ${esc(cat.name)}</h2>
       <div class="row">
         <button class="btn small" id="newPageBtn">＋ Uusi ohje</button>
-        ${!parent ? '<button class="btn small secondary" id="newSubBtn">＋ Alakategoria</button>' : ''}
+        <button class="btn small secondary" id="newSubBtn">＋ Alakategoria</button>
         <button class="btn small secondary" id="renameCatBtn">${icon('edit')} Muokkaa</button>
         <button class="btn small danger" id="delCatBtn">Poista kategoria</button>
       </div>
@@ -811,10 +839,9 @@ async function viewCategory(id) {
     };
     $('#subCatName').focus();
   };
-  // Kategorian muokkaus: siisti lomake promptin sijaan.
-  // Alakategoria voidaan siirtää toisen yläkategorian alle tai pääkategoriaksi.
-  // Yläkategoriaa (jolla on alakategorioita) ei voi tehdä alakategoriaksi.
-  const hasChildren = subs.length > 0;
+  // Kategorian muokkaus: siisti lomake promptin sijaan. Kategorian voi siirtää
+  // minkä tahansa toisen kategorian alle (paitsi oman alakategoriansa – valitsin
+  // jättää ne pois, ja palvelin estää silmukan).
   $('#renameCatBtn').onclick = () => {
     const row = $('#catEditRow');
     if (row.dataset.mode === 'edit') { row.innerHTML = ''; row.dataset.mode = ''; return; }
@@ -829,15 +856,14 @@ async function viewCategory(id) {
       ${iconSelectHtml('editCatIcon', catIcon(cat))}
       <label class="muted" style="display:block;margin:10px 0 4px">Väri</label>
       ${colorPickerHtml('editCatColor', cat.color || '')}
-      ${hasChildren
-        ? '<p class="muted" style="margin:8px 0 0">Tällä kategorialla on alakategorioita, joten sitä ei voi siirtää toisen alle.</p>'
-        : `<label class="muted" style="display:block;margin:10px 0 4px">Yläkategoria</label>${parentSelectHtml('editCatParent', cat.parent_id || null, id)}`}
+      <label class="muted" style="display:block;margin:10px 0 4px">Yläkategoria</label>
+      ${parentSelectHtml('editCatParent', cat.parent_id || null, id)}
     </div>`;
     $('#editCatSave').onclick = async () => {
       const name = $('#editCatName').value.trim();
       if (!name) return toast('Anna nimi', true);
-      const data = { name, icon: $('#editCatIcon').dataset.icon, color: $('#editCatColor').dataset.color };
-      if (!hasChildren) data.parent_id = $('#editCatParent').value || null;
+      const data = { name, icon: $('#editCatIcon').dataset.icon, color: $('#editCatColor').dataset.color,
+        parent_id: $('#editCatParent').value || null };
       try {
         await Store.categories.update(id, data);
         await loadCategories(); viewCategory(id); toast('Tallennettu');
@@ -845,8 +871,9 @@ async function viewCategory(id) {
     };
     $('#editCatName').focus();
   };
-  const delMsg = subs.length
-    ? `Poistetaanko kategoria, sen ${subs.length} alakategoriaa ja KAIKKI niiden ohjeet ja liitteet? Tätä ei voi perua.`
+  const allSubCount = descendantsOf(id).length;
+  const delMsg = allSubCount
+    ? `Poistetaanko kategoria, sen ${allSubCount} alakategoriaa (kaikki tasot) ja KAIKKI niiden ohjeet ja liitteet? Tätä ei voi perua.`
     : 'Poistetaanko kategoria ja KAIKKI sen ohjeet ja liitteet? Tätä ei voi perua.';
   const doDeleteCat = async (password) => {
     try {

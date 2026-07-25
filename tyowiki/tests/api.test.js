@@ -29,6 +29,12 @@ const status = (method, url, body, cookie) =>
     headers: body ? { ...J, Cookie: cookie === undefined ? COOKIE : cookie } : { Cookie: cookie === undefined ? COOKIE : cookie },
     body: body ? JSON.stringify(body) : undefined,
   }).then((r) => r.status);
+// Ohjeen poisto (= siirto roskakoriin) vaatii salasanan bodyssa.
+const delPage = (id, password = 'salasana123') =>
+  fetch(`${B}/api/pages/${id}`, {
+    method: 'DELETE', headers: { ...J, Cookie: COOKIE }, body: JSON.stringify({ password }),
+  }).then((r) => r.status);
+
 // Kategorian poisto vaatii salasanan bodyssa; palauttaa HTTP-statuksen.
 const delCat = (id, password, cookie) =>
   fetch(`${B}/api/categories/${id}`, {
@@ -81,7 +87,7 @@ async function main() {
     // Tekijä tulee istunnosta, ei selaimen kentästä
     const authored = await jsend('POST', '/api/pages', { title: 'Tekijätesti', content: 'x', category_id: 1, author: 'Huijaus' });
     ok('tekijä tulee istunnosta', authored.updated_by === 'Testi Admin', authored.updated_by);
-    await fetch(`${B}/api/pages/${authored.id}`, { method: 'DELETE', headers: H() });
+    await delPage(authored.id);
 
     // --- Tietoturva ---
     const home = await fetch(B + '/');
@@ -91,7 +97,7 @@ async function main() {
     const longTitle = 'A'.repeat(1000);
     const capped = await jsend('POST', '/api/pages', { title: longTitle, content: 'x', category_id: 1 });
     ok('otsikon pituusraja (300)', capped.title.length === 300, capped.title.length);
-    await fetch(`${B}/api/pages/${capped.id}`, { method: 'DELETE', headers: H() });
+    await delPage(capped.id);
 
     // --- Kategoriat ---
     const cats = await jget('/api/categories');
@@ -224,9 +230,46 @@ async function main() {
     ok('liite tarjoillaan hiekkalaatikossa', svgCsp.includes('sandbox') && svgCsp.includes("default-src 'none'"), svgCsp);
     ok('liitteellä nosniff-otsake', svgRes.headers.get('x-content-type-options') === 'nosniff');
     await svgRes.text();
-    await fetch(`${B}/api/pages/${page.id}`, { method: 'DELETE', headers: H() });
-    ok('sivun poisto siivoaa liitteet levyltä', fs.readdirSync(path.join(TMP, 'uploads')).length === 0);
-    ok('sivun poisto siivoaa versiot', (await jget(`/api/pages/${page.id}/revisions`)).length === 0);
+    // --- Roskakori: poisto vaatii salasanan, sisältö säilyy 30 vrk ---
+    const filesBefore = fs.readdirSync(path.join(TMP, 'uploads')).length;
+    ok('ohjeen poisto ilman salasanaa torjutaan (403)',
+      await status('DELETE', `/api/pages/${page.id}`, {}) === 403);
+    ok('ohjeen poisto väärällä salasanalla torjutaan (403)',
+      await status('DELETE', `/api/pages/${page.id}`, { password: 'vaara' }) === 403);
+    ok('ohje on yhä olemassa epäonnistuneen poiston jälkeen',
+      (await fetch(`${B}/api/pages/${page.id}`, { headers: H() })).status === 200);
+    const trashed = await jsend('DELETE', `/api/pages/${page.id}`, { password: 'salasana123' });
+    ok('poisto salasanalla siirtää roskakoriin', trashed.trashed === true && trashed.days === 30);
+    ok('roskakoriin siirretty ohje ei avaudu sivuna (404)',
+      (await fetch(`${B}/api/pages/${page.id}`, { headers: H() })).status === 404);
+    ok('roskakoriin siirretty ohje katoaa listauksesta',
+      (await jget('/api/pages')).every((x) => x.id !== page.id));
+    ok('roskakoriin siirretty ohje katoaa hausta',
+      (await jget('/api/search?q=Testiohje')).pages.every((x) => x.id !== page.id));
+    ok('liitteet säilyvät levyllä roskakorissa',
+      fs.readdirSync(path.join(TMP, 'uploads')).length === filesBefore, 'ennen=' + filesBefore);
+    ok('versiohistoria säilyy roskakorissa', (await jget(`/api/pages/${page.id}/revisions`)).length > 0);
+    const trash = await jget('/api/trash');
+    const inTrash = trash.find((t) => t.id === page.id);
+    ok('ohje näkyy roskakorissa', !!inTrash && inTrash.days_left === 30, JSON.stringify(inTrash));
+    // Palautus
+    await jsend('POST', `/api/pages/${page.id}/restore`, {});
+    ok('palautettu ohje avautuu taas', (await fetch(`${B}/api/pages/${page.id}`, { headers: H() })).status === 200);
+    ok('palautettu ohje näkyy listauksessa', (await jget('/api/pages')).some((x) => x.id === page.id));
+    ok('roskakori tyhjeni palautuksen jälkeen', (await jget('/api/trash')).every((t) => t.id !== page.id));
+    ok('palautus ei-poistetulle torjutaan (400)',
+      await status('POST', `/api/pages/${page.id}/restore`, {}) === 400);
+    // Lopullinen poisto: vain admin + salasana
+    await jsend('DELETE', `/api/pages/${page.id}`, { password: 'salasana123' });
+    ok('lopullinen poisto ilman salasanaa torjutaan (403)',
+      await status('DELETE', `/api/trash/${page.id}`, {}) === 403);
+    ok('lopullinen poisto lukijana torjutaan (403)',
+      await status('DELETE', `/api/trash/${page.id}`, { password: 'salasana123' }, V_COOKIE) === 403);
+    await jsend('DELETE', `/api/trash/${page.id}`, { password: 'salasana123' });
+    ok('lopullinen poisto siivoaa liitteet levyltä', fs.readdirSync(path.join(TMP, 'uploads')).length === 0);
+    ok('lopullinen poisto siivoaa versiot', (await jget(`/api/pages/${page.id}/revisions`)).length === 0);
+    ok('lopullisesti poistettu ohje ei ole roskakorissa',
+      (await jget('/api/trash')).every((t) => t.id !== page.id));
 
     // --- Tiedotteet ---
     const ann = await jsend('POST', '/api/announcements', { title: 'Testitiedote', content: 'Sisältö', author: 'T' });
@@ -271,8 +314,8 @@ async function main() {
       JSON.stringify(litHit.pages.map((p) => p.title)));
     const pctHit = await jget('/api/search?q=' + encodeURIComponent('Raportti%'));
     ok('haku ei kohtele % jokerimerkkinä', pctHit.pages.length === 0, JSON.stringify(pctHit.pages.map((p) => p.title)));
-    await fetch(`${B}/api/pages/${litA.id}`, { method: 'DELETE', headers: H() });
-    await fetch(`${B}/api/pages/${litB.id}`, { method: 'DELETE', headers: H() });
+    await delPage(litA.id);
+    await delPage(litB.id);
 
     // --- Offline ---
     const offRes = await fetch(B + '/offline', { headers: H() });

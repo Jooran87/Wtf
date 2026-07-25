@@ -713,6 +713,8 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 :root[data-vrole="viewer"] .note-quick,
 :root[data-vrole="viewer"] #newSubBtn,
 :root[data-vrole="viewer"] .editor-only,
+:root[data-vrole="viewer"] .nav-link[data-nav="trash"],
+:root[data-vrole="viewer"] [data-restore],
 :root[data-vrole="viewer"] [data-delatt] { display: none !important; }
 
 /* Kirjautumisruutu riisuttuna: pelkkä lomake keskellä, ei sovelluksen kehystä
@@ -732,6 +734,21 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 
 /* Vaaravyöhyke: kategorian poiston salasanavahvistus */
 .danger-zone { border-color: var(--danger-text); background: var(--danger-bg); }
+
+/* Roskakori: poistetut ohjeet + jäljellä oleva säilytysaika */
+/* Huom: .page-list li on tarkempi valitsin, joten roskakorirlvit tarvitsevat
+   saman tarkkuuden (.page-list li.trash-row) voittaakseen sen padding-arvon. */
+.page-list li.trash-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 13px 4px;
+}
+.trash-row .att-name { flex: 1; min-width: 180px; }
+.trash-row .att-name strong { display: block; margin-bottom: 3px; }
+.trash-left {
+  font-size: 12px; font-weight: 700; white-space: nowrap;
+  padding: 3px 9px; border-radius: 20px;
+  background: var(--hover); color: var(--muted);
+}
+.trash-left.soon { background: var(--danger-bg); color: var(--danger-text); }
 
 /* Tallentamaton luonnos: huomiovärillinen kortti muokkausnäkymän yläreunassa */
 .draft-note { border-color: var(--pin-border); border-left: 4px solid var(--brand); }

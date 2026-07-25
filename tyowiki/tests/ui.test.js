@@ -30,6 +30,12 @@ const ok = (name, cond, extra) => {
   else { fail++; console.log('FAIL ' + name + (extra !== undefined ? ' – ' + extra : '')); }
 };
 
+// Lataa kategoriat uudelleen (ohjemäärät) ja avaa kategorian sivu.
+async function loadCatsFresh(page, catId) {
+  await page.evaluate(async (c) => { await loadCategories(); location.hash = '#/kohde/' + c; }, catId);
+  await page.waitForTimeout(600);
+}
+
 async function main() {
   const exe = findChromium();
   if (!exe) {
@@ -379,6 +385,61 @@ async function main() {
       .match(/id="searchInput"[^>]*placeholder="([^"]*)"/) || [])[1] || '';
     ok('hakukentän ohjeteksti mainitsee tiedostot', phSandbox.indexOf('tiedosto') >= 0, phSandbox);
     ok('hakukentän ohjeteksti sama palvelinversiossa', phServer === phSandbox, phServer);
+
+    // 7) Roskakori: poisto siirtää roskakoriin, palautus tuo takaisin,
+    //    lopullinen poisto tyhjentää. Testi luo oman ohjeensa ja tyhjentää
+    //    roskakorin aluksi, jottei aiempien testien jäämät häiritse.
+    const T = await page.evaluate(async () => {
+      for (const t of await Store.trash.list()) await Store.trash.remove(t.id);
+      const cats = await Store.categories.list();
+      const cat = cats.find((c) => !c.parent_id);
+      const pg = await Store.pages.create({ title: 'ROSKISTESTI', content: 'sisältö', category_id: cat.id, author: 'T' });
+      return { pageId: pg.id, catId: cat.id };
+    });
+    await loadCatsFresh(page, T.catId);
+    const countBefore = await page.$eval(`.cat-btn[data-cat="${T.catId}"] .count-badge`, (e) => e.textContent);
+    await page.evaluate((id) => { location.hash = '#/sivu/' + id; }, T.pageId);
+    await page.waitForTimeout(600);
+    dialogAction = 'accept';
+    await page.click('#delBtn'); await page.waitForTimeout(800);
+    ok('poistettu ohje katoaa kategorian listalta',
+      (await page.$$eval('.page-list .page-link', (els) => els.map((e) => e.textContent)))
+        .every((t) => t.indexOf('ROSKISTESTI') < 0));
+    const countAfter = await page.$eval(`.cat-btn[data-cat="${T.catId}"] .count-badge`, (e) => e.textContent);
+    ok('kategorian ohjemäärä pienenee poistosta', Number(countAfter) === Number(countBefore) - 1,
+      `${countBefore} -> ${countAfter}`);
+    ok('poistettua ohjetta ei löydy haulla',
+      (await page.evaluate(async () => (await Store.search('ROSKISTESTI')).pages.length)) === 0);
+    await page.evaluate(() => { location.hash = '#/roskakori'; }); await page.waitForTimeout(600);
+    const trashTitles = () => page.$$eval('.trash-row strong', (els) => els.map((e) => e.textContent));
+    ok('poistettu ohje näkyy roskakorissa', (await trashTitles()).indexOf('ROSKISTESTI') >= 0);
+    ok('roskakori näyttää jäljellä olevan säilytysajan',
+      /30 vrk jäljellä/.test(await page.$eval('.trash-left', (e) => e.textContent)));
+    await page.click('[data-restore]'); await page.waitForTimeout(800);
+    ok('palautus poistaa rivin roskakorista', (await trashTitles()).indexOf('ROSKISTESTI') < 0);
+    await page.evaluate((c) => { location.hash = '#/kohde/' + c; }, T.catId);
+    await page.waitForTimeout(600);
+    ok('palautettu ohje palaa kategoriaan',
+      (await page.$$eval('.page-list .page-link', (els) => els.map((e) => e.textContent)))
+        .some((t) => t.indexOf('ROSKISTESTI') >= 0));
+    ok('ohjemäärä palautuu ennalleen',
+      (await page.$eval(`.cat-btn[data-cat="${T.catId}"] .count-badge`, (e) => e.textContent)) === countBefore);
+    ok('palautettu ohje löytyy taas haulla',
+      (await page.evaluate(async () => (await Store.search('ROSKISTESTI')).pages.length)) === 1);
+    // Lopullinen poisto roskakorista
+    await page.evaluate((id) => { location.hash = '#/sivu/' + id; }, T.pageId);
+    await page.waitForTimeout(600);
+    await page.click('#delBtn'); await page.waitForTimeout(800);
+    await page.evaluate(() => { location.hash = '#/roskakori'; }); await page.waitForTimeout(600);
+    await page.click('[data-purge]'); await page.waitForTimeout(800);
+    ok('lopullinen poisto tyhjentää rivin', (await trashTitles()).indexOf('ROSKISTESTI') < 0);
+    ok('lopullisesti poistettu ohje on poissa kannasta',
+      (await page.evaluate(async (id) => (await Store.pages.list()).some((x) => x.id === id), T.pageId)) === false);
+    // Lukija ei näe roskakoria
+    await page.evaluate(() => { document.documentElement.dataset.vrole = 'viewer'; });
+    await page.waitForTimeout(250);
+    ok('lukija ei näe Roskakori-navilinkkiä', !(await page.isVisible('.nav-link[data-nav="trash"]')));
+    await page.evaluate(() => { document.documentElement.removeAttribute('data-vrole'); });
 
     ok('ei JS-virheitä koko ajossa', errors.length === 0, errors.join(','));
   } finally {

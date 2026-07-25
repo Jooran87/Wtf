@@ -22,6 +22,10 @@ Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
   etusivun laatikko näyttää ~6 numeroa kerralla ja loput rullaamalla
 - **Tiedotteet** – oma sivu + nosto etusivulle; tärkeät tiedotteet voi 📌-kiinnittää,
   jolloin ne näkyvät bannerina etusivun ylälaidassa
+- **Roskakori** – poistettu ohje ei katoa heti: se säilyy liitteineen ja
+  versiohistorioineen **30 vuorokautta** ja on palautettavissa yhdellä klikkauksella.
+  Sen jälkeen se poistuu lopullisesti automaattisesti. Ohjeen poisto vaatii
+  salasanavahvistuksen, lopullinen poisto lisäksi ylläpitäjän oikeudet
 - **Versiohistoria** – jokainen muokkaus tallentaa edellisen version talteen;
   vanhoja versioita voi katsella ja palauttaa (🕘 Historia -nappi ohjesivulla)
 - **Termipankki** – talon termit ja lyhenteet aakkosittain; termit löytyvät myös haulla

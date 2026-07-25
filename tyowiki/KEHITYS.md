@@ -46,7 +46,7 @@ jolloin app.js ohittaa kirjautumisen).
    seed-dataan – tee näin vain kun uusi seed-sisältö on demolle tärkeä).
 5. **Ulkoasu-/logiikkamuutoksen jälkeen aina** `node sandbox/build-single.js`
    ja committaa syntynyt tyowiki-sandbox.html.
-6. **`npm test` vihreänä (166 testiä) ennen jokaista committia.** Testit ajavat
+6. **`npm test` vihreänä (195 testiä) ennen jokaista committia.** Testit ajavat
    palvelimen eristetyssä TYOWIKI_DATA_DIR-hakemistossa – eivät koske oikeaa dataa.
 7. **Tekijätieto tulee AINA istunnosta** (`req.user.name`) – älä koskaan luota
    selaimen author-kenttään.
@@ -115,6 +115,21 @@ jolloin app.js ohittaa kirjautumisen).
 - **Peruuta**-nappi nollaa varoituksen mutta EI luonnosta (vahinkoklikkaus ei
   hukkaa tekstiä).
 
+## Roskakori (pehmeä poisto)
+
+- `pages.deleted_at` / `deleted_by` (NULL = näkyvä ohje). **Kaikki sivukyselyt
+  suodattavat `deleted_at IS NULL`** – listaus, haku, suosituimmat, offline-
+  tuloste ja kategorioiden `page_count`. Uutta kyselyä lisätessä MUISTA tämä.
+- Poisto = `UPDATE ... SET deleted_at`. Liitteet ja versiohistoria säilyvät
+  koskemattomina, joten palautus (`POST /api/pages/:id/restore`) on täydellinen.
+- **Salasanavahvistus:** `DELETE /api/pages/:id` vaatii käyttäjän oman salasanan
+  (`verifyPassword`), lopullinen `DELETE /api/trash/:id` lisäksi admin-roolin.
+- `TRASH_DAYS = 30`. `purgeTrash()` ajetaan käynnistyksessä, kerran vuorokaudessa
+  (`setInterval(...).unref()` – ei pidä testiajoa hengissä) ja roskakoria
+  avattaessa. Sandboxissa vastaava `purgeTrashLocal()` ajetaan listauksessa.
+- Poisto/tallennus kutsuu `loadCategories()`, jotta sivupalkin ohjemäärät
+  pysyvät ajan tasalla.
+
 ## Roolit ja oikeudet (server.js:n portti-middleware)
 
 - `admin`: kaikki + /api/users
@@ -151,7 +166,7 @@ jolloin app.js ohittaa kirjautumisen).
 
 ```bash
 npm start                      # palvelin (PORT=xxxx vaihtaa portin)
-npm test                       # 166 testiä eristetyssä ympäristössä
+npm test                       # 195 testiä eristetyssä ympäristössä
 npm run backup                 # varmuuskopio backups/-kansioon
 node sandbox/build-single.js   # kokoa jaettava sandbox-tiedosto
 node reindex.js                # liitteiden hakuindeksin uudelleenajo

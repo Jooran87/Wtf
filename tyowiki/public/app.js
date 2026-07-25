@@ -558,7 +558,7 @@ function setActiveNav(nav) {
 // Reititys hash-osoitteilla: #/, #/kohde/:id, #/sivu/:id, #/muokkaa/:id, #/uusi, #/vuoroloki, #/haku?q=
 // Oikean reunan kiinnitetty vuoroloki-palsta: näkyy leveillä näytöillä
 // muilla sivuilla kuin etusivulla ja vuorolokissa (niissä huomiot ovat jo esillä).
-const RAIL_ROUTES = ['kohde', 'sivu', 'tiedotteet', 'numerot', 'termipankki', 'linkit', 'haku', 'historia', 'versio', 'kayttajat'];
+const RAIL_ROUTES = ['kohde', 'sivu', 'tiedotteet', 'numerot', 'termipankki', 'linkit', 'haku', 'historia', 'versio', 'kayttajat', 'roskakori'];
 
 function railNoteHtml(n) {
   return `<div class="rail-note">
@@ -634,6 +634,7 @@ async function router() {
     if (parts[0] === 'termipankki') { setActiveNav('terms'); return await viewTerms(); }
     if (parts[0] === 'linkit') { setActiveNav('links'); return await viewLinks(); }
     if (parts[0] === 'kayttajat') { setActiveNav('users'); return await viewUsers(); }
+    if (parts[0] === 'roskakori') { setActiveNav('trash'); return await viewTrash(); }
     if (parts[0] === 'historia') { setActiveNav(''); return await viewHistory(+parts[1]); }
     if (parts[0] === 'versio') { setActiveNav(''); return await viewRevision(+parts[1]); }
     if (parts[0] === 'kohde') { setActiveNav(''); currentCategoryId = +parts[1]; renderSidebar(); return await viewCategory(+parts[1]); }
@@ -1019,6 +1020,7 @@ async function viewPage(id) {
       </div>
     </div>
     <p class="muted">Päivitetty ${esc(fmtDate(p.updated_at))}${p.updated_by ? ' · ' + esc(p.updated_by) : ''}</p>
+    <div id="pageDelRow"></div>
     <div class="row" style="margin-bottom:12px">
       ${verifyBadge(p)}
       <button class="btn small secondary" id="verifyBtn">${icon('verify')} Vahvista ajantasaiseksi</button>
@@ -1069,14 +1071,46 @@ async function viewPage(id) {
     toast('Vahvistettu ajantasaiseksi'); viewPage(id);
   };
   $('#editBtn').onclick = () => { location.hash = '#/muokkaa/' + id; };
-  $('#delBtn').onclick = async () => {
-    if (confirm('Poistetaanko ohje ja sen liitteet?')) {
-      await Store.pages.remove(id);
+  // Poisto = siirto roskakoriin. Palvelinversiossa vaaditaan salasana, jottei
+  // ohje katoa vahingossa kiireessä; sandboxissa riittää vahvistus.
+  const doDeletePage = async (password) => {
+    try {
+      await Store.pages.remove(id, password);
       clearDraft(id); // ei jätetä poistetun ohjeen luonnosta roikkumaan
+      await loadCategories(); // sivupalkin ohjemäärät ajan tasalle
       // Kategoriattomasta ohjeesta palataan etusivulle (#/kohde/null olisi rikki).
       location.hash = p.category_id ? '#/kohde/' + p.category_id : '#/';
-      toast('Ohje poistettu');
+      toast('Siirretty roskakoriin – palautettavissa 30 vrk');
+    } catch (err) { toast(err.message, true); }
+  };
+  $('#delBtn').onclick = () => {
+    const row = $('#pageDelRow');
+    if (!Store.auth) {
+      if (confirm('Siirretäänkö ohje roskakoriin? Se on palautettavissa 30 vrk.')) doDeletePage(null);
+      return;
     }
+    if (row.dataset.mode === 'del') { row.innerHTML = ''; row.dataset.mode = ''; return; }
+    row.dataset.mode = 'del';
+    row.innerHTML = `<div class="card danger-zone">
+      <p style="margin:0 0 10px"><strong>${icon('trash')} Siirretäänkö “${esc(p.title)}” roskakoriin?</strong></p>
+      <p class="muted" style="margin:0 0 10px">Ohje liitteineen ja versiohistorioineen säilyy
+        <strong>30 vuorokautta</strong> ja on palautettavissa Roskakori-sivulta.</p>
+      <div class="row" style="flex-wrap:wrap">
+        <input type="password" id="delPagePass" placeholder="Vahvista omalla salasanallasi" autocomplete="current-password"
+          style="flex:1; min-width:200px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
+        <button class="btn small danger" id="delPageConfirm">Siirrä roskakoriin</button>
+        <button class="btn small secondary" id="delPageCancel">Peruuta</button>
+      </div>
+    </div>`;
+    const submit = () => {
+      const pw = $('#delPagePass').value;
+      if (!pw) return toast('Anna salasanasi', true);
+      doDeletePage(pw);
+    };
+    $('#delPageConfirm').onclick = submit;
+    $('#delPagePass').onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+    $('#delPageCancel').onclick = () => { row.innerHTML = ''; row.dataset.mode = ''; };
+    $('#delPagePass').focus();
   };
   document.querySelectorAll('[data-delatt]').forEach((b) => b.onclick = async () => {
     if (confirm('Poistetaanko liite?')) { await Store.attachments.remove(b.dataset.delatt); viewPage(id); }
@@ -1237,6 +1271,8 @@ async function viewPageEdit(id, presetCat) {
       // Tallennus onnistui: luonnosta ei enää tarvita eikä poistumisesta varoiteta.
       clearDraft(id);
       setUnsavedGuard(false);
+      // Uusi ohje tai kategorian vaihto muuttaa sivupalkin ohjemääriä.
+      await loadCategories();
       toast('Tallennettu'); location.hash = '#/sivu/' + saved.id;
     } catch (err) { toast(err.message, true); }
   };
@@ -1275,6 +1311,80 @@ async function viewShiftLog() {
     catch (err) { toast(err.message, true); }
   };
   bindNoteDelete(viewShiftLog);
+}
+
+// Roskakori: poistetut ohjeet säilyvät 30 vrk ja ovat palautettavissa.
+// Lopullinen poisto on peruuttamaton → vain ylläpitäjä + salasana.
+async function viewTrash() {
+  const rows = await Store.trash.list();
+  const isAdmin = !Store.auth || (currentUser && currentUser.role === 'admin');
+  content.innerHTML = `
+    <h2>${icon('trash', 'ic-lg')} Roskakori</h2>
+    <p class="muted">Poistetut ohjeet säilyvät <strong>30 vuorokautta</strong> liitteineen ja
+      versiohistorioineen. Sen jälkeen ne poistuvat lopullisesti automaattisesti.</p>
+    <div id="trashDelRow"></div>
+    <div class="card">
+      <ul class="page-list">
+        ${rows.map((r) => `<li class="trash-row">
+          <span class="att-name">
+            <strong>${esc(r.title)}</strong>
+            <div class="att-meta">${esc(r.category_name || 'Yleinen')} · poistettu
+              ${esc(fmtDate(r.deleted_at))}${r.deleted_by ? ' · ' + esc(r.deleted_by) : ''}</div>
+          </span>
+          <span class="trash-left ${r.days_left <= 5 ? 'soon' : ''}">${r.days_left} vrk jäljellä</span>
+          <span class="row">
+            <button class="btn small secondary" data-restore="${r.id}">${icon('history')} Palauta</button>
+            ${isAdmin ? `<button class="btn small danger" data-purge="${r.id}" data-title="${esc(r.title)}">Poista lopullisesti</button>` : ''}
+          </span>
+        </li>`).join('')
+        || '<li class="empty">Roskakori on tyhjä. Poistetut ohjeet näkyvät täällä 30 vuorokautta.</li>'}
+      </ul>
+    </div>`;
+
+  document.querySelectorAll('[data-restore]').forEach((b) => b.onclick = async () => {
+    try {
+      await Store.pages.restore(b.dataset.restore);
+      await loadCategories(); // ohjemäärät kategorioihin takaisin
+      toast('Ohje palautettu'); viewTrash();
+    } catch (err) { toast(err.message, true); }
+  });
+  document.querySelectorAll('[data-purge]').forEach((b) => b.onclick = () => {
+    const pid = b.dataset.purge;
+    const row = $('#trashDelRow');
+    const purge = async (password) => {
+      try {
+        await Store.trash.remove(pid, password);
+        row.innerHTML = ''; row.dataset.mode = '';
+        toast('Poistettu lopullisesti'); viewTrash();
+      } catch (err) { toast(err.message, true); }
+    };
+    if (!Store.auth) {
+      if (confirm('Poistetaanko ohje LOPULLISESTI? Tätä ei voi perua.')) purge(null);
+      return;
+    }
+    if (row.dataset.mode === pid) { row.innerHTML = ''; row.dataset.mode = ''; return; }
+    row.dataset.mode = pid;
+    row.innerHTML = `<div class="card danger-zone">
+      <p style="margin:0 0 10px"><strong>${icon('warn')} Poistetaanko “${esc(b.dataset.title)}” lopullisesti?</strong></p>
+      <p class="muted" style="margin:0 0 10px">Ohje, sen liitteet ja koko versiohistoria katoavat pysyvästi. Tätä ei voi perua.</p>
+      <div class="row" style="flex-wrap:wrap">
+        <input type="password" id="purgePass" placeholder="Vahvista omalla salasanallasi" autocomplete="current-password"
+          style="flex:1; min-width:200px; padding:8px 10px; border:1px solid var(--border); border-radius:6px" />
+        <button class="btn small danger" id="purgeConfirm">Poista lopullisesti</button>
+        <button class="btn small secondary" id="purgeCancel">Peruuta</button>
+      </div>
+    </div>`;
+    const submit = () => {
+      const pw = $('#purgePass').value;
+      if (!pw) return toast('Anna salasanasi', true);
+      purge(pw);
+    };
+    $('#purgeConfirm').onclick = submit;
+    $('#purgePass').onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+    $('#purgeCancel').onclick = () => { row.innerHTML = ''; row.dataset.mode = ''; };
+    $('#purgePass').focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
 
 async function viewHistory(pageId) {
@@ -1753,7 +1863,7 @@ document.addEventListener('click', async (e) => {
   if (cat) { location.hash = '#/kohde/' + cat.dataset.cat; return; }
   const nav = e.target.closest('[data-nav]');
   if (nav) {
-    const routes = { home: '#/', shiftlog: '#/vuoroloki', contacts: '#/numerot', announcements: '#/tiedotteet', terms: '#/termipankki', links: '#/linkit', users: '#/kayttajat' };
+    const routes = { home: '#/', shiftlog: '#/vuoroloki', contacts: '#/numerot', announcements: '#/tiedotteet', terms: '#/termipankki', links: '#/linkit', users: '#/kayttajat', trash: '#/roskakori' };
     location.hash = routes[nav.dataset.nav] || '#/';
     return;
   }

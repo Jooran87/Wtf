@@ -277,10 +277,26 @@ const upload = multer({
 
 const now = () => new Date().toISOString();
 
+// ---------- Roskakori ----------
+// Poistettu ohje ei katoa heti: se merkitään poistetuksi ja säilyy liitteineen
+// TRASH_DAYS päivää, jonka jälkeen se siivotaan lopullisesti. Näin vuoron
+// kiireessä tehty vahinkopoisto on aina peruttavissa.
+const TRASH_DAYS = 30;
+
+function purgeTrash() {
+  const cutoff = new Date(Date.now() - TRASH_DAYS * 86400000).toISOString();
+  const old = db.prepare('SELECT id FROM pages WHERE deleted_at IS NOT NULL AND deleted_at < ?').all(cutoff);
+  if (!old.length) return 0;
+  for (const p of old) deletePageFiles(p.id);
+  db.prepare('DELETE FROM pages WHERE deleted_at IS NOT NULL AND deleted_at < ?').run(cutoff);
+  return old.length;
+}
+
 // ---------- Kategoriat (kohteet) ----------
 app.get('/api/categories', (req, res) => {
+  // page_count laskee vain näkyvät ohjeet (roskakorissa olevat eivät näy).
   const rows = db.prepare(
-    `SELECT c.*, (SELECT COUNT(*) FROM pages p WHERE p.category_id = c.id) AS page_count
+    `SELECT c.*, (SELECT COUNT(*) FROM pages p WHERE p.category_id = c.id AND p.deleted_at IS NULL) AS page_count
      FROM categories c ORDER BY c.sort_order, c.name`
   ).all();
   res.json(rows);
@@ -413,11 +429,52 @@ app.get('/api/pages', (req, res) => {
   let rows;
   if (category_id) {
     // Kategorian sisällä käsin asetettu järjestys, uudet (0) aakkosissa alussa.
-    rows = db.prepare('SELECT id, category_id, title, updated_at, updated_by FROM pages WHERE category_id = ? ORDER BY sort_order, title').all(category_id);
+    rows = db.prepare('SELECT id, category_id, title, updated_at, updated_by, verified_at FROM pages WHERE category_id = ? AND deleted_at IS NULL ORDER BY sort_order, title').all(category_id);
   } else {
-    rows = db.prepare('SELECT id, category_id, title, updated_at, updated_by FROM pages ORDER BY title').all();
+    rows = db.prepare('SELECT id, category_id, title, updated_at, updated_by, verified_at FROM pages WHERE deleted_at IS NULL ORDER BY title').all();
   }
   res.json(rows);
+});
+
+// Roskakorin sisältö: uusin poisto ensin, mukana montako päivää säilyy vielä.
+app.get('/api/trash', (req, res) => {
+  purgeTrash();
+  const rows = db.prepare(
+    `SELECT p.id, p.title, p.category_id, p.deleted_at, p.deleted_by, c.name AS category_name
+     FROM pages p LEFT JOIN categories c ON c.id = p.category_id
+     WHERE p.deleted_at IS NOT NULL ORDER BY p.deleted_at DESC`
+  ).all();
+  res.json(rows.map((r) => ({
+    ...r,
+    days_left: Math.max(0, TRASH_DAYS - Math.floor((Date.now() - new Date(r.deleted_at).getTime()) / 86400000)),
+  })));
+});
+
+// Palautus roskakorista: ohje palaa kategoriaansa liitteineen ja historioineen.
+app.post('/api/pages/:id/restore', (req, res) => {
+  const page = db.prepare('SELECT id, deleted_at FROM pages WHERE id = ?').get(req.params.id);
+  if (!page) return res.status(404).json({ error: 'Ohjetta ei löydy' });
+  if (!page.deleted_at) return res.status(400).json({ error: 'Ohje ei ole roskakorissa' });
+  db.prepare("UPDATE pages SET deleted_at = NULL, deleted_by = '' WHERE id = ?").run(page.id);
+  res.json(db.prepare('SELECT * FROM pages WHERE id = ?').get(page.id));
+});
+
+// Lopullinen poisto roskakorista: peruuttamaton, joten vain ylläpitäjä
+// ja salasanavahvistus (sama linja kuin kategorian poistossa).
+app.delete('/api/trash/:id', (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Vain ylläpitäjä voi tyhjentää roskakoria' });
+  }
+  const u = db.prepare('SELECT pass_salt, pass_hash FROM users WHERE id = ?').get(req.user.id);
+  if (!u || !verifyPassword(String(req.body.password || ''), u.pass_salt, u.pass_hash)) {
+    return res.status(403).json({ error: 'Väärä salasana – ohjetta ei poistettu' });
+  }
+  const page = db.prepare('SELECT id, deleted_at FROM pages WHERE id = ?').get(req.params.id);
+  if (!page) return res.status(404).json({ error: 'Ohjetta ei löydy' });
+  if (!page.deleted_at) return res.status(400).json({ error: 'Ohje ei ole roskakorissa' });
+  deletePageFiles(page.id);
+  db.prepare('DELETE FROM pages WHERE id = ?').run(page.id);
+  res.json({ ok: true });
 });
 
 // Suosituimmat ohjeet (katselukertojen mukaan). Määriteltävä ennen :id-reittiä.
@@ -426,7 +483,7 @@ app.get('/api/pages/popular', (req, res) => {
   const rows = db.prepare(
     `SELECT p.id, p.title, p.category_id, p.views, c.name AS category_name
      FROM pages p LEFT JOIN categories c ON c.id = p.category_id
-     WHERE p.views > 0 ORDER BY p.views DESC, p.title LIMIT ?`
+     WHERE p.views > 0 AND p.deleted_at IS NULL ORDER BY p.views DESC, p.title LIMIT ?`
   ).all(lim);
   res.json(rows);
 });
@@ -434,6 +491,8 @@ app.get('/api/pages/popular', (req, res) => {
 app.get('/api/pages/:id', (req, res) => {
   const page = db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
   if (!page) return res.status(404).json({ error: 'Sivua ei löydy' });
+  // Roskakorissa oleva ohje ei aukea normaalina sivuna (esim. vanha linkki).
+  if (page.deleted_at) return res.status(404).json({ error: 'Ohje on roskakorissa' });
   // Lasketaan katselu vain kun sivua oikeasti avataan (ei muokkausnäkymässä).
   if (req.query.track) {
     db.prepare('UPDATE pages SET views = views + 1 WHERE id = ?').run(page.id);
@@ -504,16 +563,27 @@ app.get('/api/revisions/:id', (req, res) => {
   res.json(rev);
 });
 
+// Ohjeen poisto = siirto roskakoriin. Vaatii salasanavahvistuksen, jottei
+// ohje katoa vahingossa väärään napin painallukseen kiireessä. Sisältö
+// säilyy TRASH_DAYS päivää ja on palautettavissa.
 app.delete('/api/pages/:id', (req, res) => {
-  deletePageFiles(req.params.id);
-  db.prepare('DELETE FROM pages WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
+  const page = db.prepare('SELECT id, deleted_at FROM pages WHERE id = ?').get(req.params.id);
+  if (!page) return res.status(404).json({ error: 'Ohjetta ei löydy' });
+  const u = db.prepare('SELECT pass_salt, pass_hash FROM users WHERE id = ?').get(req.user.id);
+  if (!u || !verifyPassword(String(req.body.password || ''), u.pass_salt, u.pass_hash)) {
+    return res.status(403).json({ error: 'Väärä salasana – ohjetta ei poistettu' });
+  }
+  if (page.deleted_at) return res.json({ ok: true, alreadyDeleted: true });
+  db.prepare('UPDATE pages SET deleted_at = ?, deleted_by = ? WHERE id = ?')
+    .run(now(), req.user.name, page.id);
+  res.json({ ok: true, trashed: true, days: TRASH_DAYS });
 });
 
 // ---------- Liitteet ----------
 app.post('/api/pages/:id/attachments', upload.array('files', 10), async (req, res) => {
-  const page = db.prepare('SELECT id FROM pages WHERE id = ?').get(req.params.id);
+  const page = db.prepare('SELECT id, deleted_at FROM pages WHERE id = ?').get(req.params.id);
   if (!page) return res.status(404).json({ error: 'Sivua ei löydy' });
+  if (page.deleted_at) return res.status(400).json({ error: 'Ohje on roskakorissa – palauta se ensin' });
   const author = req.user.name;
   const stmt = db.prepare(
     'INSERT INTO attachments (page_id, stored_name, original_name, mimetype, size, uploaded_at, uploaded_by, text_content) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
@@ -706,7 +776,8 @@ app.get('/api/search', (req, res) => {
   const pageRows = db.prepare(
     `SELECT p.id, p.title, p.content, p.keywords, p.category_id, c.name AS category_name
      FROM pages p LEFT JOIN categories c ON c.id = p.category_id
-     WHERE p.title LIKE ? ESCAPE '\\' OR p.content LIKE ? ESCAPE '\\' OR p.keywords LIKE ? ESCAPE '\\'
+     WHERE p.deleted_at IS NULL
+       AND (p.title LIKE ? ESCAPE '\\' OR p.content LIKE ? ESCAPE '\\' OR p.keywords LIKE ? ESCAPE '\\')
      ORDER BY p.title LIMIT 50`
   ).all(like, like, like);
   const pages = pageRows.map((p) => ({
@@ -727,7 +798,8 @@ app.get('/api/search', (req, res) => {
      FROM attachments a
      JOIN pages p ON p.id = a.page_id
      LEFT JOIN categories c ON c.id = p.category_id
-     WHERE a.original_name LIKE ? ESCAPE '\\' OR a.text_content LIKE ? ESCAPE '\\'
+     WHERE p.deleted_at IS NULL
+       AND (a.original_name LIKE ? ESCAPE '\\' OR a.text_content LIKE ? ESCAPE '\\')
      ORDER BY a.original_name LIMIT 50`
   ).all(like, like);
   const files = fileRows.map((f) => ({
@@ -765,7 +837,7 @@ function makeSnippet(text, q) {
 // Kokoaa koko wikin yhdeksi HTML-tiedostoksi, jonka voi tallentaa puhelimeen
 // ja käyttää ilman verkkoa. ?download=1 pakottaa tallennuksen tiedostona.
 app.get('/offline', (req, res) => {
-  const pages = db.prepare('SELECT * FROM pages').all();
+  const pages = db.prepare('SELECT * FROM pages WHERE deleted_at IS NULL').all();
   const attStmt = db.prepare('SELECT original_name FROM attachments WHERE page_id = ?');
   for (const p of pages) p.attachments = attStmt.all(p.id);
   const html = buildOfflineHtml({
@@ -798,6 +870,12 @@ app.use((err, req, res, next) => {
   if (err) return res.status(400).json({ error: err.message });
   next();
 });
+
+// Roskakorin siivous käynnistyksessä ja kerran vuorokaudessa.
+// unref(): ajastin ei pidä prosessia (eikä testiajoa) hengissä.
+const purged = purgeTrash();
+if (purged) console.log(`Roskakorista siivottu ${purged} yli ${TRASH_DAYS} vrk vanhaa ohjetta.`);
+setInterval(purgeTrash, 24 * 3600 * 1000).unref();
 
 app.listen(PORT, () => {
   console.log(`Työohje-wiki käynnissä: http://localhost:${PORT}`);

@@ -65,7 +65,9 @@ const Store = {
     get: (id, { track } = {}) => api('/api/pages/' + id + (track ? '?track=1' : '')).then(withAttachmentUrls),
     create: (data) => api('/api/pages', jsonBody('POST', data)),
     update: (id, data) => api('/api/pages/' + id, jsonBody('PUT', data)),
-    remove: (id) => api('/api/pages/' + id, { method: 'DELETE' }),
+    // Poisto = siirto roskakoriin; vaatii salasanavahvistuksen.
+    remove: (id, password) => api('/api/pages/' + id, jsonBody('DELETE', { password })),
+    restore: (id) => api('/api/pages/' + id + '/restore', { method: 'POST' }),
     revisions: (id) => api('/api/pages/' + id + '/revisions'),
     verify: (id, author) => api('/api/pages/' + id + '/verify', jsonBody('POST', { author })),
     reorder: (ids) => api('/api/pages/reorder', jsonBody('POST', { ids })),
@@ -73,6 +75,12 @@ const Store = {
 
   revisions: {
     get: (id) => api('/api/revisions/' + id),
+  },
+
+  trash: {
+    list: () => api('/api/trash'),
+    // Lopullinen poisto: vain ylläpitäjä + salasana.
+    remove: (id, password) => api('/api/trash/' + id, jsonBody('DELETE', { password })),
   },
 
   links: {

@@ -163,4 +163,14 @@ if (!pageCols.includes('verified_at')) {
   db.exec("ALTER TABLE pages ADD COLUMN verified_by TEXT NOT NULL DEFAULT ''");
 }
 
+// Migraatio: roskakori. deleted_at = poistohetki (NULL = näkyvä ohje).
+// Poistettu ohje säilyy TRASH_DAYS päivää liitteineen ja versiohistorioineen,
+// minkä jälkeen se siivotaan lopullisesti (server.js: purgeTrash).
+if (!pageCols.includes('deleted_at')) {
+  db.exec('ALTER TABLE pages ADD COLUMN deleted_at TEXT');
+  db.exec("ALTER TABLE pages ADD COLUMN deleted_by TEXT NOT NULL DEFAULT ''");
+}
+// Osittaisindeksi: näkyvien ohjeiden haut ovat ylivoimaisesti yleisimpiä.
+db.exec('CREATE INDEX IF NOT EXISTS idx_pages_live ON pages(category_id) WHERE deleted_at IS NULL');
+
 module.exports = db;

@@ -99,6 +99,8 @@ const ALLOWED = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ]);
 const MAX_SIZE = 50 * 1024 * 1024;
+// Roskakori: poistettu ohje säilyy näin monta päivää ennen lopullista siivousta.
+const TRASH_DAYS = 30;
 
 // ---------- Alustus + esimerkkidata ----------
 const ready = ensureSeeded();
@@ -388,12 +390,13 @@ function migrateExisting() {
     if (typeof p.keywords !== 'string') { p.keywords = ''; changed = true; }
     if (p.verified_at === undefined) { p.verified_at = null; p.verified_by = ''; changed = true; }
     if (typeof p.sort_order !== 'number') { p.sort_order = 0; changed = true; }
+    if (p.deleted_at === undefined) { p.deleted_at = null; p.deleted_by = ''; changed = true; }
   });
   if (changed) save(DB);
 }
 
 function mkPage(catId, title, content, by, keywords) {
-  const p = { id: nextId(), category_id: catId, title, content, keywords: keywords || '', updated_at: nowISO(), updated_by: by || '', views: 0, verified_at: null, verified_by: '' };
+  const p = { id: nextId(), category_id: catId, title, content, keywords: keywords || '', updated_at: nowISO(), updated_by: by || '', views: 0, verified_at: null, verified_by: '', deleted_at: null, deleted_by: '' };
   DB.pages.push(p); return p;
 }
 function mkNote(catId, author, content) {
@@ -440,7 +443,7 @@ const Store = {
       return clone(DB.categories)
         .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
         .map((c) => ({ ...c, parent_id: c.parent_id != null ? c.parent_id : null, color: c.color || '',
-          page_count: DB.pages.filter((p) => p.category_id === c.id).length }));
+          page_count: DB.pages.filter((p) => p.category_id === c.id && !p.deleted_at).length }));
     },
     async create(data) {
       await ready;
@@ -486,20 +489,21 @@ const Store = {
   pages: {
     async list(categoryId) {
       await ready;
-      let rows = DB.pages;
+      const pick = ({ id, category_id, title, updated_at, updated_by, verified_at }) =>
+        ({ id, category_id, title, updated_at, updated_by, verified_at });
+      let rows = DB.pages.filter((p) => !p.deleted_at); // roskakori ei näy listoissa
       if (categoryId) {
         categoryId = Number(categoryId);
         rows = rows.filter((p) => p.category_id === categoryId);
         return clone(rows)
           .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.title.localeCompare(b.title))
-          .map(({ id, category_id, title, updated_at, updated_by }) => ({ id, category_id, title, updated_at, updated_by }));
+          .map(pick);
       }
-      return clone(rows).sort((a, b) => a.title.localeCompare(b.title))
-        .map(({ id, category_id, title, updated_at, updated_by }) => ({ id, category_id, title, updated_at, updated_by }));
+      return clone(rows).sort((a, b) => a.title.localeCompare(b.title)).map(pick);
     },
     async popular(limit = 10) {
       await ready;
-      return clone(DB.pages).filter((p) => (p.views || 0) > 0)
+      return clone(DB.pages).filter((p) => (p.views || 0) > 0 && !p.deleted_at)
         .sort((a, b) => b.views - a.views || a.title.localeCompare(b.title))
         .slice(0, limit)
         .map((p) => ({ id: p.id, title: p.title, category_id: p.category_id, views: p.views, category_name: catName(p.category_id) }));
@@ -508,6 +512,7 @@ const Store = {
       await ready; id = Number(id);
       const p = DB.pages.find((x) => x.id === id);
       if (!p) throw new Error('Sivua ei löydy');
+      if (p.deleted_at) throw new Error('Ohje on roskakorissa');
       if (track) { p.views = (p.views || 0) + 1; save(DB); }
       const out = clone(p);
       out.attachments = [];
@@ -547,7 +552,22 @@ const Store = {
       p.updated_at = nowISO(); p.updated_by = (data.author || '').trim();
       save(DB); return clone(p);
     },
-    async remove(id) { await ready; await removePageInternal(Number(id)); save(DB); return { ok: true }; },
+    // Poisto = siirto roskakoriin. Sandboxissa ei ole kirjautumista, joten
+    // salasanaa ei vaadita (vrt. kategorian poisto) – palvelinversiossa vaaditaan.
+    async remove(id) {
+      await ready; id = Number(id);
+      const p = DB.pages.find((x) => x.id === id);
+      if (!p) throw new Error('Sivua ei löydy');
+      if (!p.deleted_at) { p.deleted_at = nowISO(); p.deleted_by = ''; save(DB); }
+      return { ok: true, trashed: true, days: TRASH_DAYS };
+    },
+    async restore(id) {
+      await ready; id = Number(id);
+      const p = DB.pages.find((x) => x.id === id);
+      if (!p) throw new Error('Ohjetta ei löydy');
+      if (!p.deleted_at) throw new Error('Ohje ei ole roskakorissa');
+      p.deleted_at = null; p.deleted_by = ''; save(DB); return clone(p);
+    },
     async reorder(ids) { await ready; applyReorder(DB.pages, ids); save(DB); return { ok: true }; },
     async verify(id, byAuthor) {
       await ready; id = Number(id);
@@ -568,7 +588,9 @@ const Store = {
     async url(id) { await ready; return getBlobUrl(Number(id)); },
     async upload(pageId, files, author) {
       await ready; pageId = Number(pageId);
-      if (!DB.pages.find((p) => p.id === pageId)) throw new Error('Sivua ei löydy');
+      const target = DB.pages.find((p) => p.id === pageId);
+      if (!target) throw new Error('Sivua ei löydy');
+      if (target.deleted_at) throw new Error('Ohje on roskakorissa – palauta se ensin');
       for (const f of files) {
         if (!ALLOWED.has(f.type)) throw new Error('Tiedostotyyppiä ei sallita: ' + (f.type || 'tuntematon'));
         if (f.size > MAX_SIZE) throw new Error('Tiedosto on liian suuri (max 50 Mt)');
@@ -747,11 +769,35 @@ const Store = {
     },
   },
 
+  // ---------- Roskakori ----------
+  trash: {
+    async list() {
+      await ready;
+      purgeTrashLocal();
+      return clone(DB.pages).filter((p) => p.deleted_at)
+        .sort((a, b) => String(b.deleted_at).localeCompare(String(a.deleted_at)))
+        .map((p) => ({
+          id: p.id, title: p.title, category_id: p.category_id,
+          category_name: catName(p.category_id), deleted_at: p.deleted_at, deleted_by: p.deleted_by || '',
+          days_left: Math.max(0, TRASH_DAYS - Math.floor((Date.now() - new Date(p.deleted_at).getTime()) / 86400000)),
+        }));
+    },
+    // Lopullinen poisto. Sandboxissa ei ole salasanoja, joten parametri ohitetaan.
+    async remove(id) {
+      await ready; id = Number(id);
+      const p = DB.pages.find((x) => x.id === id);
+      if (!p) throw new Error('Ohjetta ei löydy');
+      if (!p.deleted_at) throw new Error('Ohje ei ole roskakorissa');
+      await removePageInternal(id); save(DB); return { ok: true };
+    },
+  },
+
   async search(q) {
     await ready;
     q = (q || '').trim();
     if (!q) return { pages: [], notes: [], files: [], announcements: [], terms: [], links: [] };
-    const pages = DB.pages.filter((p) => includesCI(p.title, q) || includesCI(p.content, q) || includesCI(p.keywords, q))
+    const pages = DB.pages.filter((p) => !p.deleted_at &&
+      (includesCI(p.title, q) || includesCI(p.content, q) || includesCI(p.keywords, q)))
       .sort((a, b) => a.title.localeCompare(b.title))
       .map((p) => ({
         id: p.id, title: p.title, category_id: p.category_id, category_name: catName(p.category_id),
@@ -764,6 +810,7 @@ const Store = {
     const files = [];
     for (const a of DB.attachments.filter((x) => includesCI(x.original_name, q) || includesCI(x.text_content, q))) {
       const page = DB.pages.find((p) => p.id === a.page_id);
+      if (page && page.deleted_at) continue; // roskakorissa olevan ohjeen liite ei näy haussa
       files.push({
         id: a.id, original_name: a.original_name, mimetype: a.mimetype,
         page_id: a.page_id, page_title: page ? page.title : '',
@@ -784,6 +831,17 @@ const Store = {
     return { pages, notes, files, announcements, terms, links };
   },
 };
+
+// Siivoaa yli TRASH_DAYS vrk roskakorissa olleet ohjeet lopullisesti.
+// Kutsutaan roskakoria avattaessa (sandboxissa ei ole taustaprosessia).
+function purgeTrashLocal() {
+  const cutoff = new Date(Date.now() - TRASH_DAYS * 86400000).toISOString();
+  const old = DB.pages.filter((p) => p.deleted_at && p.deleted_at < cutoff);
+  if (!old.length) return;
+  // Tarkoituksella tulinen: blobien poisto on asynkroninen, mutta listaus ei
+  // odota sitä – data katoaa joka tapauksessa seuraavaan tallennukseen mennessä.
+  Promise.all(old.map((p) => removePageInternal(p.id))).then(() => save(DB));
+}
 
 async function removePageInternal(id) {
   const atts = DB.attachments.filter((a) => a.page_id === id);

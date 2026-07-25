@@ -33,7 +33,9 @@ jolloin app.js ohittaa kirjautumisen).
 
 1. **Ei uusia riippuvuuksia kevyin perustein.** Auth tehtiin Node cryptolla,
    evästeparseri käsin. `npm audit` on 0 – pidä se nollassa
-   (uuid on pakotettu overrides-kentällä package.jsonissa).
+   (`overrides`-kenttä package.jsonissa pakottaa korjatut versiot: `uuid`
+   exceljs:lle ja `brace-expansion` koko puulle. Jos `npm audit` näyttää
+   siirtymäriippuvuuden haavoittuvuuden, lisää override + aja `npm test`.)
 2. **Kaikki käyttäjäsisältö escapetaan** (`esc()` app.js:ssä) ennen innerHTML:ää.
    Markdown renderöidään escapetusta tekstistä. XSS-testit vartioivat tätä.
 3. **Skeemamuutokset vain lisäävinä migraatioina db.js:ään**
@@ -44,7 +46,7 @@ jolloin app.js ohittaa kirjautumisen).
    seed-dataan – tee näin vain kun uusi seed-sisältö on demolle tärkeä).
 5. **Ulkoasu-/logiikkamuutoksen jälkeen aina** `node sandbox/build-single.js`
    ja committaa syntynyt tyowiki-sandbox.html.
-6. **`npm test` vihreänä (146 testiä) ennen jokaista committia.** Testit ajavat
+6. **`npm test` vihreänä (166 testiä) ennen jokaista committia.** Testit ajavat
    palvelimen eristetyssä TYOWIKI_DATA_DIR-hakemistossa – eivät koske oikeaa dataa.
 7. **Tekijätieto tulee AINA istunnosta** (`req.user.name`) – älä koskaan luota
    selaimen author-kenttään.
@@ -82,6 +84,9 @@ jolloin app.js ohittaa kirjautumisen).
   lataama SVG/HTML voi ajaa skriptiä XSS-vektorina.
 - **Haun LIKE-kyselyt** escapetaan (`% _ \` → `ESCAPE '\'`), jotta haku on
   kirjaimellinen. Sandbox käyttää substring-hakua, joten se on jo kirjaimellinen.
+- **`highlight()` etsii osumat RAAKATEKSTISTÄ** ja escapettaa palat erikseen.
+  Jos korostus tehtäisiin valmiiksi escapetusta merkkijonosta, haku sanalla
+  `amp`/`quot`/`lt` osuisi HTML-entiteetin sisään ja rikkoisi merkin.
 
 ## Alakategoriat (monta tasoa)
 
@@ -98,12 +103,30 @@ jolloin app.js ohittaa kirjautumisen).
   `ancestorsOf()` (murupolku), `descendantsOf()` (silmukan esto, ohjemäärät).
   Sisennys kompoundaa CSS:ssä (`.subcat-list` padding + border-left per taso).
 
+## Tallentamattomat muutokset ja luonnokset
+
+- `unsavedDirty` (app.js) on tosi kun muokkauslomaketta on kosketettu.
+  `window.onbeforeunload` kattaa selaimen sulkemisen, mutta **hash-navigointi
+  ei laukaise sitä** – siksi `router()` kysyy erikseen ja palauttaa osoitteen
+  (`revertingHash`), jos käyttäjä peruu.
+- Sama näppäily tallentaa luonnoksen selaimeen (`tyowiki_draft_<id|uusi>`).
+  Luonnos tarjotaan palautettavaksi muokkausnäkymän avautuessa ja siivotaan
+  onnistuneen tallennuksen sekä ohjeen poiston yhteydessä.
+- **Peruuta**-nappi nollaa varoituksen mutta EI luonnosta (vahinkoklikkaus ei
+  hukkaa tekstiä).
+
 ## Roolit ja oikeudet (server.js:n portti-middleware)
 
 - `admin`: kaikki + /api/users
 - `editor`: kaikki paitsi /api/users
 - `viewer`: vain GET (käyttöliittymä piilottaa napit CSS:llä
-  `:root[data-vrole="viewer"]`, mutta palvelin on ainoa oikea vartija)
+  `:root[data-vrole="viewer"]`, mutta palvelin on ainoa oikea vartija).
+  **Uusi kirjoittava lomake ⇒ lisää kortille `editor-only`-luokka** tai napin
+  id piilotuslistaan – muuten lukija näkee lomakkeen, joka kaatuu 403:een.
+  `viewPageEdit` näyttää lukijalle selkeän viestin lomakkeen sijaan.
+- Kirjautumaton tila: `data-auth="out"` piilottaa yläpalkin, sivupalkin,
+  reunapalstan ja alapalkin, jottei kirjautumissivulla ole klikattavaa
+  valikkoa (klikkaus olisi antanut harhaanjohtavan istuntovirheen).
 - **Kategorian poisto: vain `admin` JA salasanavahvistus.** `DELETE
   /api/categories/:id` tarkistaa roolin ja `verifyPassword`:lla bodyn
   `password`-kentän (peruuttamaton, vie alakategoriat+sivut+liitteet). UI
@@ -128,7 +151,7 @@ jolloin app.js ohittaa kirjautumisen).
 
 ```bash
 npm start                      # palvelin (PORT=xxxx vaihtaa portin)
-npm test                       # 146 testiä eristetyssä ympäristössä
+npm test                       # 166 testiä eristetyssä ympäristössä
 npm run backup                 # varmuuskopio backups/-kansioon
 node sandbox/build-single.js   # kokoa jaettava sandbox-tiedosto
 node reindex.js                # liitteiden hakuindeksin uudelleenajo

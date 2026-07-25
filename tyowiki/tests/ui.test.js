@@ -50,7 +50,11 @@ async function main() {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('dialog', (d) => d.accept());
+  // Dialogien käsittely on ohjattavissa testeittäin (osa testeistä haluaa
+  // nimenomaan perua vahvistuksen). dialogCount kertoo kysyttiinkö mitään.
+  let dialogAction = 'accept';
+  let dialogCount = 0;
+  page.on('dialog', (d) => { dialogCount++; return dialogAction === 'dismiss' ? d.dismiss() : d.accept(); });
 
   try {
     await page.goto(fileUrl);
@@ -285,6 +289,96 @@ async function main() {
     ok('alapalkin aktiivinen kohta korostuu',
       (await mob.$$('.bn-item.active[data-bnav="shiftlog"]')).length === 1);
     await mob.close();
+
+    // ===== Regressiotestit korjatuille bugeille =====
+
+    // 1) Tallentamattomat muutokset: varoitus myös wikin sisäisestä siirtymisestä
+    //    + keskeneräinen teksti jää luonnokseksi talteen.
+    await page.evaluate(() => { location.hash = '#/uusi'; });
+    await page.waitForTimeout(500);
+    await page.fill('#titleInput', 'Luonnostesti');
+    await page.fill('#contentInput', 'KESKENERÄINEN');
+    await page.waitForTimeout(250);
+    dialogAction = 'dismiss'; dialogCount = 0;
+    await page.click('.cat-btn'); await page.waitForTimeout(500);
+    ok('tallentamattomista muutoksista varoitetaan wikin sisällä', dialogCount === 1, 'dialogeja=' + dialogCount);
+    ok('peruutus jättää muokkausnäkymän auki', await page.isVisible('#contentInput'));
+    dialogAction = 'accept';
+    await page.click('.cat-btn'); await page.waitForTimeout(600);
+    ok('hyväksyntä päästää pois muokkauksesta', (await page.$('#contentInput')) === null);
+    await page.evaluate(() => { location.hash = '#/uusi'; });
+    await page.waitForTimeout(500);
+    ok('tallentamaton luonnos tarjotaan palautettavaksi', await page.isVisible('#draftNote'));
+    await page.click('#draftRestore'); await page.waitForTimeout(300);
+    ok('luonnos palautuu sisällöllään',
+      (await page.$eval('#contentInput', (e) => e.value)) === 'KESKENERÄINEN');
+    await page.click('#draftDiscard').catch(() => {});
+    await page.evaluate(() => {
+      Object.keys(localStorage).filter((k) => k.indexOf('tyowiki_draft_') === 0)
+        .forEach((k) => localStorage.removeItem(k));
+      location.hash = '#/';
+    });
+    await page.waitForTimeout(400);
+
+    // 2) Lukijaroolilta piilotetaan KAIKKI kirjoitustoiminnot (myös
+    //    ＋Alakategoria ja tiedote-/termi-/linkkilomakkeet).
+    await page.evaluate(() => { document.documentElement.dataset.vrole = 'viewer'; location.hash = '#/kohde/2'; });
+    await page.waitForTimeout(500);
+    ok('lukija ei näe ＋Alakategoria-nappia', !(await page.isVisible('#newSubBtn')));
+    ok('lukija ei näe Uusi ohje -nappia', !(await page.isVisible('#newPageBtn')));
+    await page.evaluate(() => { location.hash = '#/tiedotteet'; }); await page.waitForTimeout(450);
+    ok('lukija ei näe tiedotelomaketta', !(await page.isVisible('#annSaveBtn')));
+    await page.evaluate(() => { location.hash = '#/termipankki'; }); await page.waitForTimeout(450);
+    ok('lukija ei näe termilomaketta', !(await page.isVisible('#termSaveBtn')));
+    await page.evaluate(() => { location.hash = '#/linkit'; }); await page.waitForTimeout(450);
+    ok('lukija ei näe linkkilomaketta', !(await page.isVisible('#linkSaveBtn')));
+    await page.evaluate(() => { document.documentElement.removeAttribute('data-vrole'); location.hash = '#/tiedotteet'; });
+    await page.waitForTimeout(450);
+    ok('muokkaajalle lomake näkyy normaalisti', await page.isVisible('#annSaveBtn'));
+
+    // 3) Kirjautumisruudulla ei näytetä sovelluksen kehystä.
+    await page.evaluate(() => { document.documentElement.dataset.auth = 'out'; });
+    await page.waitForTimeout(200);
+    ok('kirjautumisruudulla sivupalkki piilossa', !(await page.isVisible('.sidebar')));
+    ok('kirjautumisruudulla yläpalkki piilossa', !(await page.isVisible('.topbar')));
+    ok('kirjautumisruudulla reunapalsta piilossa', !(await page.isVisible('.rail')));
+    await page.evaluate(() => { document.documentElement.removeAttribute('data-auth'); });
+    await page.waitForTimeout(200);
+
+    // 4) Hakukorostus ei riko HTML-entiteettejä (&, lainausmerkit).
+    const hl = await page.evaluate(() => {
+      const txt = (s, q) => { const d = document.createElement('div'); d.innerHTML = highlight(s, q); return d.textContent; };
+      return { amp: txt('Palmia & Kipa', 'amp'), quot: txt('sana "lainaus"', 'quot') };
+    });
+    ok('hakukorostus ei riko &-merkkiä', hl.amp === 'Palmia & Kipa', hl.amp);
+    ok('hakukorostus ei riko lainausmerkkejä', hl.quot === 'sana "lainaus"', hl.quot);
+    const marked = await page.evaluate(() => {
+      const d = document.createElement('div'); d.innerHTML = highlight('lampun vaihto', 'amp');
+      return d.querySelectorAll('mark').length;
+    });
+    ok('hakukorostus korostaa yhä oikeat osumat', marked === 1, 'mark=' + marked);
+
+    // 5) Kategoriattoman ohjeen poisto palaa etusivulle (ei #/kohde/null).
+    await page.evaluate(async () => {
+      const p = await Store.pages.create({ title: 'Kategoriaton', content: 'x', category_id: null, keywords: '' });
+      location.hash = '#/sivu/' + p.id;
+    });
+    await page.waitForTimeout(600);
+    dialogAction = 'accept';
+    await page.click('#delBtn'); await page.waitForTimeout(700);
+    const afterDel = await page.evaluate(() => ({
+      hash: location.hash, virhe: document.body.innerText.indexOf('Kategoriaa ei löydy') >= 0,
+    }));
+    ok('kategoriattoman ohjeen poisto vie etusivulle',
+      (afterDel.hash === '#/' || afterDel.hash === '') && !afterDel.virhe, JSON.stringify(afterDel));
+
+    // 6) Hakukentän ohjeteksti kertoo että haku löytää myös tiedostot –
+    //    sama teksti sekä sandboxissa että palvelinversiossa (public/index.html).
+    const phSandbox = await page.$eval('#searchInput', (e) => e.placeholder);
+    const phServer = (fs.readFileSync(path.join(ROOT, 'public', 'index.html'), 'utf8')
+      .match(/id="searchInput"[^>]*placeholder="([^"]*)"/) || [])[1] || '';
+    ok('hakukentän ohjeteksti mainitsee tiedostot', phSandbox.indexOf('tiedosto') >= 0, phSandbox);
+    ok('hakukentän ohjeteksti sama palvelinversiossa', phServer === phSandbox, phServer);
 
     ok('ei JS-virheitä koko ajossa', errors.length === 0, errors.join(','));
   } finally {

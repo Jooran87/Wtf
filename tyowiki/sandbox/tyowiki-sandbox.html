@@ -725,7 +725,20 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 :root[data-vrole="viewer"] .term-actions,
 :root[data-vrole="viewer"] [data-delnote],
 :root[data-vrole="viewer"] .note-quick,
+:root[data-vrole="viewer"] #newSubBtn,
+:root[data-vrole="viewer"] .editor-only,
 :root[data-vrole="viewer"] [data-delatt] { display: none !important; }
+
+/* Kirjautumisruutu riisuttuna: pelkkä lomake keskellä, ei sovelluksen kehystä
+   (brändi näkyy kortissa). Sandboxissa ei ole kirjautumista, joten data-auth
+   jää asettamatta eikä mitään piiloteta. */
+:root[data-auth="out"] .topbar,
+:root[data-auth="out"] .sidebar,
+:root[data-auth="out"] .rail,
+:root[data-auth="out"] .bottom-nav,
+:root[data-auth="out"] #backTop { display: none !important; }
+:root[data-auth="out"] .layout { display: block; }
+:root[data-auth="out"] .content { max-width: none; padding-top: 0; }
 
 /* Kategorian poisto on vain ylläpitäjälle (muokkaajalta piiloon;
    palvelin estää joka tapauksessa ja vaatii salasanan). */
@@ -733,6 +746,10 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 
 /* Vaaravyöhyke: kategorian poiston salasanavahvistus */
 .danger-zone { border-color: var(--danger-text); background: var(--danger-bg); }
+
+/* Tallentamaton luonnos: huomiovärillinen kortti muokkausnäkymän yläreunassa */
+.draft-note { border-color: var(--pin-border); border-left: 4px solid var(--brand); }
+.draft-note strong { color: var(--brand-ink); display: flex; align-items: center; gap: 6px; }
 
     .sandbox-badge { background:#1c2430; color:#fff; font-size:11px; font-weight:700;
       padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
@@ -1842,9 +1859,28 @@ const content = $('#content');
 // Datakerros (`Store`) tulee erillisestä tiedostosta: palvelinversiossa
 // store-api.js (REST), sandbox-versiossa store-local.js (selaimen tallennus).
 
-// Varoitus selaimen sulkemisesta/uudelleenlatauksesta, jos muokkaus on kesken.
+// Varoitus tallentamattomista muutoksista. Kattaa KAKSI reittiä ulos:
+// 1) selaimen sulkeminen/uudelleenlataus (onbeforeunload)
+// 2) siirtyminen wikin sisällä (hash-reititys) – tämä EI laukaise
+//    onbeforeunloadia, joten router() kysyy erikseen (kts. unsavedDirty).
+let unsavedDirty = false;
 function setUnsavedGuard(on) {
+  unsavedDirty = !!on;
   window.onbeforeunload = on ? () => true : null;
+}
+
+// ---------- Luonnokset: keskeneräinen teksti ei katoa ----------
+// Muokkauskentät tallentuvat selaimeen näppäily näppäilyltä. Jos vuoro
+// keskeytyy ja käyttäjä poistuu, teksti on palautettavissa.
+const draftKey = (id) => 'tyowiki_draft_' + (id || 'uusi');
+function saveDraft(id, data) {
+  try { localStorage.setItem(draftKey(id), JSON.stringify({ ...data, at: Date.now() })); } catch (_) {}
+}
+function loadDraft(id) {
+  try { return JSON.parse(localStorage.getItem(draftKey(id)) || 'null'); } catch (_) { return null; }
+}
+function clearDraft(id) {
+  try { localStorage.removeItem(draftKey(id)); } catch (_) {}
 }
 
 function toast(msg, isError = false) {
@@ -1914,12 +1950,20 @@ function icon(name, cls) {
     + `stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 }
 
-// Korostaa hakusanan otteessa (escapeta ensin XSS:n välttämiseksi).
+// Korostaa hakusanan otteessa. Osumat etsitään RAAKATEKSTISTÄ ja jokainen pala
+// escapetaan erikseen – jos korostus tehtäisiin valmiiksi escapetusta tekstistä,
+// haku esim. sanalla "amp" osuisi &amp;-entiteetin sisään ja rikkoisi merkin.
 function highlight(text, q) {
-  const safe = esc(text);
-  if (!q) return safe;
-  const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
-  return safe.replace(re, '<mark>$1</mark>');
+  const src = String(text == null ? '' : text);
+  if (!q) return esc(src);
+  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig');
+  let out = '', last = 0, m;
+  while ((m = re.exec(src)) !== null) {
+    if (m[0].length === 0) { re.lastIndex++; continue; } // suoja tyhjältä osumalta
+    out += esc(src.slice(last, m.index)) + '<mark>' + esc(m[0]) + '</mark>';
+    last = m.index + m[0].length;
+  }
+  return out + esc(src.slice(last));
 }
 
 function fmtDate(iso) {
@@ -2004,6 +2048,10 @@ let currentUser = null;
 const ROLE_LABELS = { admin: 'Ylläpitäjä', editor: 'Muokkaaja', viewer: 'Lukija' };
 
 function authScreen(inner) {
+  // Kirjautumisruutu on riisuttu: CSS piilottaa sivupalkin, haun, nimikentän,
+  // reunapalstan ja alapalkin, kun data-auth="out". Näin kirjautumaton käyttäjä
+  // ei näe valikkoa, jonka klikkaus antaisi harhaanjohtavan istuntovirheen.
+  document.documentElement.dataset.auth = 'out';
   content.innerHTML = `<div class="auth-wrap"><div class="card auth-card">
     <div class="brand" style="justify-content:center; margin-bottom:14px">
       <span class="brand-mark">P</span>
@@ -2063,6 +2111,7 @@ function applyUser(user) {
   currentUser = user;
   author.set(user.name);
   document.documentElement.dataset.vrole = user.role;
+  document.documentElement.dataset.auth = 'in';
   const chip = $('#userChip');
   if (chip) {
     chip.style.display = '';
@@ -2087,7 +2136,7 @@ async function viewUsers(editId) {
     <h2>${icon('users','ic-lg')} Käyttäjät</h2>
     <p class="muted">Ylläpitäjä hallitsee tunnuksia. Roolit: Ylläpitäjä (kaikki + käyttäjät),
       Muokkaaja (sisällön muokkaus), Lukija (vain luku).</p>
-    <div class="card">
+    <div class="card editor-only">
       <h3 style="margin-top:0">${editing ? 'Muokkaa: ' + esc(editing.name) : 'Lisää käyttäjä'}</h3>
       <div class="row" style="align-items:flex-end">
         <div class="field" style="flex:1; min-width:150px; margin-bottom:0"><label>Koko nimi</label>
@@ -2397,7 +2446,27 @@ async function updateRail(section) {
   } catch (_) { rail.innerHTML = ''; }
 }
 
+// Edellinen osoite: tarvitaan, jotta peruutus voi palauttaa käyttäjän takaisin
+// muokkausnäkymään ilman että router ajetaan turhaan uudelleen.
+let lastHash = location.hash || '#/';
+let revertingHash = false;
+
 async function router() {
+  // Peruutuksen aiheuttama hash-palautus: ei renderöidä mitään uudelleen.
+  if (revertingHash) { revertingHash = false; return; }
+  const targetHash = location.hash || '#/';
+  // Tallentamattomat muutokset: varmistetaan myös wikin sisäinen siirtyminen.
+  if (unsavedDirty && targetHash !== lastHash) {
+    const ok = confirm('Ohjeessa on tallentamattomia muutoksia.\n\n'
+      + 'Poistutaanko silti? Teksti jää talteen luonnoksena, jonka voit palauttaa '
+      + 'kun avaat ohjeen uudelleen muokattavaksi.');
+    if (!ok) {
+      revertingHash = true;
+      location.hash = lastHash;
+      return;
+    }
+  }
+  lastHash = targetHash;
   const hash = location.hash.slice(1) || '/';
   const [pathPart, queryPart] = hash.split('?');
   const parts = pathPart.split('/').filter(Boolean);
@@ -2855,7 +2924,10 @@ async function viewPage(id) {
   $('#delBtn').onclick = async () => {
     if (confirm('Poistetaanko ohje ja sen liitteet?')) {
       await Store.pages.remove(id);
-      location.hash = '#/kohde/' + p.category_id; toast('Ohje poistettu');
+      clearDraft(id); // ei jätetä poistetun ohjeen luonnosta roikkumaan
+      // Kategoriattomasta ohjeesta palataan etusivulle (#/kohde/null olisi rikki).
+      location.hash = p.category_id ? '#/kohde/' + p.category_id : '#/';
+      toast('Ohje poistettu');
     }
   };
   document.querySelectorAll('[data-delatt]').forEach((b) => b.onclick = async () => {
@@ -2873,10 +2945,30 @@ async function viewPage(id) {
 }
 
 async function viewPageEdit(id, presetCat) {
+  // Lukija ei voi muokata (palvelin estää joka tapauksessa) – näytetään selkeä
+  // viesti tyhjän lomakkeen sijaan.
+  if (Store.auth && currentUser && currentUser.role === 'viewer') {
+    content.innerHTML = '<div class="card empty">Sinulla on lukuoikeus, joten et voi muokata ohjeita. '
+      + 'Pyydä tarvittaessa oikeuksia ylläpitäjältä. <a href="#/">Palaa etusivulle</a></div>';
+    return;
+  }
   let p = { title: '', content: '', category_id: presetCat ? +presetCat : (categories[0] && categories[0].id) };
   if (id) p = await Store.pages.get(id);
+  // Tallentamaton luonnos edelliseltä kerralta: tarjotaan palautettavaksi.
+  const draft = loadDraft(id);
+  const draftDiffers = draft && (draft.title !== p.title || draft.content !== p.content
+    || (draft.keywords || '') !== (p.keywords || ''));
   content.innerHTML = `
     <h2>${id ? 'Muokkaa ohjetta' : 'Uusi ohje'}</h2>
+    ${draftDiffers ? `<div class="card draft-note" id="draftNote">
+      <strong>${icon('warn')} Tallentamaton luonnos löytyi</strong>
+      <p class="muted" style="margin:6px 0 10px">Muokkaus keskeytyi ${esc(fmtDate(new Date(draft.at).toISOString()))}.
+        Voit jatkaa siitä mihin jäit tai hylätä luonnoksen.</p>
+      <div class="row">
+        <button class="btn small" id="draftRestore">Palauta luonnos</button>
+        <button class="btn small secondary" id="draftDiscard">Hylkää</button>
+      </div>
+    </div>` : ''}
     <div class="card">
       <div class="field">
         <label>Otsikko</label>
@@ -2910,12 +3002,31 @@ async function viewPageEdit(id, presetCat) {
       </div>
     </div>`;
 
-  // Jos jotain on muutettu, varoita selaimen sulkemisesta/uudelleenlatauksesta.
+  // Nykyiset kenttäarvot yhtenä oliona (luonnoksen tallennusta varten).
+  const formData = () => ({
+    title: $('#titleInput').value, content: $('#contentInput').value,
+    keywords: $('#keywordsInput').value, category_id: $('#catSelect').value,
+  });
+  // Jos jotain on muutettu: varoitus poistuttaessa JA luonnos talteen.
+  const markDirty = () => { setUnsavedGuard(true); saveDraft(id, formData()); };
   ['titleInput', 'keywordsInput', 'contentInput'].forEach((fid) => {
     const el = $('#' + fid);
-    if (el) el.addEventListener('input', () => setUnsavedGuard(true));
+    if (el) el.addEventListener('input', markDirty);
   });
-  $('#catSelect').addEventListener('change', () => setUnsavedGuard(true));
+  $('#catSelect').addEventListener('change', markDirty);
+
+  if (draftDiffers) {
+    $('#draftRestore').onclick = () => {
+      $('#titleInput').value = draft.title || '';
+      $('#contentInput').value = draft.content || '';
+      $('#keywordsInput').value = draft.keywords || '';
+      if (draft.category_id) $('#catSelect').value = draft.category_id;
+      $('#draftNote').remove();
+      setUnsavedGuard(true);
+      toast('Luonnos palautettu');
+    };
+    $('#draftDiscard').onclick = () => { clearDraft(id); $('#draftNote').remove(); toast('Luonnos hylätty'); };
+  }
 
   // Kuvien lisäys: lataa liitteeksi ja lisää viittaus tekstiin kursorin kohdalle.
   async function insertImages(files) {
@@ -2928,6 +3039,7 @@ async function viewPageEdit(id, presetCat) {
       const pos = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
       const md = (res.ids || []).map((aid) => `\n![kuva](liite:${aid})\n`).join('');
       ta.value = ta.value.slice(0, pos) + md + ta.value.slice(pos);
+      markDirty(); // kuvaviittaus on muutos kuten kirjoittaminenkin
       toast(imgs.length > 1 ? 'Kuvat lisätty' : 'Kuva lisätty');
     } catch (err) { toast(err.message, true); }
   }
@@ -2974,10 +3086,15 @@ async function viewPageEdit(id, presetCat) {
       const saved = id
         ? await Store.pages.update(id, body)
         : await Store.pages.create(body);
+      // Tallennus onnistui: luonnosta ei enää tarvita eikä poistumisesta varoiteta.
+      clearDraft(id);
+      setUnsavedGuard(false);
       toast('Tallennettu'); location.hash = '#/sivu/' + saved.id;
     } catch (err) { toast(err.message, true); }
   };
-  $('#cancelBtn').onclick = () => history.back();
+  // Peruuta on tietoinen valinta: ei kysytä uudelleen. Luonnos jää silti
+  // talteen, joten vahingossa painettu Peruuta ei hukkaa tekstiä.
+  $('#cancelBtn').onclick = () => { setUnsavedGuard(false); history.back(); };
 }
 
 async function viewShiftLog() {
@@ -2985,7 +3102,7 @@ async function viewShiftLog() {
   content.innerHTML = `
     <h2>${icon('note','ic-lg')} Vuoroloki</h2>
     <p class="muted">Kirjaa juoksevaan listaan huomiot vuoron ajalta. Uusin näkyy ylimpänä.</p>
-    <div class="card">
+    <div class="card editor-only">
       <div class="field">
         <label>Kategoria (valinnainen)</label>
         <select id="noteCat">
@@ -3065,7 +3182,7 @@ async function viewAnnouncements(editId) {
   content.innerHTML = `
     <h2>${icon('announce','ic-lg')} Tiedotteet</h2>
     <p class="muted">Kiinnitetyt tiedotteet pysyvät listan ja etusivun kärjessä.</p>
-    <div class="card">
+    <div class="card editor-only">
       <h3 style="margin-top:0">${editing ? 'Muokkaa tiedotetta' : 'Uusi tiedote'}</h3>
       <div class="field">
         <label>Otsikko</label>
@@ -3127,7 +3244,7 @@ async function viewTerms(editId) {
   content.innerHTML = `
     <h2>${icon('terms','ic-lg')} Termipankki</h2>
     <p class="muted">Talon termit, lyhenteet ja käsitteet selkokielellä – erityisesti uusille työntekijöille. Haku löytää myös termit.</p>
-    <div class="card">
+    <div class="card editor-only">
       <h3 style="margin-top:0">${editing ? 'Muokkaa termiä' : 'Lisää termi'}</h3>
       <div class="row" style="align-items:flex-start">
         <div class="field" style="flex:1; min-width:180px; margin-bottom:0">
@@ -3182,7 +3299,7 @@ async function viewLinks(editId) {
   content.innerHTML = `
     <h2>${icon('link','ic-lg')} Linkit</h2>
     <p class="muted">Usein tarvitut osoitteet: järjestelmät, häiriökartat, intranet ym.</p>
-    <div class="card">
+    <div class="card editor-only">
       <h3 style="margin-top:0">${editing ? 'Muokkaa linkkiä' : 'Lisää linkki'}</h3>
       <div class="row" style="align-items:flex-start">
         <div class="field" style="flex:1; min-width:160px; margin-bottom:0">
@@ -3633,6 +3750,9 @@ $('#menuToggle').onclick = () => $('#sidebar').classList.toggle('open');
     b.insertAdjacentHTML('afterbegin', icon(b.dataset.icon)));
   const menu = $('#menuToggle'); if (menu) menu.innerHTML = icon('menu', 'ic-lg');
   const addCat = $('#addCategoryBtn'); if (addCat) addCat.innerHTML = icon('add');
+  // Myös alakategorioiden piilotusnappi heti: muuten se jäisi raa'aksi ▾-merkiksi
+  // niissä tilanteissa, joissa sivupalkkia ei renderöidä (esim. kirjautumisruutu).
+  const tSub = $('#toggleSubcatsBtn'); if (tSub) tSub.innerHTML = icon('chevDown');
 })();
 
 // Teema: tallennettu valinta > käyttöjärjestelmän asetus.

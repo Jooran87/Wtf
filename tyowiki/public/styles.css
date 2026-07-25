@@ -711,7 +711,20 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 :root[data-vrole="viewer"] .term-actions,
 :root[data-vrole="viewer"] [data-delnote],
 :root[data-vrole="viewer"] .note-quick,
+:root[data-vrole="viewer"] #newSubBtn,
+:root[data-vrole="viewer"] .editor-only,
 :root[data-vrole="viewer"] [data-delatt] { display: none !important; }
+
+/* Kirjautumisruutu riisuttuna: pelkkä lomake keskellä, ei sovelluksen kehystä
+   (brändi näkyy kortissa). Sandboxissa ei ole kirjautumista, joten data-auth
+   jää asettamatta eikä mitään piiloteta. */
+:root[data-auth="out"] .topbar,
+:root[data-auth="out"] .sidebar,
+:root[data-auth="out"] .rail,
+:root[data-auth="out"] .bottom-nav,
+:root[data-auth="out"] #backTop { display: none !important; }
+:root[data-auth="out"] .layout { display: block; }
+:root[data-auth="out"] .content { max-width: none; padding-top: 0; }
 
 /* Kategorian poisto on vain ylläpitäjälle (muokkaajalta piiloon;
    palvelin estää joka tapauksessa ja vaatii salasanan). */
@@ -719,3 +732,7 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 
 /* Vaaravyöhyke: kategorian poiston salasanavahvistus */
 .danger-zone { border-color: var(--danger-text); background: var(--danger-bg); }
+
+/* Tallentamaton luonnos: huomiovärillinen kortti muokkausnäkymän yläreunassa */
+.draft-note { border-color: var(--pin-border); border-left: 4px solid var(--brand); }
+.draft-note strong { color: var(--brand-ink); display: flex; align-items: center; gap: 6px; }

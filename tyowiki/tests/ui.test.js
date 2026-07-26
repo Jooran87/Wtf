@@ -118,7 +118,8 @@ async function main() {
     // Peruskäynnistys
     const cats = await page.$$eval('#categoryList .cat-btn:not(.subcat) .cat-name', (els) => els.map((e) => e.textContent));
     ok('sovellus käynnistyy, pääkategoriat näkyvät', cats.length === 5, JSON.stringify(cats));
-    ok('kategoriakortit etusivulla (vain pääkategoriat)', (await page.$$('.cat-card')).length === 5);
+    ok('kategoriakortit etusivulla (vain pääkategoriat)',
+      (await page.$$('.d2-cat:not(.all)')).length === 5);
 
     // Alakategoriat: sisennetyt alakategoriat sivupalkissa (myös useampi taso)
     const subs = await page.$$eval('#categoryList .cat-btn.subcat .cat-name', (els) => els.map((e) => e.textContent.trim()));
@@ -230,10 +231,15 @@ async function main() {
     // Väriaksentit: seed-kategorioilla on värillinen reuna sivupalkissa ja korteissa
     await page.goto(base + '#/'); await page.waitForTimeout(400);
     ok('kategorioilla väriaksentti sivupalkissa', (await page.$$('#categoryList .cat-btn.has-accent')).length >= 5);
-    ok('väriaksentti korteissa etusivulla', (await page.$$('.cat-card.has-accent')).length >= 5);
+    ok('väriaksentti korteissa etusivulla', (await page.$$eval('.d2-cat:not(.all)',
+      (els) => els.filter((e) => /^#[0-9a-f]{6}$/i.test(
+        (e.getAttribute('style') || '').replace(/.*--cat-accent:\s*/, '').trim())).length)) >= 5);
     // Kategoriakuvakkeet ovat siistejä SVG-viivakuvakkeita (ei emojia)
     ok('kategoriakuvakkeet ovat SVG sivupalkissa', (await page.$$('#categoryList .cat-ico svg.ic')).length >= 5);
-    ok('kategoriakuvakkeet ovat SVG korteissa', (await page.$$('.cat-card .cc-ico svg.ic')).length >= 5);
+    await page.goto(base + '#/kohde/2'); await page.waitForTimeout(500);
+    ok('kategoriakuvakkeet ovat SVG alakategoriakorteissa',
+      (await page.$$('.cat-card .cc-ico svg.ic')).length >= 2);
+    await page.goto(base + '#/'); await page.waitForTimeout(400);
     // Kuvakevalitsimella luotu kategoria saa valitun SVG-kuvakkeen
     await page.click('#addCategoryBtn'); await page.waitForTimeout(200);
     await page.fill('#newCatName', 'Turvakategoria');
@@ -283,10 +289,11 @@ async function main() {
     await page.keyboard.press('Escape'); await page.waitForTimeout(300);
     ok('lightbox sulkeutuu Esc:llä', !(await page.isVisible('.lightbox.open')));
 
-    // Tärkeät numerot: oma sivu navigaatiossa + etusivun vieritettävä lista
+    // Tärkeät numerot: oma sivu navigaatiossa + etusivun nosto oikeaan kaistaan
     await page.goto(base + '#/'); await page.waitForTimeout(400);
-    const cs = await page.$eval('.contact-scroll', (el) => ({ sh: el.scrollHeight, ch: el.clientHeight }));
-    ok('etusivun numerolista on vieritettävä (7 numeroa)', cs.sh > cs.ch, JSON.stringify(cs));
+    ok('hätänumero 112 korostettuna etusivulla',
+      (await page.$eval('.d2-num.emergency .d2-numtel', (e) => e.textContent)).indexOf('112') >= 0);
+    ok('etusivulla näkyy myös muita numeroita', (await page.$$('.d2-num:not(.emergency)')).length >= 3);
     await page.click('.nav-link[data-nav="contacts"]'); await page.waitForTimeout(400);
     ok('Tärkeät numerot -sivu avautuu navigaatiosta',
       (await page.$eval('#content', (e) => e.textContent)).includes('Yhteystiedot (7)'));
@@ -297,19 +304,22 @@ async function main() {
     const cTxt = await page.$eval('#content', (e) => e.textContent);
     ok('yhteystieto lisätään numerosivulta', cTxt.includes('Testinumero Oy') && cTxt.includes('Yhteystiedot (8)'));
 
-    // Etusivun uusi järjestys: banneri, Viimeksi päivitetyt ja pikahuomio
+    // Etusivun järjestys 2a:ssa: poikkeukset, kategoriat, TOP-lista,
+    // viimeksi päivitetyt – ja oikeassa kaistassa numerot + vuoroloki.
     await page.goto(base + '#/'); await page.waitForTimeout(500);
-    ok('kiinnitetty tiedote bannerina etusivulla',
-      (await page.$eval('.pin-banner', (e) => e.textContent).catch(() => '')).includes('Uusi työohje-wiki'));
+    ok('kiinnitetty tiedote poikkeuksena etusivulla',
+      (await page.$eval('.d2-notice', (e) => e.textContent).catch(() => '')).includes('Uusi työohje-wiki'));
     ok('Viimeksi päivitetyt -lista etusivulla',
       (await page.$eval('#content', (e) => e.textContent)).includes('Viimeksi päivitetyt'));
-    await page.fill('#homeNoteText', 'Pikahuomio etusivulta');
-    await page.click('#homeNoteAdd'); await page.waitForTimeout(500);
+    ok('Käytetyimmät ohjeet -lista etusivulla', (await page.$$('.d2-toprow')).length >= 3);
+    const secOrder = await page.$$eval('.d2-main > *', (els) => els.map((e) => e.textContent.slice(0, 30)));
+    ok('poikkeukset ovat ennen kategorioita',
+      secOrder.findIndex((t) => t.includes('poikkeukset')) < secOrder.findIndex((t) => t.includes('Kategoriat')),
+      JSON.stringify(secOrder.map((t) => t.slice(0, 18))));
+    await page.fill('#d2NoteText', 'Pikahuomio etusivulta');
+    await page.click('#d2NoteAdd'); await page.waitForTimeout(500);
     ok('pikahuomio tallentuu etusivulta',
       (await page.$eval('#content', (e) => e.textContent)).includes('Pikahuomio etusivulta'));
-    // Vuorohuomiot-laatikko näyttää monta kirjausta ja vierii
-    const ns = await page.$eval('.notes-scroll', (el) => ({ sh: el.scrollHeight, ch: el.clientHeight, n: el.querySelectorAll('.note').length }));
-    ok('etusivun vuorohuomiot vierittyvät (monta kirjausta)', ns.n >= 6 && ns.sh > ns.ch, JSON.stringify(ns));
 
     // Oikean reunan vuoroloki-palsta leveällä näytöllä (>= 1400 px)
     const wide = await browser.newPage({ viewport: { width: 1600, height: 900 } });
@@ -590,14 +600,12 @@ async function main() {
     ok('pikkukuva ei rajaudu (contain)',
       (await page.$eval('.att-thumb img', (e) => getComputedStyle(e).objectFit)) === 'contain');
 
-    // 8) Designehdotus 2a (koekappale): kytkin vaihtaa etusivun ilmettä,
-    //    data on sama ja nykyinen ulkoasu säilyy palautettavana.
+    // 8) Ulkoasu 2a on ainoa ja aina voimassa (ei enää kytkintä).
     await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(600);
-    ok('oletuksena nykyinen ulkoasu', await page.evaluate(() =>
-      !document.documentElement.dataset.design && !!document.querySelector('.home-grid')));
-    await page.click('#designToggle'); await page.waitForTimeout(900);
-    ok('kytkin ottaa 2a:n käyttöön', await page.evaluate(() =>
+    ok('2a on voimassa ilman kytkintä', await page.evaluate(() =>
       document.documentElement.dataset.design === '2a' && !!document.querySelector('.d2-home')));
+    ok('designin kytkinnappi on poistettu', (await page.$$('#designToggle')).length === 0);
+    ok('vanhaa etusivua ei enää ole', (await page.$$('.home-grid')).length === 0);
     ok('2a näyttää kategoriat ja käytetyimmät',
       (await page.$$('.d2-cat')).length >= 2 && (await page.$$('.d2-toprow')).length >= 1);
     ok('2a käyttää paketoitua Inter Tight -fonttia',
@@ -646,25 +654,23 @@ async function main() {
     ok('2a: tekstin maalaus ei avaa tiedotetta', !/#\/tiedotteet/.test(page.url()), page.url());
     await page.evaluate(() => window.getSelection().removeAllRanges());
 
-    ok('2a: valinta säilyy uudelleenlatauksessa', await (async () => {
+    ok('2a säilyy uudelleenlatauksessa', await (async () => {
       await page.reload(); await page.waitForTimeout(1100);
-      return page.evaluate(() => document.documentElement.dataset.design === '2a');
+      return page.evaluate(() => document.documentElement.dataset.design === '2a'
+        && !!document.querySelector('.d2-home'));
     })());
-    await page.click('#designToggle'); await page.waitForTimeout(900);
-    ok('kytkin palauttaa nykyisen ulkoasun', await page.evaluate(() =>
-      !document.documentElement.dataset.design && !!document.querySelector('.home-grid')));
 
     // 9) Kapea näyttö ei saa vieriä vaakasuunnassa kummassakaan ilmeessä
     //    (yläpalkki levisi aiemmin ~140 px yli ruudun puhelimella).
-    for (const mode of ['', '2a']) {
+    {
       const nar = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
       nar.on('pageerror', (e) => errors.push('kapea: ' + e.message));
       await nar.goto(fileUrl);
-      await nar.evaluate((m) => { localStorage.clear(); if (m) localStorage.setItem('tyowiki_design', m); }, mode);
+      await nar.evaluate(() => localStorage.clear());
       await nar.reload(); await nar.waitForTimeout(1100);
       const over = await nar.evaluate(() =>
         document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      ok(`kapealla näytöllä ei vaakavieritystä (${mode || 'nykyinen'})`, over <= 0, over + ' px');
+      ok('kapealla näytöllä ei vaakavieritystä', over <= 0, over + ' px');
       await nar.close();
     }
 

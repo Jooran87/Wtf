@@ -46,7 +46,7 @@ jolloin app.js ohittaa kirjautumisen).
    seed-dataan – tee näin vain kun uusi seed-sisältö on demolle tärkeä).
 5. **Ulkoasu-/logiikkamuutoksen jälkeen aina** `node sandbox/build-single.js`
    ja committaa syntynyt tyowiki-sandbox.html.
-6. **`npm test` vihreänä (250 testiä) ennen jokaista committia.** Testit ajavat
+6. **`npm test` vihreänä (251 testiä) ennen jokaista committia.** Testit ajavat
    palvelimen eristetyssä TYOWIKI_DATA_DIR-hakemistossa – eivät koske oikeaa dataa.
 7. **Tekijätieto tulee AINA istunnosta** (`req.user.name`) – älä koskaan luota
    selaimen author-kenttään.
@@ -139,33 +139,30 @@ jolloin app.js ohittaa kirjautumisen).
 - Poisto/tallennus kutsuu `loadCategories()`, jotta sivupalkin ohjemäärät
   pysyvät ajan tasalla.
 
-## Designehdotus 2a (KOEKAPPALE – väliaikainen)
+## Ulkoasu 2a (valittu suunta)
 
-Claude Designin etusivuehdotus (`design_handoff_halytyskeskus_etusivu`).
-Toteutettu **kytkimen taakse**, jotta nykyinen ilme säilyy vertailtavana:
+Claude Designin handoff (`design_handoff_halytyskeskus_etusivu`) on toteutettu
+ja **valittu pysyväksi ulkoasuksi**. Vanha "liquid glass" -etusivu ja
+kokeiluvaiheen kytkin on poistettu.
 
-- `public/design2a.css` vaikuttaa vain kun `<html data-design="2a">`. Lipun
-  asettaa yläpalkin nappi (`#designToggle`) ja `theme-boot.js` lukee sen
-  ennen renderöintiä. Ilman lippua tiedosto ei muuta mitään.
-- `viewHome()` haarautuu `viewHome2a()`:aan. **Sama data, ei uusia reittejä
-  eikä skeemamuutoksia** – kiinnitetty tiedote esitetään poikkeuksena ja
-  TOP-lista kaikkien aikojen katseluista.
-- **Fontit paketoitu** (`public/fonts/`, Inter Tight + IBM Plex Mono, OFL-1.1).
-  Handoff latasi ne Google Fontsista; se ei käy, koska CSP on `default-src
-  'self'` eikä sisäverkossa ole internetiä. `build-single.js` muuntaa
-  `url('fonts/…')` base64:ksi, joten sandbox pysyy yhtenä tiedostona
-  (191 kt → 415 kt).
-- **Kontrastikorjaukset:** handoffin `--tx3` (3,3–3,5:1), vaalean `--brand`
-  (3,8:1) ja `--warn` (4,4:1) alittivat WCAG AA:n 4,5:1. Korjatut arvot ja
-  mittaukset on kirjattu design2a.css:n alkukommenttiin. Jos sävyjä muutetaan,
-  mittaa uudelleen – näillä ladotaan 10,5–11,5 px tekstiä.
+- `data-design="2a"` on kiinteästi `<html>`-tagissa (index.html ja
+  build-single.js) – ei JS-riippuvuutta. `public/design2a.css` tunnistaa
+  siitä omat sääntönsä; `styles.css` on yhä pohja kaikille muille näkymille.
+- Etusivu on `viewHome()` (d2-*-luokat). Muut näkymät käyttävät edelleen
+  styles.css:n rakennetta, jonka päälle 2a tuo värit ja typografian.
+- **Fontit paketoitu** (`public/fonts/`, Inter Tight + IBM Plex Mono,
+  OFL-1.1). Handoff latasi ne Google Fontsista; se ei käy, koska CSP on
+  `default-src 'self'` eikä sisäverkossa ole internetiä. `build-single.js`
+  muuntaa `url('fonts/…')` base64:ksi, joten sandbox pysyy yhtenä tiedostona.
+- **Kontrastikorjaukset:** handoffin `--tx3`, vaalean `--brand` ja `--warn`
+  alittivat WCAG AA:n 4,5:1. Korjatut arvot ja mittaukset design2a.css:n
+  alkukommentissa – mittaa uudelleen jos sävyjä muutetaan.
 - Sudenkuoppa: `.d2-home`-flexissä `align-items: flex-start` kutistaa
   pystysuunnassa sarakkeet max-content-levyisiksi → vaakavieritys. Kapeilla
   näytöillä on oltava `stretch`.
 - **Toteuttamatta** (vaatii skeemamuutokset): tiedotteen voimassaoloaika,
-  tiedotteeseen liitetty ohje, 30 vrk liukuva TOP 10, kategorian kuvausteksti.
-- Kun suunnasta on päätetty: joko poista lippu ja tee 2a:sta oletus, tai
-  poista `design2a.css`, `#designToggle` ja `viewHome2a()` kokonaan.
+  tiedotteeseen liitetty ohje, 30 vrk liukuva TOP-lista, kategorian kuvaus.
+  Etusivu käyttää näiden sijaan nykyistä dataa.
 
 ## Roolit ja oikeudet (server.js:n portti-middleware)
 
@@ -203,7 +200,7 @@ Toteutettu **kytkimen taakse**, jotta nykyinen ilme säilyy vertailtavana:
 
 ```bash
 npm start                      # palvelin (PORT=xxxx vaihtaa portin)
-npm test                       # 250 testiä eristetyssä ympäristössä
+npm test                       # 251 testiä eristetyssä ympäristössä
 npm run backup                 # varmuuskopio backups/-kansioon
 node sandbox/build-single.js   # kokoa jaettava sandbox-tiedosto
 node reindex.js                # liitteiden hakuindeksin uudelleenajo

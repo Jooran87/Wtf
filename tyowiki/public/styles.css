@@ -528,23 +528,6 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
 .cat-card.has-accent { border-top: 3px solid var(--cat-accent); padding-top: 12px; }
 .cat-card.has-accent:hover { border-color: var(--cat-accent); }
 
-/* Etusivun ruudukko: vasen leveä palsta + oikealla numerot ylhäällä ja
-   vuorohuomiot alla. Kapealla näytöllä järjestys: numerot → sisältö → huomiot. */
-.home-grid {
-  display: grid; grid-template-columns: minmax(0, 1fr) 320px;
-  grid-template-rows: auto 1fr;
-  grid-template-areas: "main num" "main notes";
-  gap: 16px; align-items: start;
-}
-.home-main { grid-area: main; }
-.hg-num { grid-area: num; }
-.hg-notes { grid-area: notes; }
-.home-main, .hg-num, .hg-notes { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.home-main .card, .hg-num .card, .hg-notes .card { margin-bottom: 0; }
-@media (max-width: 820px) {
-  .home-grid { grid-template-columns: 1fr; grid-template-rows: auto; grid-template-areas: "num" "main" "notes"; }
-}
-
 /* Kiinnitetty tiedote: huomiobanneri sivun ylälaidassa */
 .pin-banner {
   display: block; background: var(--brand); color: #fff;
@@ -587,28 +570,16 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
 
 /* Contacts */
 .contact-list { list-style: none; margin: 0; padding: 0; }
-/* Etusivun numerolista: näyttää ~6 riviä, loput vierittämällä. Alareunan
-   häivytys vihjaa, että listaa voi rullata. */
-.contact-scroll {
-  max-height: 430px; overflow-y: auto; overscroll-behavior: contain;
+/* Vieritettävä loki oikean reunan palstassa */
+.rail-scroll {
+  max-height: 46vh; overflow-y: auto; overscroll-behavior: contain;
   scrollbar-width: thin; padding-right: 4px;
 }
-/* Yhteinen vieritettävä lista (numerot, vuorohuomiot etusivulla, rail-loki) */
-.contact-scroll, .notes-scroll, .rail-scroll {
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: 4px;
-}
-.contact-scroll { max-height: 430px; }
-.notes-scroll { max-height: 440px; }
-.rail-scroll { max-height: 46vh; }
-.contact-scroll::-webkit-scrollbar, .notes-scroll::-webkit-scrollbar,
 .rail-scroll::-webkit-scrollbar { width: 8px; }
-.contact-scroll::-webkit-scrollbar-thumb, .notes-scroll::-webkit-scrollbar-thumb,
 .rail-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-.contact-scroll::-webkit-scrollbar-thumb:hover, .notes-scroll::-webkit-scrollbar-thumb:hover,
 .rail-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-.hg-num .card:has(.contact-scroll) { position: relative; }
 /* Alareunan häivytys vihjaa, että listaa voi vierittää */
-.contact-fade, .scroll-fade {
+.scroll-fade {
   position: sticky; bottom: 0; height: 26px; margin-top: -26px; pointer-events: none;
   background: linear-gradient(to bottom, transparent, var(--panel));
 }
@@ -661,7 +632,7 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
      merkit piiloon. */
   .topbar { gap: 8px; padding: 0 10px; }
   .search { flex: 1 1 auto; min-width: 0; }
-  .sandbox-badge, .design-toggle { display: none; }
+  .sandbox-badge { display: none; }
   .brand-text small { display: none; }
   .sidebar {
     position: fixed; top: var(--topbar-h); left: 0; bottom: 0; z-index: 30; overflow-y: auto;
@@ -792,16 +763,6 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 /* Kapealla näytöllä vain kello ja viikko – päivämäärä näkyy puhelimen omasta
    tilapalkista, eikä yläpalkkiin mahdu kaikkea. */
 @media (max-width: 980px) { .clock-date { display: none; } }
-
-/* Designin koekytkin yläpalkissa (väliaikainen – poistetaan kun suunta on valittu) */
-.design-toggle {
-  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  padding: 4px 9px; border-radius: 20px; cursor: pointer; white-space: nowrap;
-  background: var(--panel); color: var(--muted);
-  border: 1px dashed var(--border);
-}
-.design-toggle:hover { color: var(--text); border-color: var(--brand); }
-.design-toggle.on { background: var(--brand); color: #fff; border-style: solid; border-color: var(--brand); }
 
 /* Roskakori: poistetut ohjeet + jäljellä oleva säilytysaika */
 /* Huom: .page-list li on tarkempi valitsin, joten roskakorirlvit tarvitsevat

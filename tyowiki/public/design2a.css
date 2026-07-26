@@ -1,9 +1,10 @@
 /* ============================================================================
-   Suunta 2a – Claude Designin etusivuehdotus (KOEKAPPALE)
+   Suunta 2a – wikin ulkoasu (Claude Designin handoffin mukaan)
    ----------------------------------------------------------------------------
-   Aktivoituu vain kun <html data-design="2a">. Ilman lippua tämä tiedosto ei
-   vaikuta mihinkään, joten nykyinen ulkoasu säilyy vertailtavana.
-   Lipun asettaa käyttäjä yläpalkin napista (muistetaan localStorageen).
+   VALITTU SUUNTA. data-design="2a" on kiinteästi index.html:n <html>-tagissa
+   (ei JS-riippuvuutta), joten nämä säännöt ovat aina voimassa. Attribuutti on
+   säilytetty valitsimissa, jotta 2a:n omat säännöt erottuvat styles.css:n
+   perustyyleistä – älä poista sitä ilman että käyt kaikki selektorit läpi.
 
    Poikkeamat handoffin arvoihin (perusteltuja, ei tyylivalintoja). Handoff
    lupaa kaikille tekstiväreille >= 4,5:1, mutta mitattuna kolme jäi alle:
@@ -130,8 +131,9 @@
   font-family: 'Plex Mono', monospace; font-size: 11px; color: var(--tx3);
 }
 :root[data-design="2a"] .clock-week {
-  font-family: 'Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: .06em;
-  color: var(--brand); background: none; border: 1px solid var(--line2); border-radius: 4px; padding: 2px 6px;
+  font-family: 'Plex Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: .04em;
+  color: var(--brand); background: none;
+  border: 1px solid var(--brand); border-radius: 5px; padding: 3px 9px;
 }
 
 /* ---- Sivupalkki (232 px, ryhmitelty) ---- */

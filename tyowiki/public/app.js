@@ -649,18 +649,7 @@ async function router() {
 }
 
 // ---------- Näkymät ----------
-// ---------- Suunta 2a: etusivun koekappale ----------
-// Aktivoituu vain kun design-lippu on päällä. Käyttää TÄYSIN samaa dataa kuin
-// nykyinen etusivu – ei uusia palvelinreittejä eikä skeemamuutoksia.
-const design = {
-  get: () => { try { return localStorage.getItem('tyowiki_design') === '2a'; } catch (_) { return false; } },
-  set: (on) => {
-    try { localStorage.setItem('tyowiki_design', on ? '2a' : ''); } catch (_) {}
-    if (on) document.documentElement.dataset.design = '2a';
-    else document.documentElement.removeAttribute('data-design');
-  },
-};
-
+// ---------- Etusivu ----------
 // Lyhyt päivämäärä (25.7.) tunnuslukuihin ja korttien metatietoihin.
 const shortDate = (iso) => {
   const d = new Date(iso);
@@ -675,7 +664,7 @@ function noticeBadge(a) {
     : '<span class="d2-badge soon">Tiedote</span>';
 }
 
-async function viewHome2a() {
+async function viewHome() {
   currentCategoryId = null; renderSidebar();
   const [pages, recentNotes, popular, contacts, anns] = await Promise.all([
     Store.pages.list(), Store.notes.list({ limit: 30 }), Store.pages.popular(10),
@@ -839,108 +828,13 @@ async function viewHome2a() {
     const el = $('#d2NoteText');
     if (!el.value.trim()) return toast('Kirjoita huomio', true);
     try { await Store.notes.create({ content: el.value, category_id: null, author: author.get() });
-      toast('Lisätty'); viewHome2a(); }
+      toast('Lisätty'); viewHome(); }
     catch (err) { toast(err.message, true); }
   };
   $('#d2NoteAdd').onclick = addNote;
   $('#d2NoteText').onkeydown = (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') addNote(); };
 }
 
-async function viewHome() {
-  if (design.get()) return viewHome2a();
-  currentCategoryId = null; renderSidebar();
-  const [pages, recentNotes, popular, contacts, anns] = await Promise.all([
-    Store.pages.list(),
-    Store.notes.list({ limit: 30 }),
-    Store.pages.popular(10),
-    Store.contacts.list(),
-    Store.announcements.list(),
-  ]);
-  // Kiinnitetyt tiedotteet nousevat bannereiksi ylimmäksi; muut omaan korttiin.
-  const pinned = anns.filter((a) => a.pinned);
-  const otherAnns = anns.filter((a) => !a.pinned).slice(0, 3);
-  // Viimeksi päivitetyt: kertoo yhdellä silmäyksellä mikä on muuttunut.
-  const recent = [...pages]
-    .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
-    .slice(0, 5);
-  content.innerHTML = `
-    ${pinned.map((a) => `<a class="pin-banner" href="#/tiedotteet">${icon('pin')} <strong>${esc(a.title)}</strong>
-      <span>${esc(String(a.content || '').replace(/\s+/g, ' ').slice(0, 140))}</span></a>`).join('')}
-    <h2>Hälytyskeskuksen työohjeet</h2>
-    <p class="muted">Valitse kategoria tai hae yläpalkista (pikanäppäin <code>/</code>).</p>
-    <div class="home-grid">
-      <div class="hg-num">
-        <div class="card">
-          <div class="spread"><h3 style="margin:0">${icon('contact')} Tärkeät numerot</h3>
-            <a class="btn small secondary" href="#/numerot">Kaikki (${contacts.length})</a></div>
-          <div id="contactFormWrap"></div>
-          <ul class="contact-list contact-scroll">
-            ${contacts.map(contactHtml).join('') || '<li class="muted" style="border:none">Ei yhteystietoja vielä.</li>'}
-            ${contacts.length > 6 ? '<li class="contact-fade" aria-hidden="true"></li>' : ''}
-          </ul>
-        </div>
-      </div>
-      <div class="home-main">
-        ${otherAnns.length ? `<div class="card ann-card">
-          <div class="spread"><h3 style="margin:0">${icon('announce')} Tiedotteet</h3>
-            <a class="btn small secondary" href="#/tiedotteet">Kaikki (${anns.length})</a></div>
-          ${otherAnns.map((a) => announcementHtml(a, { compact: true })).join('')}
-        </div>` : ''}
-        <div class="cat-grid">
-          ${topCategories().map((c) => {
-            const subs = subCategories(c.id);
-            const total = totalPageCount(c);
-            return `<a class="cat-card${catColor(c) ? ' has-accent' : ''}" href="#/kohde/${c.id}"${accentStyle(c)}>
-            <span class="cc-ico">${catIconHtml(c, 'cc-svg')}</span>
-            <span class="cc-name">${esc(c.name)}</span>
-            <span class="cc-count">${total} ohjetta${subs.length ? ` · ${subs.length} alakategoriaa` : ''}</span>
-          </a>`;
-          }).join('')}
-        </div>
-        <div class="card">
-          <div class="spread"><h3 style="margin:0">${icon('popular')} Suosituimmat ohjeet</h3></div>
-          <ol class="rank-list">
-            ${popular.map((p) => `<li><button class="page-link" data-page="${p.id}">
-              <span>${esc(p.title)}</span>
-              <span class="muted">${esc(p.category_name || 'Yleinen')} · ${p.views} katselua</span></button></li>`).join('')
-              || '<li class="empty">Ei vielä tarpeeksi katseluita. Avaa ohjeita, niin suosituimmat kertyvät tähän.</li>'}
-          </ol>
-        </div>
-        <div class="card">
-          <div class="spread"><h3 style="margin:0">${icon('recent')} Viimeksi päivitetyt</h3></div>
-          <ul class="page-list">
-            ${recent.map((p) => `<li><button class="page-link" data-page="${p.id}">
-              <span>${esc(p.title)}</span>
-              <span class="muted">${categoryName(p.category_id)} · ${esc(fmtDate(p.updated_at))}</span></button></li>`).join('')
-              || '<li class="empty">Ei ohjeita vielä. Lisää kategoria ja luo ensimmäinen ohje.</li>'}
-          </ul>
-        </div>
-      </div>
-      <div class="hg-notes">
-        <div class="card">
-          <div class="spread"><h3 style="margin:0">${icon('note')} Vuorohuomiot</h3>
-            <a class="btn small secondary" href="#/vuoroloki">Kaikki</a></div>
-          <div class="note-quick">
-            <textarea id="homeNoteText" placeholder="Kirjaa huomio vuorolokiin…"></textarea>
-            <button class="btn small" id="homeNoteAdd">Lisää huomio</button>
-          </div>
-          <div class="notes-scroll">
-            ${recentNotes.map(noteHtml).join('') || '<p class="empty">Ei huomioita vielä.</p>'}
-            ${recentNotes.length > 5 ? '<div class="scroll-fade" aria-hidden="true"></div>' : ''}
-          </div>
-        </div>
-      </div>
-    </div>`;
-
-  $('#homeNoteAdd').onclick = async () => {
-    const text = $('#homeNoteText').value;
-    if (!text.trim()) return toast('Kirjoita huomio', true);
-    try { await Store.notes.create({ content: text, category_id: null, author: author.get() }); toast('Lisätty'); viewHome(); }
-    catch (err) { toast(err.message, true); }
-  };
-  bindNoteDelete(viewHome);
-  bindContactHandlers(contacts, viewHome);
-}
 
 // Yhteystietorivien käsittelijät (etusivu JA Tärkeät numerot -sivu).
 function bindContactHandlers(contacts, refresh) {
@@ -2326,27 +2220,6 @@ $('#menuToggle').onclick = () => $('#sidebar').classList.toggle('open');
   // niissä tilanteissa, joissa sivupalkkia ei renderöidä (esim. kirjautumisruutu).
   const tSub = $('#toggleSubcatsBtn'); if (tSub) tSub.innerHTML = icon('chevDown');
 })();
-
-// Designin koekytkin: vaihtaa nykyisen ja 2a-ehdotuksen välillä lennossa.
-// Väliaikainen – poistetaan kun suunnasta on päätetty.
-const designToggle = $('#designToggle');
-if (designToggle) {
-  const paint = () => {
-    const on = design.get();
-    designToggle.textContent = on ? '2a' : 'Nyk.';
-    designToggle.classList.toggle('on', on);
-    designToggle.title = on ? 'Näytä nykyinen ulkoasu' : 'Näytä designehdotus 2a';
-    designToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
-  };
-  designToggle.onclick = () => {
-    const on = !design.get();
-    design.set(on);
-    // 2a on suunniteltu tummalle pohjalle – vaihdetaan teema mukana ensi kerralla.
-    if (on) { try { localStorage.setItem('tyowiki_theme', 'dark'); } catch (_) {} applyTheme(); }
-    paint(); router();
-  };
-  paint();
-}
 
 // ---------- Yläpalkin kello: päivämäärä, kellonaika ja viikkonumero ----------
 // Vuorotyössä viikkonumero on arjen kieltä ("vaihdetaan vk 31 alusta"), ja

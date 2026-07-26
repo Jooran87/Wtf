@@ -20,7 +20,7 @@ const storeLocal = fs.readFileSync(path.join(__dirname, 'store-local.js'), 'utf8
 const app = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
 
 const html = `<!DOCTYPE html>
-<html lang="fi">
+<html lang="fi" data-design="2a">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -30,8 +30,7 @@ const html = `<!DOCTYPE html>
     /* Teema ennen renderöintiä, ettei sivu välähdä väärällä värillä */
     (function(){try{var t=localStorage.getItem('tyowiki_theme');
       if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';
-      document.documentElement.dataset.theme=t==='dark'?'dark':'light';
-      if(localStorage.getItem('tyowiki_design')==='2a')document.documentElement.dataset.design='2a';}catch(e){}})();
+      document.documentElement.dataset.theme=t==='dark'?'dark':'light';}catch(e){}})();
   </script>
   <style>
 ${css}
@@ -52,7 +51,6 @@ ${design2a}
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
     </form>
     <div id="clock" class="clock" title="Päivämäärä, kello ja viikkonumero"></div>
-  <button id="designToggle" class="design-toggle" title="Näytä designehdotus 2a">Nyk.</button>
   <button id="themeToggle" class="icon-btn" title="Tumma tila">🌙</button>
     <span id="userChip" class="user-chip" style="display:none"></span>
     <button id="logoutBtn" class="btn small secondary" style="display:none">Kirjaudu ulos</button>

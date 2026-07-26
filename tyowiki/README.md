@@ -36,6 +36,10 @@ Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
   vihreää (vahvistettu ≤ 180 pv), punaista (vahvistus vanhentunut) tai harmaata
   (ei vahvistettu). Vahvistus vaatii nimen yläkulman kenttään.
 - **Tiedostoliitteet** – PDF, kuvat, Word, Excel (PDF ja kuvat näkyvät suoraan selaimessa, muut latautuvat)
+- **Kuvat tekstin sekaan** – kuvan saa Wordin tapaan ohjeen tekstin väliin:
+  muokkausnäkymässä **Lisää kuva** -napista, liittämällä kuvakaappaus suoraan
+  tekstiin (Ctrl/Cmd+V), tai klikkaamalla jo liitettyä kuvaa kohdasta
+  "Jo liitetyt kuvat". Kuva ilmestyy kursorin kohdalle
 - **Kuvagalleria** – kuvaliitteet näkyvät pikkukuvina; klikkaus suurentaa (lightbox, nuolinäppäimet selaavat). Myös artikkelin sisällön kuvat suurenevat klikkaamalla
 - **Yhtenäiset SVG-kuvakkeet** – käyttöliittymä käyttää samannäköisiä viivaikoneita joka laitteella (kategorioille voi silti valita oman emojin)
 - **Puhelimen alapalkki** – kapealla näytöllä alareunassa pikapainikkeet (Etusivu, Vuoroloki, Haku, Tiedotteet, Valikko)

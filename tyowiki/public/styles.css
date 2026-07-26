@@ -366,13 +366,32 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
 /* Kuvaliitteiden galleria (pikkukuvat) */
 .att-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin: 10px 0 4px; }
 .att-thumb { position: relative; margin: 0; aspect-ratio: 4/3; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); cursor: zoom-in; background: var(--hover); }
-.att-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .18s; }
+/* contain, ei cover: liitteet ovat useimmiten kuvakaappauksia ohjeista ja
+   järjestelmistä – cover rajasi niistä satunnaisen palan, josta ei näe mitään. */
+.att-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; transition: transform .18s; }
 .att-thumb:hover img { transform: scale(1.05); }
 .att-thumb-del {
   position: absolute; top: 5px; right: 5px; display: none; cursor: pointer;
   background: rgba(20,26,34,.72); color: #fff; border: none; border-radius: 6px; padding: 3px 5px; line-height: 0;
 }
 .att-thumb:hover .att-thumb-del, .att-thumb:focus-within .att-thumb-del { display: inline-flex; }
+
+/* Muokkausnäkymän kuvavalitsin: jo liitetyn kuvan pudotus tekstiin */
+.att-pick { display: flex; flex-wrap: wrap; gap: 10px; }
+.att-pick-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 116px; padding: 6px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 11px; text-align: center;
+}
+.att-pick-item img {
+  width: 100%; height: 66px; object-fit: contain; background: var(--hover); border-radius: 5px;
+}
+.att-pick-item span {
+  width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted);
+}
+.att-pick-item:hover { border-color: var(--brand); }
+.att-pick-item:hover span { color: var(--brand-ink); }
 .doc img.zoomable { cursor: zoom-in; }
 
 /* Lightbox (kuvan suurennus) */

@@ -1244,6 +1244,10 @@ async function viewPage(id) {
         <button class="btn small" type="submit">Lataa</button>
         <span class="muted">PDF, kuvat, Word, Excel · max 50 Mt</span>
       </form>
+      <p class="muted" style="margin:8px 0 0">Tästä ladattu kuva näkyy liitteenä.
+        Jos haluat kuvan <strong>tekstin sekaan</strong> (kuten Wordissa), avaa
+        ${icon('edit', 'ic-sm')} <strong>Muokkaa</strong> ja klikkaa kuvaa kohdasta
+        “Jo liitetyt kuvat” – tai lisää se suoraan <strong>Lisää kuva</strong> -napista.</p>
     </div>`;
 
   hydrateDocImages($('#content'));
@@ -1335,6 +1339,9 @@ async function viewPageEdit(id, presetCat) {
   }
   let p = { title: '', content: '', category_id: presetCat ? +presetCat : (categories[0] && categories[0].id) };
   if (id) p = await Store.pages.get(id);
+  // Jo liitetyt kuvat voi pudottaa tekstiin ilman uutta latausta (muuten
+  // samasta kuvasta syntyisi turha kaksoiskappale).
+  const imgAtts = (p.attachments || []).filter((a) => (a.mimetype || '').startsWith('image/'));
   // Tallentamaton luonnos edelliseltä kerralta: tarjotaan palautettavaksi.
   const draft = loadDraft(id);
   const draftDiffers = draft && (draft.title !== p.title || draft.content !== p.content
@@ -1376,7 +1383,19 @@ async function viewPageEdit(id, presetCat) {
         <input type="file" id="imgFileInput" accept="image/*" multiple style="display:none" />
         <textarea id="contentInput" placeholder="Kirjoita työohje tähän…">${esc(p.content)}</textarea>
         <div id="previewBox" class="doc preview-box" style="display:none"></div>
+        <p class="muted" style="margin:6px 0 0">Kuva tekstin sekaan: <strong>Lisää kuva</strong> -napista,
+          tai liitä kuvakaappaus suoraan tekstiin (Ctrl/Cmd+V). Kuva ilmestyy siihen kohtaan, missä kursori on.</p>
       </div>
+      ${imgAtts.length ? `<div class="field">
+        <label>Jo liitetyt kuvat – klikkaa lisätäksesi tekstiin kursorin kohdalle</label>
+        <div class="att-pick">
+          ${imgAtts.map((a) => `<button type="button" class="att-pick-item" data-insert="${a.id}"
+            title="Lisää tekstiin: ${esc(a.original_name)}">
+            <img src="${esc(a.url)}" alt="${esc(a.original_name)}" loading="lazy" />
+            <span>${esc(a.original_name)}</span>
+          </button>`).join('')}
+        </div>
+      </div>` : ''}
       <div class="row">
         <button class="btn" id="saveBtn">Tallenna</button>
         <button class="btn secondary" id="cancelBtn">Peruuta</button>
@@ -1409,6 +1428,18 @@ async function viewPageEdit(id, presetCat) {
     $('#draftDiscard').onclick = () => { clearDraft(id); $('#draftNote').remove(); toast('Luonnos hylätty'); };
   }
 
+  // Kirjoittaa kuvaviittaukset tekstiin kursorin kohdalle ja siirtää kursorin
+  // lisätyn kohdan perään, jotta kirjoittamista voi jatkaa saumattomasti.
+  function insertRefs(ids) {
+    const ta = $('#contentInput');
+    const pos = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
+    const md = ids.map((aid) => `\n![kuva](liite:${aid})\n`).join('');
+    ta.value = ta.value.slice(0, pos) + md + ta.value.slice(pos);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = pos + md.length;
+    markDirty(); // kuvaviittaus on muutos kuten kirjoittaminenkin
+  }
+
   // Kuvien lisäys: lataa liitteeksi ja lisää viittaus tekstiin kursorin kohdalle.
   async function insertImages(files) {
     if (!id) return toast('Tallenna ohje ensin – kuvat voi lisätä heti sen jälkeen Muokkaa-näkymässä', true);
@@ -1416,14 +1447,16 @@ async function viewPageEdit(id, presetCat) {
     if (!imgs.length) return;
     try {
       const res = await Store.attachments.upload(id, imgs, author.get());
-      const ta = $('#contentInput');
-      const pos = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
-      const md = (res.ids || []).map((aid) => `\n![kuva](liite:${aid})\n`).join('');
-      ta.value = ta.value.slice(0, pos) + md + ta.value.slice(pos);
-      markDirty(); // kuvaviittaus on muutos kuten kirjoittaminenkin
+      insertRefs(res.ids || []);
       toast(imgs.length > 1 ? 'Kuvat lisätty' : 'Kuva lisätty');
     } catch (err) { toast(err.message, true); }
   }
+
+  // Jo liitetty kuva tekstiin: ei uutta latausta, vain viittaus.
+  document.querySelectorAll('[data-insert]').forEach((b) => b.onclick = () => {
+    insertRefs([+b.dataset.insert]);
+    toast('Kuva lisätty tekstiin');
+  });
   $('#insertImgBtn').onclick = () => $('#imgFileInput').click();
   $('#imgFileInput').onchange = (e) => { insertImages(e.target.files); e.target.value = ''; };
   // Kuvakaappauksen liittäminen suoraan tekstikenttään (Ctrl/Cmd+V).

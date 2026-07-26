@@ -24,6 +24,47 @@ function findChromium() {
   return guesses.find((g) => fs.existsSync(g)) || null;
 }
 
+// Kelvollinen PNG (200x60) testikuvaksi. 1x1-lorem ei riitä: sillä ei voi
+// todeta latautuuko kuva oikeasti, ja rikkinäinen PNG näyttää samalta kuin bugi.
+function makePng() {
+  const zlib = require('zlib');
+  const w = 200, h = 60;
+  const rows = [];
+  for (let y = 0; y < h; y++) {
+    const row = Buffer.alloc(w * 3 + 1);
+    for (let x = 0; x < w; x++) {
+      const v = ((x / 10 | 0) + (y / 10 | 0)) % 2 ? 255 : 40;
+      row[1 + x * 3] = v; row[2 + x * 3] = v; row[3 + x * 3] = v;
+    }
+    rows.push(row);
+  }
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+    const td = Buffer.concat([Buffer.from(type), data]);
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32 ? zlib.crc32(td) >>> 0 : crc32(td));
+    return Buffer.concat([len, td, crc]);
+  };
+  // crc32 ilman zlib.crc32-tukea (Node < 20.12)
+  function crc32(buf) {
+    let c, crc = 0xffffffff;
+    for (let n = 0; n < buf.length; n++) {
+      c = (crc ^ buf[n]) & 0xff;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      crc = c ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(Buffer.concat(rows))),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => {
   if (cond) { pass++; console.log('OK   ' + name); }
@@ -137,15 +178,18 @@ async function main() {
     await page.click('text=Kipa'); await page.waitForTimeout(300);
     await page.click('text=Kipa – kohteen yleisohje'); await page.waitForTimeout(400);
     await page.click('#editBtn'); await page.waitForTimeout(300);
-    const pngBuf = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    const pngBuf = makePng();
     await page.setInputFiles('#imgFileInput', { name: 'ruutukaappaus.png', mimeType: 'image/png', buffer: pngBuf });
     await page.waitForTimeout(600);
     const taValue = await page.$eval('#contentInput', (e) => e.value);
     ok('kuvaviittaus lisättiin tekstiin', taValue.includes('![kuva](liite:'));
     await page.click('#saveBtn'); await page.waitForTimeout(600);
-    const imgSrc = await page.$eval('.doc img.doc-img', (e) => e.getAttribute('src')).catch(() => null);
-    ok('kuva renderöityy artikkelissa', !!imgSrc && imgSrc.indexOf('blob:') === 0, imgSrc);
+    await page.waitForTimeout(400);
+    const imgOk = await page.$eval('.doc img.doc-img',
+      (e) => ({ src: e.getAttribute('src') || '', ladattu: e.complete && e.naturalWidth > 0 })).catch(() => null);
+    ok('kuva renderöityy artikkelissa', !!imgOk && imgOk.src.indexOf('blob:') === 0, imgOk && imgOk.src);
+    // Tärkeä ero: src voi olla oikea vaikka kuva ei lataudu (rikkinäinen liite).
+    ok('artikkelin kuva myös latautuu', !!imgOk && imgOk.ladattu, JSON.stringify(imgOk));
 
     // Alakategoriat: Kipa-näkymässä alakategoriakortit, ja alakategorian
     // murupolku näyttää yläkategorian. Uuden alakategorian luonti UI:sta.
@@ -440,6 +484,37 @@ async function main() {
     await page.waitForTimeout(250);
     ok('lukija ei näe Roskakori-navilinkkiä', !(await page.isVisible('.nav-link[data-nav="trash"]')));
     await page.evaluate(() => { document.documentElement.removeAttribute('data-vrole'); });
+
+    // Jo liitetyn kuvan pudotus tekstiin: liitteeksi ladattu kuva pitää saada
+    // tekstin sekaan ilman uutta latausta (ei kaksoiskappaletta).
+    await page.evaluate(async () => {
+      const c = await Store.categories.list();
+      const pg = await Store.pages.create({ title: 'Kuvanpudotus', content: 'Rivi.', category_id: c[0].id, author: 'T' });
+      location.hash = '#/sivu/' + pg.id;
+    });
+    await page.waitForTimeout(700);
+    await page.setInputFiles('#fileInput', { name: 'kaavio.png', mimeType: 'image/png', buffer: makePng() });
+    await page.click('#uploadForm button[type=submit]'); await page.waitForTimeout(1100);
+    ok('liite näkyy vihjeineen artikkelissa',
+      (await page.$eval('#content', (e) => e.textContent)).indexOf('tekstin sekaan') >= 0);
+    const attsBefore = (await page.$$('.att-thumb')).length;
+    await page.click('#editBtn'); await page.waitForTimeout(700);
+    ok('muokkausnäkymä tarjoaa jo liitetyt kuvat', (await page.$$('.att-pick-item')).length === 1);
+    await page.evaluate(() => {
+      const t = document.querySelector('#contentInput');
+      t.focus(); t.selectionStart = t.selectionEnd = t.value.length;
+    });
+    await page.click('.att-pick-item'); await page.waitForTimeout(400);
+    ok('klikkaus lisää kuvaviittauksen tekstiin',
+      /!\[kuva\]\(liite:\d+\)/.test(await page.$eval('#contentInput', (e) => e.value)));
+    await page.click('#saveBtn'); await page.waitForTimeout(1200);
+    const dropped = await page.$eval('.doc img.doc-img',
+      (e) => e.complete && e.naturalWidth > 0).catch(() => false);
+    ok('pudotettu kuva näkyy tekstin seassa', dropped);
+    ok('ei syntynyt kaksoiskappaletta liitteisiin',
+      (await page.$$('.att-thumb')).length === attsBefore, attsBefore + ' -> ' + (await page.$$('.att-thumb')).length);
+    ok('pikkukuva ei rajaudu (contain)',
+      (await page.$eval('.att-thumb img', (e) => getComputedStyle(e).objectFit)) === 'contain');
 
     // 8) Designehdotus 2a (koekappale): kytkin vaihtaa etusivun ilmettä,
     //    data on sama ja nykyinen ulkoasu säilyy palautettavana.

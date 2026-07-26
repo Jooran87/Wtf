@@ -485,6 +485,44 @@ async function main() {
     ok('lukija ei näe Roskakori-navilinkkiä', !(await page.isVisible('.nav-link[data-nav="trash"]')));
     await page.evaluate(() => { document.documentElement.removeAttribute('data-vrole'); });
 
+    // Kuvan lisäys KESKEN uuden ohjeen kirjoittamisen: ohje tallennetaan
+    // automaattisesti, jottei käyttäjän tarvitse keskeyttää kirjoittamista.
+    await page.evaluate(() => { location.hash = '#/uusi'; }); await page.waitForTimeout(700);
+    await page.setInputFiles('#imgFileInput', { name: 'a.png', mimeType: 'image/png', buffer: makePng() });
+    await page.waitForTimeout(700);
+    ok('uusi ohje ilman otsikkoa: selkeä viesti',
+      (await page.$eval('#toast', (e) => e.textContent)).indexOf('otsikko') >= 0);
+    ok('uusi ohje ilman otsikkoa: ei tallenneta',
+      await page.evaluate(() => location.hash === '#/uusi'));
+    await page.fill('#titleInput', 'Kuva kesken kirjoittamisen');
+    await page.fill('#contentInput', 'Eka kappale.\n\nToka kappale.');
+    await page.evaluate(() => {
+      const t = document.querySelector('#contentInput');
+      t.focus(); t.selectionStart = t.selectionEnd = t.value.indexOf('Toka');
+    });
+    await page.setInputFiles('#imgFileInput', { name: 'kaavio.png', mimeType: 'image/png', buffer: makePng() });
+    await page.waitForTimeout(1400);
+    ok('kuva lisättiin ilman erillistä tallennusta',
+      /!\[kuva\]\(liite:\d+\)/.test(await page.$eval('#contentInput', (e) => e.value)));
+    ok('viittaus meni kursorin kohdalle',
+      /Eka kappale\.\s*\n!\[kuva\]\(liite:\d+\)/.test(await page.$eval('#contentInput', (e) => e.value)));
+    ok('muokkauslomake pysyy auki', await page.isVisible('#contentInput'));
+    ok('osoite vaihtui muokkaustilaksi',
+      /#\/muokkaa\/\d+/.test(await page.evaluate(() => location.hash)));
+    ok('otsikko ei enää lupaa "Uusi ohje"',
+      (await page.$eval('#editHeading', (e) => e.textContent)) === 'Muokkaa ohjetta');
+    await page.evaluate(() => {
+      const t = document.querySelector('#contentInput');
+      t.value += '\n\nKolmas kappale.';
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.click('#saveBtn'); await page.waitForTimeout(1300);
+    ok('tallennus vie valmiiseen ohjeeseen', /#\/sivu\/\d+/.test(page.url()), page.url());
+    ok('kuva näkyy tallennetussa ohjeessa',
+      await page.$eval('.doc img.doc-img', (e) => e.complete && e.naturalWidth > 0).catch(() => false));
+    ok('kuvan jälkeen kirjoitettu teksti säilyi',
+      (await page.$eval('.doc', (e) => e.textContent)).indexOf('Kolmas kappale') >= 0);
+
     // Jo liitetyn kuvan pudotus tekstiin: liitteeksi ladattu kuva pitää saada
     // tekstin sekaan ilman uutta latausta (ei kaksoiskappaletta).
     await page.evaluate(async () => {
@@ -513,6 +551,33 @@ async function main() {
     ok('pudotettu kuva näkyy tekstin seassa', dropped);
     ok('ei syntynyt kaksoiskappaletta liitteisiin',
       (await page.$$('.att-thumb')).length === attsBefore, attsBefore + ' -> ' + (await page.$$('.att-thumb')).length);
+    // Toistoklikkaus ei saa monistaa viittausta (tekstikenttä täyttyi aiemmin
+    // samoilla riveillä, koska lisäys tapahtui näkymän ulkopuolella).
+    await page.click('#editBtn'); await page.waitForTimeout(700);
+    const refCount = () => page.$eval('#contentInput',
+      (e) => (e.value.match(/!\[kuva\]\(liite:\d+\)/g) || []).length);
+    const before = await refCount();
+    await page.click('.att-pick-item'); await page.waitForTimeout(350);
+    await page.click('.att-pick-item'); await page.waitForTimeout(350);
+    await page.click('.att-pick-item'); await page.waitForTimeout(350);
+    ok('toistoklikkaus ei monista kuvaviittausta', (await refCount()) === before,
+      before + ' -> ' + (await refCount()));
+    ok('jo lisätty kuva on merkitty valitsimessa',
+      await page.$eval('.att-pick-item', (e) => e.classList.contains('used')));
+    ok('toistoklikkaus korostaa olemassa olevan kohdan',
+      /liite:\d+/.test(await page.$eval('#contentInput',
+        (e) => e.value.slice(e.selectionStart, e.selectionEnd))));
+    // Käsin poistettu viittaus vapauttaa kuvan uudelleen lisättäväksi
+    await page.evaluate(() => {
+      const t = document.querySelector('#contentInput');
+      t.value = t.value.replace(/!\[kuva\]\(liite:\d+\)/, '');
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.waitForTimeout(300);
+    ok('käsin poisto vapauttaa merkinnän',
+      !(await page.$eval('.att-pick-item', (e) => e.classList.contains('used'))));
+    await page.evaluate(() => history.back()); await page.waitForTimeout(700);
+
     ok('pikkukuva ei rajaudu (contain)',
       (await page.$eval('.att-thumb img', (e) => getComputedStyle(e).objectFit)) === 'contain');
 

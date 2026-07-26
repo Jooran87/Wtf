@@ -407,6 +407,12 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
 }
 .att-pick-item:hover { border-color: var(--brand); }
 .att-pick-item:hover span { color: var(--brand-ink); }
+/* Jo tekstissä oleva kuva: klikkaus ei monista vaan näyttää kohdan. */
+.att-pick-item.used { border-color: var(--ok-text); background: var(--ok-bg); }
+.att-pick-item.used::after {
+  content: '✓ tekstissä'; font-size: 10px; font-weight: 700; color: var(--ok-text);
+}
+.att-pick-item.used span { color: var(--ok-text); }
 .doc img.zoomable { cursor: zoom-in; }
 
 /* Lightbox (kuvan suurennus) */
@@ -3710,7 +3716,7 @@ async function viewPageEdit(id, presetCat) {
   const draftDiffers = draft && (draft.title !== p.title || draft.content !== p.content
     || (draft.keywords || '') !== (p.keywords || ''));
   content.innerHTML = `
-    <h2>${id ? 'Muokkaa ohjetta' : 'Uusi ohje'}</h2>
+    <h2 id="editHeading">${id ? 'Muokkaa ohjetta' : 'Uusi ohje'}</h2>
     ${draftDiffers ? `<div class="card draft-note" id="draftNote">
       <strong>${icon('warn')} Tallentamaton luonnos löytyi</strong>
       <p class="muted" style="margin:6px 0 10px">Muokkaus keskeytyi ${esc(fmtDate(new Date(draft.at).toISOString()))}.
@@ -3791,6 +3797,31 @@ async function viewPageEdit(id, presetCat) {
     $('#draftDiscard').onclick = () => { clearDraft(id); $('#draftNote').remove(); toast('Luonnos hylätty'); };
   }
 
+  // Vierittää tekstikentän annettuun kohtaan, jotta käyttäjä NÄKEE mitä
+  // tapahtui. Ilman tätä lisäys voi tapahtua näkymän ulkopuolella, jolloin
+  // vaikuttaa ettei mitään tapahtunut – ja tulee klikatuksi uudelleen.
+  function scrollToPos(ta, pos) {
+    const line = ta.value.slice(0, pos).split('\n').length - 1;
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 20;
+    ta.scrollTop = Math.max(0, line * lh - ta.clientHeight / 2);
+  }
+
+  // Mitkä liitteet ovat jo tekstissä.
+  const usedIds = () => new Set(
+    ($('#contentInput').value.match(/!\[[^\]]*\]\(liite:(\d+)\)/g) || [])
+      .map((m) => +(m.match(/liite:(\d+)/) || [])[1]));
+
+  // Merkitsee valitsimeen, mitkä kuvat ovat jo tekstissä.
+  function refreshPickState() {
+    const used = usedIds();
+    document.querySelectorAll('[data-insert]').forEach((b) => {
+      const on = used.has(+b.dataset.insert);
+      b.classList.toggle('used', on);
+      b.title = on ? 'Tämä kuva on jo tekstissä – klikkaus näyttää sen kohdan'
+        : 'Lisää tekstiin kursorin kohdalle';
+    });
+  }
+
   // Kirjoittaa kuvaviittaukset tekstiin kursorin kohdalle ja siirtää kursorin
   // lisätyn kohdan perään, jotta kirjoittamista voi jatkaa saumattomasti.
   function insertRefs(ids) {
@@ -3800,14 +3831,42 @@ async function viewPageEdit(id, presetCat) {
     ta.value = ta.value.slice(0, pos) + md + ta.value.slice(pos);
     ta.focus();
     ta.selectionStart = ta.selectionEnd = pos + md.length;
+    scrollToPos(ta, pos + md.length);
     markDirty(); // kuvaviittaus on muutos kuten kirjoittaminenkin
+    refreshPickState();
+  }
+
+  // Liite tarvitsee ohjeen, johon se kiinnittyy. Uutta ohjetta kirjoitettaessa
+  // sitä ei vielä ole, joten ohje tallennetaan tässä kohtaa automaattisesti –
+  // käyttäjän ei pidä joutua keskeyttämään kirjoittamista kuvan takia.
+  // Palauttaa true jos ohje on olemassa ja kuvia voi liittää.
+  async function ensureSaved() {
+    if (id) return true;
+    const title = $('#titleInput').value.trim();
+    if (!title) { toast('Anna ensin otsikko, niin kuva voidaan liittää ohjeeseen', true); return false; }
+    try {
+      const saved = await Store.pages.create({
+        title, content: $('#contentInput').value, keywords: $('#keywordsInput').value,
+        category_id: +$('#catSelect').value, author: author.get(),
+      });
+      clearDraft(null);          // "uusi"-luonnos siirtyy nyt ohjeen omaksi
+      id = saved.id;             // lomake jatkaa saman ohjeen muokkaamisena
+      await loadCategories();    // ohjemäärä sivupalkkiin
+      // Osoite vastaamaan tilannetta ilman uudelleenrenderöintiä.
+      history.replaceState(null, '', '#/muokkaa/' + id);
+      lastHash = location.hash;
+      const hd = $('#editHeading');
+      if (hd) hd.textContent = 'Muokkaa ohjetta';   // ei ole enää uusi
+      toast('Ohje tallennettiin, jotta kuva voidaan liittää');
+      return true;
+    } catch (err) { toast(err.message, true); return false; }
   }
 
   // Kuvien lisäys: lataa liitteeksi ja lisää viittaus tekstiin kursorin kohdalle.
   async function insertImages(files) {
-    if (!id) return toast('Tallenna ohje ensin – kuvat voi lisätä heti sen jälkeen Muokkaa-näkymässä', true);
     const imgs = Array.from(files).filter((f) => f.type.indexOf('image/') === 0);
     if (!imgs.length) return;
+    if (!(await ensureSaved())) return;
     try {
       const res = await Store.attachments.upload(id, imgs, author.get());
       insertRefs(res.ids || []);
@@ -3816,10 +3875,29 @@ async function viewPageEdit(id, presetCat) {
   }
 
   // Jo liitetty kuva tekstiin: ei uutta latausta, vain viittaus.
+  // Jos kuva on JO tekstissä, klikkaus ei monista sitä vaan näyttää missä se on
+  // (toistuva klikkaus täytti aiemmin tekstin samoilla viittauksilla).
   document.querySelectorAll('[data-insert]').forEach((b) => b.onclick = () => {
-    insertRefs([+b.dataset.insert]);
+    const aid = +b.dataset.insert;
+    const ta = $('#contentInput');
+    if (usedIds().has(aid)) {
+      const re = new RegExp('!\\[[^\\]]*\\]\\(liite:' + aid + '\\)');
+      const m = re.exec(ta.value);
+      if (m) {
+        ta.focus();
+        ta.selectionStart = m.index;
+        ta.selectionEnd = m.index + m[0].length;
+        scrollToPos(ta, m.index);
+      }
+      toast('Kuva on jo tekstissä – kohta korostettu');
+      return;
+    }
+    insertRefs([aid]);
     toast('Kuva lisätty tekstiin');
   });
+  // Merkinnät ajan tasalle myös kun viittaus poistetaan käsin tekstistä.
+  $('#contentInput').addEventListener('input', refreshPickState);
+  refreshPickState();
   $('#insertImgBtn').onclick = () => $('#imgFileInput').click();
   $('#imgFileInput').onchange = (e) => { insertImages(e.target.files); e.target.value = ''; };
   // Kuvakaappauksen liittäminen suoraan tekstikenttään (Ctrl/Cmd+V).

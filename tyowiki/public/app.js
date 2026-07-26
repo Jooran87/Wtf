@@ -713,13 +713,13 @@ async function viewHome2a() {
             <span class="d2-count">${notices.length} KPL</span>
             <a class="d2-more" href="#/tiedotteet">Kaikki tiedotteet</a>
           </div>
-          ${notices.map((a, i) => `<div class="d2-notice ${i === 0 && a.pinned ? 'crit' : 'warn'}" data-ann="${a.id}">
+          ${notices.map((a, i) => `<div class="d2-notice ${i === 0 && a.pinned ? 'crit' : 'warn'}" data-ann="${a.id}"
+            role="link" tabindex="0" aria-label="Avaa tiedote: ${esc(a.title)}">
             <div class="d2-stripe"></div>
             <div class="d2-noticebody">
               <div class="d2-noticetitle">${esc(a.title)}${noticeBadge(a)}</div>
               ${String(a.content || '').trim() ? `<p class="d2-noticetext">${esc(a.content)}</p>` : ''}
               <div class="d2-noticefoot">
-                <a class="d2-btn ghost" href="#/tiedotteet">Avaa tiedote →</a>
                 <span class="d2-noticemeta">${esc(fmtDate(a.created_at))}${a.created_by ? ' · ' + esc(a.created_by) : ''}</span>
               </div>
             </div>
@@ -818,15 +818,21 @@ async function viewHome2a() {
       </div>
     </div>`;
 
-  // Koko tiedotealue on klikattava, ei vain "Avaa tiedote" -painike.
+  // Koko tiedotealue avaa tiedotteen – erillistä painiketta ei ole.
   // Ei käytetä koko alueen peittävää linkkiä, koska se estäisi tekstin
   // maalaamisen – päivystäjän pitää voida kopioida esim. kellonaika.
+  // Koska näkyvää linkkiä ei ole, alue on itse näppäimistöllä käytettävä
+  // (role="link" + tabindex) – muuten tiedotetta ei saisi auki ilman hiirtä.
   document.querySelectorAll('.d2-notice[data-ann]').forEach((el) => {
+    const open = () => { location.hash = '#/tiedotteet'; };
     el.onclick = (e) => {
-      if (e.target.closest('a, button')) return;      // sisäinen linkki hoitaa itsensä
+      if (e.target.closest('a, button')) return;      // mahdollinen sisäinen linkki
       const sel = window.getSelection();
       if (sel && String(sel).trim()) return;          // teksti maalattuna: ei navigoida
-      location.hash = '#/tiedotteet';
+      open();
+    };
+    el.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
     };
   });
 

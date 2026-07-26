@@ -217,8 +217,9 @@
 .d2-notice:hover { background: var(--sel); }
 .d2-notice.crit { background: var(--critbg); }
 .d2-notice.crit:hover { background: var(--critbg-hov); }
-/* Painike säilyy silmämerkkinä, mutta korostuu kun koko rivi on osoitettuna. */
-.d2-notice:hover .d2-btn.ghost { border-color: var(--line2); color: var(--tx); }
+/* Näkyvää painiketta ei ole, joten alue on itse fokusoitava. Renkaan on
+   oltava selvä: tämä on ainoa näppäimistövihje tiedotteen avaamisesta. */
+.d2-notice:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .d2-stripe { width: 44px; flex: none; opacity: .5;
   background: repeating-linear-gradient(135deg, var(--crit) 0 1.5px, transparent 1.5px 7px); }
 .d2-notice.warn .d2-stripe { opacity: .35;
@@ -238,7 +239,8 @@
   max-width: 76ch; margin: 7px 0 0; text-wrap: pretty;
 }
 .d2-notice.warn .d2-noticetext { font-size: 13.5px; line-height: 1.55; }
-.d2-noticefoot { display: flex; align-items: center; gap: 14px; margin-top: 11px; flex-wrap: wrap; }
+/* Ilman painiketta jalka on pelkkä metarivi – tiiviimpi väli riittää. */
+.d2-noticefoot { display: flex; align-items: center; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
 .d2-noticemeta { font-family: 'Plex Mono', monospace; font-size: 11.5px; color: var(--tx3); }
 
 /* ---- Kategoriaruudukko ---- */

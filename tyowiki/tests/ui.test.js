@@ -473,6 +473,18 @@ async function main() {
     await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(700);
     await page.click('.d2-notice .d2-noticetext'); await page.waitForTimeout(700);
     ok('2a: tiedote avautuu leipätekstistä', /#\/tiedotteet/.test(page.url()), page.url());
+    // Erillistä "Avaa tiedote" -painiketta ei enää ole; alue on itse
+    // näppäimistöllä käytettävä, jotta tiedotteen saa auki ilman hiirtä.
+    await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(700);
+    ok('2a: erillistä Avaa tiedote -painiketta ei ole',
+      (await page.$$('.d2-notice .d2-btn')).length === 0);
+    ok('2a: tiedote on fokusoitavissa', await page.evaluate(() => {
+      const n = document.querySelector('.d2-notice');
+      return n.getAttribute('role') === 'link' && n.tabIndex === 0 && !!n.getAttribute('aria-label');
+    }));
+    await page.evaluate(() => document.querySelector('.d2-notice').focus());
+    await page.keyboard.press('Enter'); await page.waitForTimeout(700);
+    ok('2a: tiedote avautuu Enterillä', /#\/tiedotteet/.test(page.url()), page.url());
     // Tekstin maalaus EI saa laueta navigoinniksi (päivystäjän on voitava kopioida).
     await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(700);
     await page.evaluate(() => {

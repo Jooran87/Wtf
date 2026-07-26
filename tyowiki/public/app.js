@@ -713,7 +713,7 @@ async function viewHome2a() {
             <span class="d2-count">${notices.length} KPL</span>
             <a class="d2-more" href="#/tiedotteet">Kaikki tiedotteet</a>
           </div>
-          ${notices.map((a, i) => `<div class="d2-notice ${i === 0 && a.pinned ? 'crit' : 'warn'}">
+          ${notices.map((a, i) => `<div class="d2-notice ${i === 0 && a.pinned ? 'crit' : 'warn'}" data-ann="${a.id}">
             <div class="d2-stripe"></div>
             <div class="d2-noticebody">
               <div class="d2-noticetitle">${esc(a.title)}${noticeBadge(a)}</div>
@@ -817,6 +817,18 @@ async function viewHome2a() {
         </div>
       </div>
     </div>`;
+
+  // Koko tiedotealue on klikattava, ei vain "Avaa tiedote" -painike.
+  // Ei käytetä koko alueen peittävää linkkiä, koska se estäisi tekstin
+  // maalaamisen – päivystäjän pitää voida kopioida esim. kellonaika.
+  document.querySelectorAll('.d2-notice[data-ann]').forEach((el) => {
+    el.onclick = (e) => {
+      if (e.target.closest('a, button')) return;      // sisäinen linkki hoitaa itsensä
+      const sel = window.getSelection();
+      if (sel && String(sel).trim()) return;          // teksti maalattuna: ei navigoida
+      location.hash = '#/tiedotteet';
+    };
+  });
 
   const addNote = async () => {
     const el = $('#d2NoteText');

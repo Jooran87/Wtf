@@ -466,6 +466,25 @@ async function main() {
     ok('2a: vuorolokikirjaus tallentuu',
       (await page.$$eval('.d2-entrytext', (els) => els.map((e) => e.textContent)))
         .some((t) => t.indexOf('Huomio 2a-etusivulta') >= 0));
+    // Koko tiedotealue klikattava – myös otsikosta ja leipätekstistä.
+    await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(700);
+    await page.click('.d2-notice .d2-noticetitle'); await page.waitForTimeout(700);
+    ok('2a: tiedote avautuu otsikkoa klikkaamalla', /#\/tiedotteet/.test(page.url()), page.url());
+    await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(700);
+    await page.click('.d2-notice .d2-noticetext'); await page.waitForTimeout(700);
+    ok('2a: tiedote avautuu leipätekstistä', /#\/tiedotteet/.test(page.url()), page.url());
+    // Tekstin maalaus EI saa laueta navigoinniksi (päivystäjän on voitava kopioida).
+    await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(700);
+    await page.evaluate(() => {
+      const t = document.querySelector('.d2-notice .d2-noticetext');
+      const r = document.createRange(); r.selectNodeContents(t);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      t.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await page.waitForTimeout(500);
+    ok('2a: tekstin maalaus ei avaa tiedotetta', !/#\/tiedotteet/.test(page.url()), page.url());
+    await page.evaluate(() => window.getSelection().removeAllRanges());
+
     ok('2a: valinta säilyy uudelleenlatauksessa', await (async () => {
       await page.reload(); await page.waitForTimeout(1100);
       return page.evaluate(() => document.documentElement.dataset.design === '2a');

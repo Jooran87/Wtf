@@ -835,6 +835,7 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
   --brand: #FF6A1F;
   --crit: #F2555A;
   --critbg: rgba(242,85,90,.13);
+  --critbg-hov: rgba(242,85,90,.19);
   --warn: #F6B23C;
   --warnbg: rgba(246,178,60,.13);
   --ok: #4FB26A;
@@ -857,6 +858,7 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
   --brand: #C4470A;        /* tummennettu (oli #E2540C, 3,8:1) */
   --crit: #C8262C;
   --critbg: rgba(200,38,44,.08);
+  --critbg-hov: rgba(200,38,44,.13);
   --warn: #8A5605;         /* tummennettu (oli #A86A06, 4,4:1) */
   --warnbg: rgba(246,178,60,.16);
   --ok: #2F7D46;
@@ -991,9 +993,18 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 .d2-sec .d2-meta { font-family: 'Plex Mono', monospace; font-size: 11px; color: var(--tx3); }
 
 /* ---- Poikkeukset ---- */
-.d2-notice { display: flex; position: relative; border-top: 1px solid var(--line); }
+/* Koko rivi on klikattava (JS), joten se saa myös osoitinkäden ja
+   hover-korostuksen – muuten klikattavuutta ei arvaisi. */
+.d2-notice {
+  display: flex; position: relative; border-top: 1px solid var(--line);
+  cursor: pointer; transition: background-color 120ms ease;
+}
 .d2-notice:first-of-type { border-top: none; }
+.d2-notice:hover { background: var(--sel); }
 .d2-notice.crit { background: var(--critbg); }
+.d2-notice.crit:hover { background: var(--critbg-hov); }
+/* Painike säilyy silmämerkkinä, mutta korostuu kun koko rivi on osoitettuna. */
+.d2-notice:hover .d2-btn.ghost { border-color: var(--line2); color: var(--tx); }
 .d2-stripe { width: 44px; flex: none; opacity: .5;
   background: repeating-linear-gradient(135deg, var(--crit) 0 1.5px, transparent 1.5px 7px); }
 .d2-notice.warn .d2-stripe { opacity: .35;
@@ -3032,7 +3043,7 @@ async function viewHome2a() {
             <span class="d2-count">${notices.length} KPL</span>
             <a class="d2-more" href="#/tiedotteet">Kaikki tiedotteet</a>
           </div>
-          ${notices.map((a, i) => `<div class="d2-notice ${i === 0 && a.pinned ? 'crit' : 'warn'}">
+          ${notices.map((a, i) => `<div class="d2-notice ${i === 0 && a.pinned ? 'crit' : 'warn'}" data-ann="${a.id}">
             <div class="d2-stripe"></div>
             <div class="d2-noticebody">
               <div class="d2-noticetitle">${esc(a.title)}${noticeBadge(a)}</div>
@@ -3136,6 +3147,18 @@ async function viewHome2a() {
         </div>
       </div>
     </div>`;
+
+  // Koko tiedotealue on klikattava, ei vain "Avaa tiedote" -painike.
+  // Ei käytetä koko alueen peittävää linkkiä, koska se estäisi tekstin
+  // maalaamisen – päivystäjän pitää voida kopioida esim. kellonaika.
+  document.querySelectorAll('.d2-notice[data-ann]').forEach((el) => {
+    el.onclick = (e) => {
+      if (e.target.closest('a, button')) return;      // sisäinen linkki hoitaa itsensä
+      const sel = window.getSelection();
+      if (sel && String(sel).trim()) return;          // teksti maalattuna: ei navigoida
+      location.hash = '#/tiedotteet';
+    };
+  });
 
   const addNote = async () => {
     const el = $('#d2NoteText');

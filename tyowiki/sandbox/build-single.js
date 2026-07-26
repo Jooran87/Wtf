@@ -8,6 +8,13 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'public', 'styles.css'), 'utf8');
+// Designehdotus 2a: fonttien url() korvataan base64-datalla, jotta yhden
+// tiedoston sandbox toimii ilman fonts-kansiota ja ilman verkkoa.
+const design2a = fs.readFileSync(path.join(root, 'public', 'design2a.css'), 'utf8')
+  .replace(/url\('fonts\/([^']+)'\)/g, (m, file) => {
+    const buf = fs.readFileSync(path.join(root, 'public', 'fonts', file));
+    return `url(data:font/woff2;base64,${buf.toString('base64')})`;
+  });
 const offlineTpl = fs.readFileSync(path.join(root, 'public', 'offline-template.js'), 'utf8');
 const storeLocal = fs.readFileSync(path.join(__dirname, 'store-local.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
@@ -23,10 +30,12 @@ const html = `<!DOCTYPE html>
     /* Teema ennen renderöintiä, ettei sivu välähdä väärällä värillä */
     (function(){try{var t=localStorage.getItem('tyowiki_theme');
       if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';
-      document.documentElement.dataset.theme=t==='dark'?'dark':'light';}catch(e){}})();
+      document.documentElement.dataset.theme=t==='dark'?'dark':'light';
+      if(localStorage.getItem('tyowiki_design')==='2a')document.documentElement.dataset.design='2a';}catch(e){}})();
   </script>
   <style>
 ${css}
+${design2a}
     .sandbox-badge { background:#1c2430; color:#fff; font-size:11px; font-weight:700;
       padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em; }
   </style>
@@ -42,7 +51,8 @@ ${css}
     <form id="searchForm" class="search">
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
     </form>
-    <button id="themeToggle" class="icon-btn" title="Tumma tila">🌙</button>
+    <button id="designToggle" class="design-toggle" title="Näytä designehdotus 2a">Nyk.</button>
+  <button id="themeToggle" class="icon-btn" title="Tumma tila">🌙</button>
     <span id="userChip" class="user-chip" style="display:none"></span>
     <button id="logoutBtn" class="btn small secondary" style="display:none">Kirjaudu ulos</button>
     <div class="user"><label>Nimesi:</label><input id="authorInput" type="text" placeholder="Etunimi" /></div>

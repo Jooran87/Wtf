@@ -649,7 +649,188 @@ async function router() {
 }
 
 // ---------- Näkymät ----------
+// ---------- Suunta 2a: etusivun koekappale ----------
+// Aktivoituu vain kun design-lippu on päällä. Käyttää TÄYSIN samaa dataa kuin
+// nykyinen etusivu – ei uusia palvelinreittejä eikä skeemamuutoksia.
+const design = {
+  get: () => { try { return localStorage.getItem('tyowiki_design') === '2a'; } catch (_) { return false; } },
+  set: (on) => {
+    try { localStorage.setItem('tyowiki_design', on ? '2a' : ''); } catch (_) {}
+    if (on) document.documentElement.dataset.design = '2a';
+    else document.documentElement.removeAttribute('data-design');
+  },
+};
+
+// Lyhyt päivämäärä (25.7.) tunnuslukuihin ja korttien metatietoihin.
+const shortDate = (iso) => {
+  const d = new Date(iso);
+  return isNaN(d) ? '' : `${d.getDate()}.${d.getMonth() + 1}.`;
+};
+
+// Poikkeuksen tilamerkki. Nykyisessä datassa ei ole voimassaoloaikoja
+// (ne ovat designin toivelistalla), joten kiinnitetty = voimassa nyt.
+function noticeBadge(a) {
+  return a.pinned
+    ? '<span class="d2-badge now">Voimassa</span>'
+    : '<span class="d2-badge soon">Tiedote</span>';
+}
+
+async function viewHome2a() {
+  currentCategoryId = null; renderSidebar();
+  const [pages, recentNotes, popular, contacts, anns] = await Promise.all([
+    Store.pages.list(), Store.notes.list({ limit: 30 }), Store.pages.popular(10),
+    Store.contacts.list(), Store.announcements.list(),
+  ]);
+  const notices = [...anns].sort((a, b) => (b.pinned - a.pinned)
+    || String(b.created_at).localeCompare(String(a.created_at))).slice(0, 2);
+  const recent = [...pages]
+    .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || ''))).slice(0, 4);
+  const tops = topCategories();
+  // Käyttöpalkin täyttö suhteessa listan suurimpaan (lasketaan ajossa).
+  const maxViews = popular.reduce((m, p) => Math.max(m, p.views || 0), 0) || 1;
+  // Hätänumero nostetaan omaksi korostetuksi rivikseen.
+  const isEmergency = (c) => String(c.phone || '').replace(/\D/g, '') === '112';
+  const emergency = contacts.filter(isEmergency);
+  const others = contacts.filter((c) => !isEmergency(c));
+
+  content.innerHTML = `
+    <div class="d2-head">
+      <div>
+        <div class="d2-eyebrow">Työohjeet ja tiedotteet</div>
+        <h1 class="d2-title">Hälytyskeskus</h1>
+      </div>
+      <div class="d2-stats">
+        <div class="d2-stat"><b>${pages.length}</b><span>Ohjetta</span></div>
+        <div class="d2-stat"><b class="${notices.length ? 'crit' : ''}">${notices.length}</b><span>Tiedotetta</span></div>
+        <div class="d2-stat"><b>${esc(shortDate(new Date().toISOString()))}</b><span>Tänään</span></div>
+      </div>
+    </div>
+    <div class="d2-home">
+      <div class="d2-main">
+        ${notices.length ? `<div class="d2-card">
+          <div class="d2-cardhead">
+            <span class="d2-dot"></span><h3>Voimassa olevat poikkeukset</h3>
+            <span class="d2-count">${notices.length} KPL</span>
+            <a class="d2-more" href="#/tiedotteet">Kaikki tiedotteet</a>
+          </div>
+          ${notices.map((a, i) => `<div class="d2-notice ${i === 0 && a.pinned ? 'crit' : 'warn'}">
+            <div class="d2-stripe"></div>
+            <div class="d2-noticebody">
+              <div class="d2-noticetitle">${esc(a.title)}${noticeBadge(a)}</div>
+              ${String(a.content || '').trim() ? `<p class="d2-noticetext">${esc(a.content)}</p>` : ''}
+              <div class="d2-noticefoot">
+                <a class="d2-btn ghost" href="#/tiedotteet">Avaa tiedote →</a>
+                <span class="d2-noticemeta">${esc(fmtDate(a.created_at))}${a.created_by ? ' · ' + esc(a.created_by) : ''}</span>
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>` : '<p class="d2-noticemeta">Ei voimassa olevia poikkeuksia.</p>'}
+
+        <section>
+          <div class="d2-sec"><h3>Kategoriat</h3><span class="d2-rule"></span>
+            <span class="d2-meta">${tops.length} kategoriaa</span></div>
+          <div class="d2-cats">
+            ${tops.map((c) => {
+              const subs = subCategories(c.id);
+              const desc = subs.length ? subs.map((s) => s.name).join(', ') : `${totalPageCount(c)} ohjetta`;
+              return `<a class="d2-cat" href="#/kohde/${c.id}"${accentStyle(c)}>
+                <div class="d2-catrow"><span class="d2-catname">${esc(c.name)}</span>
+                  <span class="d2-catnum">${totalPageCount(c)}</span></div>
+                <div class="d2-catdesc">${esc(desc)}</div>
+              </a>`;
+            }).join('')}
+            <a class="d2-cat all" href="#/haku?q="><div class="d2-catrow">
+              <span class="d2-catname">Selaa kaikkia ohjeita</span></div>
+              <div class="d2-catdesc">Haku ja koko sisältö</div></a>
+          </div>
+        </section>
+
+        <section>
+          <div class="d2-sec"><h3>Käytetyimmät ohjeet</h3><span class="d2-rule"></span>
+            <span class="d2-meta">katselut</span></div>
+          <div class="d2-card">
+            ${popular.map((p, i) => {
+              const cat = categories.find((c) => c.id === p.category_id);
+              const pct = Math.round(((p.views || 0) / maxViews) * 100);
+              return `<button class="d2-toprow ${i > 4 ? 'low' : ''}" data-page="${p.id}"${accentStyle(cat)}>
+                <span class="d2-rank">${String(i + 1).padStart(2, '0')}</span>
+                <span class="d2-tick"></span>
+                <span class="d2-topname">${esc(p.title)}</span>
+                <span class="d2-bar"><i style="width:${pct}%"></i></span>
+                <span class="d2-views">${p.views}</span>
+              </button>`;
+            }).join('') || '<div class="d2-noticebody"><span class="d2-noticemeta">Ei vielä katseluita.</span></div>'}
+          </div>
+        </section>
+
+        <section>
+          <div class="d2-sec"><h3>Viimeksi päivitetyt</h3><span class="d2-rule"></span></div>
+          <div class="d2-recent">
+            ${recent.map((p) => {
+              const cat = categories.find((c) => c.id === p.category_id);
+              return `<button class="d2-rec" data-page="${p.id}"${accentStyle(cat)}>
+                <span class="d2-rectop"><span class="d2-recname">${esc(p.title)}</span>
+                  <span class="d2-recdate">${esc(shortDate(p.updated_at))}</span></span>
+                <span class="d2-recmeta">${esc(categoryName(p.category_id))}${p.updated_by ? ' · ' + esc(p.updated_by) : ''}</span>
+              </button>`;
+            }).join('') || '<span class="d2-noticemeta">Ei ohjeita vielä.</span>'}
+          </div>
+        </section>
+      </div>
+
+      <div class="d2-rail">
+        <div class="d2-card">
+          <div class="d2-cardhead"><h3>Tärkeät numerot</h3>
+            <span class="d2-count">${contacts.length}</span>
+            <a class="d2-more" href="#/numerot">Kaikki</a></div>
+          ${emergency.map((c) => `<div class="d2-num emergency">
+            <span class="d2-numname"><b>${esc(c.label)}</b><span>${esc(c.note || '')}</span></span>
+            <a class="d2-numtel" href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>
+          </div>`).join('')}
+          ${others.slice(0, 4).map((c) => `<div class="d2-num">
+            <span class="d2-numname"><b>${esc(c.label)}</b>${c.note ? `<span>${esc(c.note)}</span>` : ''}</span>
+            ${c.phone ? `<a class="d2-numtel" href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>` : ''}
+          </div>`).join('')}
+        </div>
+
+        <div class="d2-card">
+          <div class="d2-cardhead"><h3>Vuoroloki</h3>
+            <a class="d2-more" href="#/vuoroloki">Koko loki</a></div>
+          <div class="d2-logbox note-quick">
+            <textarea id="d2NoteText" placeholder="Kirjaa huomio vuorolokiin…"></textarea>
+            <div class="d2-logfoot">
+              <span class="d2-noticemeta">Ctrl/Cmd + Enter lähettää</span>
+              <button class="d2-btn" id="d2NoteAdd">Lisää huomio</button>
+            </div>
+          </div>
+          ${recentNotes.slice(0, 3).map((n) => {
+            const cat = categories.find((c) => c.id === n.category_id);
+            return `<div class="d2-entry"${accentStyle(cat)}>
+              <span class="d2-tick"></span>
+              <span style="flex:1;min-width:0">
+                <span class="d2-entryhead"><b>${esc(n.author || 'Nimetön')}</b>
+                  <time>${esc(fmtDate(n.created_at))}</time></span>
+                <div class="d2-entrytext">${esc(n.content)}</div>
+              </span>
+            </div>`;
+          }).join('') || '<div class="d2-entry"><span class="d2-noticemeta">Ei huomioita vielä.</span></div>'}
+        </div>
+      </div>
+    </div>`;
+
+  const addNote = async () => {
+    const el = $('#d2NoteText');
+    if (!el.value.trim()) return toast('Kirjoita huomio', true);
+    try { await Store.notes.create({ content: el.value, category_id: null, author: author.get() });
+      toast('Lisätty'); viewHome2a(); }
+    catch (err) { toast(err.message, true); }
+  };
+  $('#d2NoteAdd').onclick = addNote;
+  $('#d2NoteText').onkeydown = (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') addNote(); };
+}
+
 async function viewHome() {
+  if (design.get()) return viewHome2a();
   currentCategoryId = null; renderSidebar();
   const [pages, recentNotes, popular, contacts, anns] = await Promise.all([
     Store.pages.list(),
@@ -2012,6 +2193,27 @@ $('#menuToggle').onclick = () => $('#sidebar').classList.toggle('open');
   // niissä tilanteissa, joissa sivupalkkia ei renderöidä (esim. kirjautumisruutu).
   const tSub = $('#toggleSubcatsBtn'); if (tSub) tSub.innerHTML = icon('chevDown');
 })();
+
+// Designin koekytkin: vaihtaa nykyisen ja 2a-ehdotuksen välillä lennossa.
+// Väliaikainen – poistetaan kun suunnasta on päätetty.
+const designToggle = $('#designToggle');
+if (designToggle) {
+  const paint = () => {
+    const on = design.get();
+    designToggle.textContent = on ? '2a' : 'Nyk.';
+    designToggle.classList.toggle('on', on);
+    designToggle.title = on ? 'Näytä nykyinen ulkoasu' : 'Näytä designehdotus 2a';
+    designToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+  };
+  designToggle.onclick = () => {
+    const on = !design.get();
+    design.set(on);
+    // 2a on suunniteltu tummalle pohjalle – vaihdetaan teema mukana ensi kerralla.
+    if (on) { try { localStorage.setItem('tyowiki_theme', 'dark'); } catch (_) {} applyTheme(); }
+    paint(); router();
+  };
+  paint();
+}
 
 // Teema: tallennettu valinta > käyttöjärjestelmän asetus.
 function applyTheme() {

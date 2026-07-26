@@ -441,6 +441,53 @@ async function main() {
     ok('lukija ei näe Roskakori-navilinkkiä', !(await page.isVisible('.nav-link[data-nav="trash"]')));
     await page.evaluate(() => { document.documentElement.removeAttribute('data-vrole'); });
 
+    // 8) Designehdotus 2a (koekappale): kytkin vaihtaa etusivun ilmettä,
+    //    data on sama ja nykyinen ulkoasu säilyy palautettavana.
+    await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(600);
+    ok('oletuksena nykyinen ulkoasu', await page.evaluate(() =>
+      !document.documentElement.dataset.design && !!document.querySelector('.home-grid')));
+    await page.click('#designToggle'); await page.waitForTimeout(900);
+    ok('kytkin ottaa 2a:n käyttöön', await page.evaluate(() =>
+      document.documentElement.dataset.design === '2a' && !!document.querySelector('.d2-home')));
+    ok('2a näyttää kategoriat ja käytetyimmät',
+      (await page.$$('.d2-cat')).length >= 2 && (await page.$$('.d2-toprow')).length >= 1);
+    ok('2a käyttää paketoitua Inter Tight -fonttia',
+      /Inter Tight/.test(await page.$eval('.d2-title', (e) => getComputedStyle(e).fontFamily)));
+    ok('2a käyttää monospacea numeroissa',
+      /Plex Mono/.test(await page.$eval('.d2-stat b', (e) => getComputedStyle(e).fontFamily)));
+    ok('2a: ei varjoja korteissa',
+      (await page.$eval('.d2-card', (e) => getComputedStyle(e).boxShadow)) === 'none');
+    // Navigointi ja kirjoitus toimivat 2a:ssa samoin kuin ennen
+    await page.click('.d2-toprow'); await page.waitForTimeout(700);
+    ok('2a: käytetyimmät-rivi avaa ohjeen', /#\/sivu\//.test(page.url()), page.url());
+    await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(700);
+    await page.fill('#d2NoteText', 'Huomio 2a-etusivulta');
+    await page.click('#d2NoteAdd'); await page.waitForTimeout(900);
+    ok('2a: vuorolokikirjaus tallentuu',
+      (await page.$$eval('.d2-entrytext', (els) => els.map((e) => e.textContent)))
+        .some((t) => t.indexOf('Huomio 2a-etusivulta') >= 0));
+    ok('2a: valinta säilyy uudelleenlatauksessa', await (async () => {
+      await page.reload(); await page.waitForTimeout(1100);
+      return page.evaluate(() => document.documentElement.dataset.design === '2a');
+    })());
+    await page.click('#designToggle'); await page.waitForTimeout(900);
+    ok('kytkin palauttaa nykyisen ulkoasun', await page.evaluate(() =>
+      !document.documentElement.dataset.design && !!document.querySelector('.home-grid')));
+
+    // 9) Kapea näyttö ei saa vieriä vaakasuunnassa kummassakaan ilmeessä
+    //    (yläpalkki levisi aiemmin ~140 px yli ruudun puhelimella).
+    for (const mode of ['', '2a']) {
+      const nar = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+      nar.on('pageerror', (e) => errors.push('kapea: ' + e.message));
+      await nar.goto(fileUrl);
+      await nar.evaluate((m) => { localStorage.clear(); if (m) localStorage.setItem('tyowiki_design', m); }, mode);
+      await nar.reload(); await nar.waitForTimeout(1100);
+      const over = await nar.evaluate(() =>
+        document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      ok(`kapealla näytöllä ei vaakavieritystä (${mode || 'nykyinen'})`, over <= 0, over + ' px');
+      await nar.close();
+    }
+
     ok('ei JS-virheitä koko ajossa', errors.length === 0, errors.join(','));
   } finally {
     await browser.close();

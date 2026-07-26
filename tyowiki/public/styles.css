@@ -622,6 +622,13 @@ mark { background: var(--mark-bg); color: var(--mark-text); padding: 0 2px; bord
 /* Mobile */
 @media (max-width: 780px) {
   #menuToggle { display: inline-block; }
+  /* Yläpalkki mahtui aiemmin yli ruudun (~140 px) kapealla puhelimella, mikä
+     sai koko sivun vierimään vaakasuunnassa. Haku joustaa, ei-kriittiset
+     merkit piiloon. */
+  .topbar { gap: 8px; padding: 0 10px; }
+  .search { flex: 1 1 auto; min-width: 0; }
+  .sandbox-badge, .design-toggle { display: none; }
+  .brand-text small { display: none; }
   .sidebar {
     position: fixed; top: 57px; left: 0; bottom: 0; z-index: 30; overflow-y: auto;
     transform: translateX(-100%); transition: transform .2s; box-shadow: 2px 0 12px rgba(0,0,0,.15);
@@ -734,6 +741,16 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 
 /* Vaaravyöhyke: kategorian poiston salasanavahvistus */
 .danger-zone { border-color: var(--danger-text); background: var(--danger-bg); }
+
+/* Designin koekytkin yläpalkissa (väliaikainen – poistetaan kun suunta on valittu) */
+.design-toggle {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 20px; cursor: pointer; white-space: nowrap;
+  background: var(--panel); color: var(--muted);
+  border: 1px dashed var(--border);
+}
+.design-toggle:hover { color: var(--text); border-color: var(--brand); }
+.design-toggle.on { background: var(--brand); color: #fff; border-style: solid; border-color: var(--brand); }
 
 /* Roskakori: poistetut ohjeet + jäljellä oleva säilytysaika */
 /* Huom: .page-list li on tarkempi valitsin, joten roskakorirlvit tarvitsevat

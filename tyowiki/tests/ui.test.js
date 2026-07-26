@@ -507,6 +507,54 @@ async function main() {
       await nar.close();
     }
 
+    // 10) Yläpalkki ja sivupalkki pysyvät paikoillaan vieritettäessä.
+    //     (html,body{height:100%} rikkoi stickyn aiemmin kokonaan.)
+    await page.evaluate(async () => {
+      const cats = await Store.categories.list();
+      let t = '';
+      for (let i = 1; i <= 50; i++) t += `## Osio ${i}\n\nTekstiä vierittämistä varten.\n\n`;
+      for (let i = 0; i < 12; i++) await Store.categories.create({ name: 'Vierityskategoria ' + i, icon: 'svg:folder' });
+      const pg = await Store.pages.create({ title: 'Vieritystesti', content: t, category_id: cats[0].id, author: 'T' });
+      await loadCategories();
+      location.hash = '#/sivu/' + pg.id;
+    });
+    await page.waitForTimeout(1000);
+    await page.evaluate(() => window.scrollTo(0, 2000)); await page.waitForTimeout(400);
+    const stick = await page.evaluate(() => {
+      const t = document.querySelector('.topbar').getBoundingClientRect();
+      const s = document.querySelector('.sidebar');
+      const sr = s.getBoundingClientRect();
+      return { top: Math.round(t.top), sideTop: Math.round(sr.top),
+        sisalto: s.scrollHeight, nakyva: s.clientHeight, scrollY: Math.round(window.scrollY) };
+    });
+    ok('sivu on oikeasti vieritetty', stick.scrollY > 500, stick.scrollY + 'px');
+    ok('yläpalkki pysyy paikallaan vieritettäessä', stick.top === 0, 'y=' + stick.top);
+    ok('sivupalkki pysyy paikallaan vieritettäessä', stick.sideTop > 0 && stick.sideTop < 70, 'y=' + stick.sideTop);
+    ok('sivupalkki mahtuu ruudulle (oma vieritys)', stick.nakyva < stick.sisalto,
+      stick.nakyva + '/' + stick.sisalto);
+    ok('sivupalkin pohjalle pääsee vierittämällä', await page.evaluate(() => {
+      const s = document.querySelector('.sidebar');
+      s.scrollTop = s.scrollHeight;
+      return Math.round(s.scrollTop + s.clientHeight) >= s.scrollHeight - 2;
+    }));
+    // Sisällysluettelon ankkuri ei saa jäädä yläpalkin alle
+    await page.evaluate(() => { window.scrollTo(0, 0); });
+    await page.waitForTimeout(300);
+    const tocOk = await page.evaluate(() => {
+      const a = document.querySelector('[data-toc]');
+      if (!a) return null;
+      a.click();
+      return new Promise((r) => setTimeout(() => {
+        const h = document.getElementById(a.dataset.toc);
+        r(Math.round(h.getBoundingClientRect().top));
+      }, 800));
+    });
+    if (tocOk !== null) {
+      ok('sisällysluettelon otsikko ei jää yläpalkin alle', tocOk >= 50, 'y=' + tocOk);
+    }
+    await page.evaluate(() => { window.scrollTo(0, 0); location.hash = '#/'; });
+    await page.waitForTimeout(500);
+
     ok('ei JS-virheitä koko ajossa', errors.length === 0, errors.join(','));
   } finally {
     await browser.close();

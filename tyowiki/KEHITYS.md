@@ -46,7 +46,7 @@ jolloin app.js ohittaa kirjautumisen).
    seed-dataan – tee näin vain kun uusi seed-sisältö on demolle tärkeä).
 5. **Ulkoasu-/logiikkamuutoksen jälkeen aina** `node sandbox/build-single.js`
    ja committaa syntynyt tyowiki-sandbox.html.
-6. **`npm test` vihreänä (207 testiä) ennen jokaista committia.** Testit ajavat
+6. **`npm test` vihreänä (216 testiä) ennen jokaista committia.** Testit ajavat
    palvelimen eristetyssä TYOWIKI_DATA_DIR-hakemistossa – eivät koske oikeaa dataa.
 7. **Tekijätieto tulee AINA istunnosta** (`req.user.name`) – älä koskaan luota
    selaimen author-kenttään.
@@ -82,6 +82,15 @@ jolloin app.js ohittaa kirjautumisen).
 - **Liitteet tarjoillaan hiekkalaatikossa**: `/api/attachments/:id` asettaa
   vastauksen CSP:ksi `default-src 'none'; ...; sandbox`, jottei käyttäjän
   lataama SVG/HTML voi ajaa skriptiä XSS-vektorina.
+- **`html, body { height: 100% }` rikkoo `position: sticky`n.** Bodyn laatikko
+  jää ruudun korkuiseksi, jolloin sticky-elementeillä ei ole liikkumavaraa ja
+  ne vierivät pois, vaikka CSS käskee toisin. Käytä `min-height: 100%`.
+  Tämä piti yläpalkin ja oikean palstan stickyt rikki pitkään huomaamatta.
+- **Kiinteä sivupalkki tarvitsee AINA oman vierityksen** (`height: calc(100vh -
+  var(--topbar-h)); overflow-y: auto`). Kategoriapuu on jo 11 rivillä ~740 px
+  eli korkeampi kuin 1366×768-läppärin työtila – ilman omaa vieritystä alimmat
+  kategoriat olisivat saavuttamattomissa. Yläpalkin korkeus on muuttujassa
+  `--topbar-h` (perusilme 57 px, 2a 56 px), käytä sitä älä lukua.
 - **Haun LIKE-kyselyt** escapetaan (`% _ \` → `ESCAPE '\'`), jotta haku on
   kirjaimellinen. Sandbox käyttää substring-hakua, joten se on jo kirjaimellinen.
 - **`highlight()` etsii osumat RAAKATEKSTISTÄ** ja escapettaa palat erikseen.
@@ -194,7 +203,7 @@ Toteutettu **kytkimen taakse**, jotta nykyinen ilme säilyy vertailtavana:
 
 ```bash
 npm start                      # palvelin (PORT=xxxx vaihtaa portin)
-npm test                       # 207 testiä eristetyssä ympäristössä
+npm test                       # 216 testiä eristetyssä ympäristössä
 npm run backup                 # varmuuskopio backups/-kansioon
 node sandbox/build-single.js   # kokoa jaettava sandbox-tiedosto
 node reindex.js                # liitteiden hakuindeksin uudelleenajo

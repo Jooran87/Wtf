@@ -54,6 +54,7 @@
   --sel: rgba(255,255,255,.06);
   --act: var(--brand);
   --acttx: #20120A;
+  --topbar-h: 56px;   /* 2a:n yläpalkki on matalampi kuin perusilmeen 57 px */
 }
 
 /* ---- Tokenit: vaalea teema ---- */
@@ -77,6 +78,7 @@
   --sel: rgba(15,20,30,.05);
   --act: var(--brand);
   --acttx: #FFFFFF;
+  --topbar-h: 56px;
 }
 
 /* ---- Perusta ---- */

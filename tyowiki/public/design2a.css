@@ -122,6 +122,17 @@
   height: 34px; max-width: 520px; border-radius: 7px;
   background: var(--panel2); border: 1px solid var(--line2); color: var(--tx);
 }
+/* Kello 2a:n typografialla: numerot monospacena kuten muutkin luvut */
+:root[data-design="2a"] .clock-time {
+  font-family: 'Plex Mono', monospace; font-size: 14px; font-weight: 700; color: var(--tx);
+}
+:root[data-design="2a"] .clock-date {
+  font-family: 'Plex Mono', monospace; font-size: 11px; color: var(--tx3);
+}
+:root[data-design="2a"] .clock-week {
+  font-family: 'Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: .06em;
+  color: var(--brand); background: none; border: 1px solid var(--line2); border-radius: 4px; padding: 2px 6px;
+}
 
 /* ---- Sivupalkki (232 px, ryhmitelty) ---- */
 :root[data-design="2a"] .sidebar {

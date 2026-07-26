@@ -2,6 +2,8 @@
 
 Selainpohjainen, paikallisesti ylläpidettävä wiki työohjeille. Sisältää:
 
+- **Yläpalkin kello** – kellonaika, päivämäärä ja **viikkonumero** (ISO 8601)
+  aina näkyvissä; vuorotyössä viikkonumero on arjen kieltä
 - **Ohjeet ja kategoriat** – Wikipedia-tyylinen sivupalkki ja hakukenttä
 - **Alakategoriat (monta tasoa)** – kategorian alle voi luoda alakategorioita
   useassa tasossa, esim. Hälytyskeskus → Hälytysjärjestelmien ohjeet → DSC/Ajax/HHL.

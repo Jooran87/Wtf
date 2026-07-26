@@ -716,6 +716,41 @@ async function main() {
     await page.evaluate(() => { window.scrollTo(0, 0); location.hash = '#/'; });
     await page.waitForTimeout(500);
 
+    // 11) Yläpalkin kello: aika, päivämäärä ja ISO-viikkonumero.
+    await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(500);
+    const clock = await page.evaluate(() => {
+      const e = document.querySelector('#clock');
+      if (!e) return null;
+      return {
+        aika: (e.querySelector('.clock-time') || {}).textContent || '',
+        pvm: (e.querySelector('.clock-date') || {}).textContent || '',
+        vko: (e.querySelector('.clock-week') || {}).textContent || '',
+      };
+    });
+    ok('kello näkyy yläpalkissa', !!clock && /^\d{1,2}[.:]\d{2}$/.test(clock.aika), JSON.stringify(clock));
+    ok('päivämäärä näkyy yläpalkissa', !!clock && /^\d{1,2}\.\d{1,2}\.\d{4}$/.test(clock.pvm), clock && clock.pvm);
+    ok('viikkonumero näkyy yläpalkissa', !!clock && /^vko ([1-9]|[1-4]\d|5[0-3])$/.test(clock.vko), clock && clock.vko);
+    // ISO 8601 -viikkonumero: vuodenvaihteet ovat se kohta joka menee helposti väärin
+    const weeks = await page.evaluate(() => [
+      ['2026-01-01', 1], ['2025-12-29', 1], ['2025-12-28', 52], ['2026-12-31', 53],
+      ['2027-01-01', 53], ['2024-12-30', 1], ['2021-01-01', 53], ['2026-07-26', 30],
+    ].map(([s, odotettu]) => {
+      const [y, m, d] = s.split('-').map(Number);
+      return { s, odotettu, saatu: isoWeek(new Date(y, m - 1, d)) };
+    }));
+    const vaarat = weeks.filter((w) => w.saatu !== w.odotettu);
+    ok('viikkonumero oikein myös vuodenvaihteissa', vaarat.length === 0, JSON.stringify(vaarat));
+    // Kapealla näytöllä päivämäärä väistyy, kello ja viikko jäävät
+    const nar2 = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await nar2.goto(fileUrl); await nar2.waitForTimeout(1100);
+    ok('kapealla näytöllä kello näkyy yhä',
+      await nar2.evaluate(() => document.querySelector('.clock').getBoundingClientRect().width > 0));
+    ok('kapealla näytöllä päivämäärä väistyy',
+      await nar2.evaluate(() => getComputedStyle(document.querySelector('.clock-date')).display === 'none'));
+    ok('kello ei aiheuta vaakavieritystä kapealla',
+      (await nar2.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 0);
+    await nar2.close();
+
     ok('ei JS-virheitä koko ajossa', errors.length === 0, errors.join(','));
   } finally {
     await browser.close();

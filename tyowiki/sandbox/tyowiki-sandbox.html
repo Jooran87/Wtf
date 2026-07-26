@@ -792,6 +792,22 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 /* Vaaravyöhyke: kategorian poiston salasanavahvistus */
 .danger-zone { border-color: var(--danger-text); background: var(--danger-bg); }
 
+/* Yläpalkin kello: aika · päivämäärä · viikkonumero */
+.clock {
+  display: flex; align-items: baseline; gap: 8px; white-space: nowrap; flex-shrink: 0;
+  font-variant-numeric: tabular-nums;   /* numerot eivät hyppi minuutin vaihtuessa */
+}
+.clock-time { font-size: 15px; font-weight: 700; color: var(--text); }
+.clock-date { font-size: 12px; color: var(--muted); }
+.clock-week {
+  font-size: 11px; font-weight: 700; letter-spacing: .03em;
+  color: var(--brand-ink); background: var(--brand-soft);
+  border-radius: 10px; padding: 2px 7px;
+}
+/* Kapealla näytöllä vain kello ja viikko – päivämäärä näkyy puhelimen omasta
+   tilapalkista, eikä yläpalkkiin mahdu kaikkea. */
+@media (max-width: 980px) { .clock-date { display: none; } }
+
 /* Designin koekytkin yläpalkissa (väliaikainen – poistetaan kun suunta on valittu) */
 .design-toggle {
   font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
@@ -944,6 +960,17 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 :root[data-design="2a"] #searchInput {
   height: 34px; max-width: 520px; border-radius: 7px;
   background: var(--panel2); border: 1px solid var(--line2); color: var(--tx);
+}
+/* Kello 2a:n typografialla: numerot monospacena kuten muutkin luvut */
+:root[data-design="2a"] .clock-time {
+  font-family: 'Plex Mono', monospace; font-size: 14px; font-weight: 700; color: var(--tx);
+}
+:root[data-design="2a"] .clock-date {
+  font-family: 'Plex Mono', monospace; font-size: 11px; color: var(--tx3);
+}
+:root[data-design="2a"] .clock-week {
+  font-family: 'Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: .06em;
+  color: var(--brand); background: none; border: 1px solid var(--line2); border-radius: 4px; padding: 2px 6px;
 }
 
 /* ---- Sivupalkki (232 px, ryhmitelty) ---- */
@@ -1223,7 +1250,8 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
     <form id="searchForm" class="search">
       <input id="searchInput" type="search" placeholder="Hae ohjeista, huomioista ja tiedostoista…" autocomplete="off" />
     </form>
-    <button id="designToggle" class="design-toggle" title="Näytä designehdotus 2a">Nyk.</button>
+    <div id="clock" class="clock" title="Päivämäärä, kello ja viikkonumero"></div>
+  <button id="designToggle" class="design-toggle" title="Näytä designehdotus 2a">Nyk.</button>
   <button id="themeToggle" class="icon-btn" title="Tumma tila">🌙</button>
     <span id="userChip" class="user-chip" style="display:none"></span>
     <button id="logoutBtn" class="btn small secondary" style="display:none">Kirjaudu ulos</button>
@@ -3071,7 +3099,6 @@ async function viewHome2a() {
       <div class="d2-stats">
         <div class="d2-stat"><b>${pages.length}</b><span>Ohjetta</span></div>
         <div class="d2-stat"><b class="${notices.length ? 'crit' : ''}">${notices.length}</b><span>Tiedotetta</span></div>
-        <div class="d2-stat"><b>${esc(shortDate(new Date().toISOString()))}</b><span>Tänään</span></div>
       </div>
     </div>
     <div class="d2-home">
@@ -4717,6 +4744,37 @@ if (designToggle) {
   };
   paint();
 }
+
+// ---------- Yläpalkin kello: päivämäärä, kellonaika ja viikkonumero ----------
+// Vuorotyössä viikkonumero on arjen kieltä ("vaihdetaan vk 31 alusta"), ja
+// kellonaika halutaan samasta paikasta kuin kirjaukset tehdään.
+// ISO 8601 -viikkonumero: viikko alkaa maanantaista ja vuoden 1. viikko on se,
+// johon osuu ensimmäinen torstai. Siksi torstain kautta laskeminen.
+function isoWeek(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;            // sunnuntai 0 -> 7
+  t.setUTCDate(t.getUTCDate() + 4 - day);    // saman viikon torstai
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - yearStart) / 86400000 + 1) / 7);
+}
+
+(function initClock() {
+  const el = $('#clock');
+  if (!el) return;
+  const paint = () => {
+    const now = new Date();
+    const pvm = now.toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric', year: 'numeric' });
+    const klo = now.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
+    el.innerHTML = `<span class="clock-time">${esc(klo)}</span>`
+      + `<span class="clock-date">${esc(pvm)}</span>`
+      + `<span class="clock-week">vko ${isoWeek(now)}</span>`;
+    el.setAttribute('datetime', now.toISOString());
+  };
+  paint();
+  // Päivitys minuutin vaihtuessa: ensin kohdistus tasaminuuttiin, sitten
+  // kerran minuutissa – näin kello ei näytä minuuttia jäljessä.
+  setTimeout(() => { paint(); setInterval(paint, 60000); }, (60 - new Date().getSeconds()) * 1000);
+})();
 
 // Teema: tallennettu valinta > käyttöjärjestelmän asetus.
 function applyTheme() {

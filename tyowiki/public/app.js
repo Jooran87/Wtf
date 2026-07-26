@@ -702,7 +702,6 @@ async function viewHome2a() {
       <div class="d2-stats">
         <div class="d2-stat"><b>${pages.length}</b><span>Ohjetta</span></div>
         <div class="d2-stat"><b class="${notices.length ? 'crit' : ''}">${notices.length}</b><span>Tiedotetta</span></div>
-        <div class="d2-stat"><b>${esc(shortDate(new Date().toISOString()))}</b><span>Tänään</span></div>
       </div>
     </div>
     <div class="d2-home">
@@ -2348,6 +2347,37 @@ if (designToggle) {
   };
   paint();
 }
+
+// ---------- Yläpalkin kello: päivämäärä, kellonaika ja viikkonumero ----------
+// Vuorotyössä viikkonumero on arjen kieltä ("vaihdetaan vk 31 alusta"), ja
+// kellonaika halutaan samasta paikasta kuin kirjaukset tehdään.
+// ISO 8601 -viikkonumero: viikko alkaa maanantaista ja vuoden 1. viikko on se,
+// johon osuu ensimmäinen torstai. Siksi torstain kautta laskeminen.
+function isoWeek(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;            // sunnuntai 0 -> 7
+  t.setUTCDate(t.getUTCDate() + 4 - day);    // saman viikon torstai
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - yearStart) / 86400000 + 1) / 7);
+}
+
+(function initClock() {
+  const el = $('#clock');
+  if (!el) return;
+  const paint = () => {
+    const now = new Date();
+    const pvm = now.toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric', year: 'numeric' });
+    const klo = now.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
+    el.innerHTML = `<span class="clock-time">${esc(klo)}</span>`
+      + `<span class="clock-date">${esc(pvm)}</span>`
+      + `<span class="clock-week">vko ${isoWeek(now)}</span>`;
+    el.setAttribute('datetime', now.toISOString());
+  };
+  paint();
+  // Päivitys minuutin vaihtuessa: ensin kohdistus tasaminuuttiin, sitten
+  // kerran minuutissa – näin kello ei näytä minuuttia jäljessä.
+  setTimeout(() => { paint(); setInterval(paint, 60000); }, (60 - new Date().getSeconds()) * 1000);
+})();
 
 // Teema: tallennettu valinta > käyttöjärjestelmän asetus.
 function applyTheme() {

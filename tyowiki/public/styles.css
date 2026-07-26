@@ -777,6 +777,22 @@ li:hover > .row-order, .contact:hover .row-order, .link-row:hover .row-order,
 /* Vaaravyöhyke: kategorian poiston salasanavahvistus */
 .danger-zone { border-color: var(--danger-text); background: var(--danger-bg); }
 
+/* Yläpalkin kello: aika · päivämäärä · viikkonumero */
+.clock {
+  display: flex; align-items: baseline; gap: 8px; white-space: nowrap; flex-shrink: 0;
+  font-variant-numeric: tabular-nums;   /* numerot eivät hyppi minuutin vaihtuessa */
+}
+.clock-time { font-size: 15px; font-weight: 700; color: var(--text); }
+.clock-date { font-size: 12px; color: var(--muted); }
+.clock-week {
+  font-size: 11px; font-weight: 700; letter-spacing: .03em;
+  color: var(--brand-ink); background: var(--brand-soft);
+  border-radius: 10px; padding: 2px 7px;
+}
+/* Kapealla näytöllä vain kello ja viikko – päivämäärä näkyy puhelimen omasta
+   tilapalkista, eikä yläpalkkiin mahdu kaikkea. */
+@media (max-width: 980px) { .clock-date { display: none; } }
+
 /* Designin koekytkin yläpalkissa (väliaikainen – poistetaan kun suunta on valittu) */
 .design-toggle {
   font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;

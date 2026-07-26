@@ -1238,13 +1238,13 @@ async function viewPage(id) {
       <ul class="attach-list">
         ${otherAtts.map(attHtml).join('') || (imgAtts.length ? '' : '<li class="muted" style="border:none">Ei liitteitä.</li>')}
       </ul>
-      <form id="uploadForm" class="row" style="margin-top:12px" enctype="multipart/form-data">
-        <input type="file" id="fileInput" name="files" multiple
+      <div id="uploadForm" class="row" style="margin-top:12px">
+        <input type="file" id="fileInput" name="files" multiple style="display:none"
           accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.svg,.doc,.docx,.xls,.xlsx" />
-        <button class="btn small" type="submit">Lataa</button>
+        <button class="btn small" type="button" id="pickFilesBtn">${icon('attach')} Valitse tiedostot</button>
         <span class="muted">PDF, kuvat, Word, Excel · max 50 Mt</span>
-      </form>
-      <p class="muted" style="margin:8px 0 0">Tästä ladattu kuva näkyy liitteenä.
+      </div>
+      <p class="muted" style="margin:8px 0 0">Tästä lisätty kuva näkyy liitteenä.
         Jos haluat kuvan <strong>tekstin sekaan</strong> (kuten Wordissa), avaa
         ${icon('edit', 'ic-sm')} <strong>Muokkaa</strong> ja klikkaa kuvaa kohdasta
         “Jo liitetyt kuvat” – tai lisää se suoraan <strong>Lisää kuva</strong> -napista.</p>
@@ -1318,14 +1318,25 @@ async function viewPage(id) {
   document.querySelectorAll('[data-delatt]').forEach((b) => b.onclick = async () => {
     if (confirm('Poistetaanko liite?')) { await Store.attachments.remove(b.dataset.delatt); viewPage(id); }
   });
-  $('#uploadForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const files = $('#fileInput').files;
-    if (!files.length) return toast('Valitse tiedosto ensin', true);
+  // Lataus alkaa heti tiedostojen valinnasta – erillistä "Lataa"-nappia ei ole,
+  // koska se olisi voinut tuottaa vain virheen ennen valintaa.
+  const pickBtn = $('#pickFilesBtn');
+  pickBtn.onclick = () => $('#fileInput').click();
+  $('#fileInput').onchange = async (e) => {
+    const files = e.target.files;
+    if (!files.length) return;
+    const label = pickBtn.innerHTML;
+    pickBtn.disabled = true;
+    pickBtn.textContent = files.length > 1 ? `Ladataan ${files.length} tiedostoa…` : 'Ladataan…';
     try {
       await Store.attachments.upload(id, files, author.get());
-      toast('Ladattu'); viewPage(id);
-    } catch (err) { toast(err.message, true); }
+      toast(files.length > 1 ? `${files.length} liitettä ladattu` : 'Liite ladattu');
+      viewPage(id);
+    } catch (err) {
+      toast(err.message, true);
+      pickBtn.disabled = false; pickBtn.innerHTML = label;
+      e.target.value = '';   // sama tiedosto voidaan valita uudelleen
+    }
   };
 }
 

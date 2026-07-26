@@ -523,6 +523,15 @@ async function main() {
     ok('kuvan jälkeen kirjoitettu teksti säilyi',
       (await page.$eval('.doc', (e) => e.textContent)).indexOf('Kolmas kappale') >= 0);
 
+    // Liitteen lisäys: yksi ensisijainen nappi, lataus alkaa valinnasta.
+    // Aiemmin vieressä oli erillinen "Lataa", joka tuotti vain virheen
+    // ennen tiedoston valintaa.
+    ok('erillistä Lataa-nappia ei ole', (await page.$$('#uploadForm button[type=submit]')).length === 0);
+    ok('valintanappi on ensisijainen (oranssi)', await page.$eval('#pickFilesBtn',
+      (e) => e.classList.contains('btn') && !e.classList.contains('secondary')));
+    ok('natiivi tiedostokenttä on piilotettu',
+      await page.$eval('#fileInput', (e) => getComputedStyle(e).display === 'none'));
+
     // Jo liitetyn kuvan pudotus tekstiin: liitteeksi ladattu kuva pitää saada
     // tekstin sekaan ilman uutta latausta (ei kaksoiskappaletta).
     await page.evaluate(async () => {
@@ -532,7 +541,7 @@ async function main() {
     });
     await page.waitForTimeout(700);
     await page.setInputFiles('#fileInput', { name: 'kaavio.png', mimeType: 'image/png', buffer: makePng() });
-    await page.click('#uploadForm button[type=submit]'); await page.waitForTimeout(1100);
+    await page.waitForTimeout(1100);
     ok('liite näkyy vihjeineen artikkelissa',
       (await page.$eval('#content', (e) => e.textContent)).indexOf('tekstin sekaan') >= 0);
     const attsBefore = (await page.$$('.att-thumb')).length;

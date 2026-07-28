@@ -13,4 +13,3 @@ npm-debug.log
 .env
 # Käyttäjälle koottava asennuspaketti on rakennusartefakti (tyowiki/-kansiosta)
 tyowiki-asennuspaketti.zip
-elama-asennuspaketti.zip
